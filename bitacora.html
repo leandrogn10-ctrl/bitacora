@@ -1,0 +1,1764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitácora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #16110d; --bg-elev: #1f1812; --paper: #2a2018; --paper-hi: #342820;
+  --ink: #ede1c8; --ink-dim: #b09a7a; --ink-faint: #6b5e4e;
+  --accent: #d8623f; --accent-soft: #a23b2b;
+  --line: #3a2e22; --line-soft: #2c2218;
+  --gold: #c9a45a;
+  --shadow: 0 1px 0 rgba(255,220,180,0.04) inset, 0 8px 24px rgba(0,0,0,0.4);
+
+  --c-terracotta-fg: #d8623f; --c-terracotta-bg: rgba(216,98,63,0.16); --c-terracotta-bd: rgba(216,98,63,0.4);
+  --c-gold-fg: #c9a45a;       --c-gold-bg: rgba(201,164,90,0.16);    --c-gold-bd: rgba(201,164,90,0.4);
+  --c-sage-fg: #9bbf95;       --c-sage-bg: rgba(155,191,149,0.14);   --c-sage-bd: rgba(155,191,149,0.4);
+  --c-dusty-fg: #88a4c4;      --c-dusty-bg: rgba(136,164,196,0.14);  --c-dusty-bd: rgba(136,164,196,0.4);
+  --c-plum-fg: #b888a8;       --c-plum-bg: rgba(184,136,168,0.14);   --c-plum-bd: rgba(184,136,168,0.4);
+  --c-ochre-fg: #c79858;      --c-ochre-bg: rgba(199,152,88,0.14);   --c-ochre-bd: rgba(199,152,88,0.4);
+  --c-rust-fg: #c87858;       --c-rust-bg: rgba(200,120,88,0.14);    --c-rust-bd: rgba(200,120,88,0.4);
+  --c-ash-fg: #a89c8e;        --c-ash-bg: rgba(168,156,142,0.14);    --c-ash-bd: rgba(168,156,142,0.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55;
+  background-image:
+    radial-gradient(ellipse at 15% 10%, rgba(216,98,63,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 90%, rgba(201,164,90,0.04) 0%, transparent 55%),
+    repeating-linear-gradient(0deg, rgba(255,220,180,0.008) 0 1px, transparent 1px 3px);
+  min-height: 100vh; -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .serif { font-family: 'Instrument Serif', 'Times New Roman', serif; font-weight: 400; letter-spacing: -0.01em; }
+.italic { font-style: italic; }
+button { font-family: inherit; font-size: inherit; color: inherit; cursor: pointer; background: none; border: none; }
+input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; background: none; border: none; outline: none; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent-soft); }
+a:hover { color: #e87650; }
+
+.app {
+  display: grid; grid-template-columns: 240px 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "topbar topbar" "sidebar content";
+  min-height: 100vh; max-width: 1400px; margin: 0 auto;
+}
+
+/* topbar */
+.topbar {
+  grid-area: topbar;
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 28px 36px 18px; border-bottom: 1px solid var(--line);
+  position: relative;
+}
+.topbar::after { content:''; position:absolute; left:36px; right:36px; bottom:-3px; height:1px; background: var(--line-soft); }
+.brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.brand h1 { font-size: 44px; font-style: italic; color: var(--ink); letter-spacing: -0.02em; }
+.brand h1::first-letter { color: var(--accent); }
+.tagline { color: var(--ink-faint); font-style: italic; font-family: 'Instrument Serif', serif; font-size: 16px; }
+.actions { display: flex; gap: 10px; align-items: center; }
+
+.sync-pip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  padding: 4px 10px; border: 1px solid var(--line); border-radius: 2px;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
+}
+.sync-pip:hover { color: var(--ink-dim); border-color: var(--accent-soft); }
+.sync-pip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); transition: background 0.15s; }
+.sync-pip.on .dot { background: var(--c-sage-fg); }
+.sync-pip.syncing .dot { background: var(--accent); animation: pulse 1s infinite; }
+.sync-pip.error .dot { background: #c47878; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 2px;
+  padding: 8px 12px; width: 280px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.search-wrap:focus-within { border-color: var(--accent); background: var(--paper-hi); }
+.search-wrap svg { width: 14px; height: 14px; color: var(--ink-faint); flex-shrink: 0; }
+.search-wrap input { width: 100%; }
+.search-wrap input::placeholder { color: var(--ink-faint); }
+.search-wrap kbd { background: var(--bg); border: 1px solid var(--line); padding: 1px 6px; border-radius: 2px; font-size: 10px; color: var(--ink-faint); }
+.add-btn {
+  background: var(--accent); color: var(--bg);
+  padding: 9px 18px; border-radius: 2px;
+  font-weight: 600; letter-spacing: 0.02em;
+  transition: background 0.15s, transform 0.1s;
+}
+.add-btn:hover { background: #e87650; }
+.add-btn:active { transform: translateY(1px); }
+
+/* sidebar */
+.sidebar {
+  grid-area: sidebar; padding: 28px 24px 28px 36px;
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 28px;
+}
+.sidebar section { display: flex; flex-direction: column; gap: 6px; }
+.sidebar h3 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--ink-faint); font-family: 'JetBrains Mono', monospace;
+  font-weight: 600; margin-bottom: 6px; padding-left: 2px;
+}
+.nav-list { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+.nav-list li {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px; border-radius: 2px; cursor: pointer;
+  color: var(--ink-dim);
+  transition: background 0.12s, color 0.12s;
+  font-size: 13px; user-select: none;
+}
+.nav-list li:hover { background: var(--paper); color: var(--ink); }
+.nav-list li.active {
+  background: var(--paper); color: var(--ink);
+  border-left: 2px solid var(--accent); padding-left: 8px;
+}
+.nav-list li .count { color: var(--ink-faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.nav-list li.active .count { color: var(--accent); }
+.collection-actions { display: flex; gap: 6px; align-items: center; }
+.collection-actions button.tiny { opacity: 0; transition: opacity 0.12s; color: var(--ink-faint); font-size: 11px; padding: 0 4px; }
+.nav-list li:hover .collection-actions button.tiny { opacity: 1; }
+.nav-list li:hover .collection-actions button.tiny:hover { color: var(--accent); }
+
+.ghost-btn { color: var(--ink-faint); text-align: left; padding: 6px 10px; border-radius: 2px; font-size: 12px; transition: color 0.12s, background 0.12s; }
+.ghost-btn:hover { color: var(--ink); background: var(--paper); }
+.tools { margin-top: auto; }
+.tools .ghost-btn { font-size: 11px; }
+
+/* content */
+.content { grid-area: content; padding: 28px 36px 60px; overflow: hidden; }
+.content-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: 14px; margin-bottom: 22px;
+  flex-wrap: wrap; gap: 8px;
+}
+.content-header h2 { font-size: 32px; font-style: italic; color: var(--ink); }
+.view-meta {
+  font-size: 11px; color: var(--ink-faint);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.active-tag { display: inline-flex; align-items: center; gap: 2px; background: var(--accent); color: var(--bg); padding: 3px 4px 3px 10px; border-radius: 2px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+.active-tag button { color: var(--bg); font-weight: 700; padding: 0 6px; font-size: 14px; line-height: 1; }
+.active-tag button:hover { color: rgba(0,0,0,0.55); }
+
+.filter-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+.sort-bar { display: flex; gap: 14px; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; }
+.sort-bar button { color: var(--ink-faint); padding: 2px 0; border-bottom: 1px dashed transparent; transition: color 0.12s, border-color 0.12s; }
+.sort-bar button:hover { color: var(--ink-dim); }
+.sort-bar button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* tag picker (custom dropdown) */
+.tag-picker { position: relative; }
+.tag-picker-trigger {
+  display: inline-flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 2px;
+  padding: 6px 12px;
+  font-size: 11px; color: var(--ink-dim);
+  font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  min-width: 220px;
+}
+.tag-picker-trigger:hover { color: var(--ink); border-color: var(--accent-soft); }
+.tag-picker-trigger.active { color: var(--accent); border-color: var(--accent-soft); background: var(--paper-hi); }
+.tag-picker-trigger .caret { color: var(--ink-faint); font-size: 9px; transition: transform 0.18s; }
+.tag-picker.open .tag-picker-trigger .caret { transform: rotate(180deg); }
+.tag-picker-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tag-picker-popover {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  min-width: 320px; max-width: 480px; max-height: 70vh; overflow-y: auto;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 3px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  z-index: 100;
+  animation: popIn 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tag-picker-popover.hidden { display: none; }
+@keyframes popIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.tag-picker-popover .clear-row {
+  display: flex; justify-content: flex-end; padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft); margin-bottom: 10px;
+}
+.tag-picker-popover .clear-row button {
+  font-size: 10px; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 2px 6px; border-radius: 2px;
+  transition: background 0.12s;
+}
+.tag-picker-popover .clear-row button:hover { background: var(--paper); }
+.tag-picker-popover .group-header {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--ink-faint); margin-bottom: 6px; margin-top: 4px;
+  display: flex; align-items: center; gap: 7px;
+}
+.tag-picker-popover .group-header .swatch { width: 8px; height: 8px; border-radius: 50%; }
+.tag-picker-popover .group-section { margin-bottom: 14px; }
+.tag-picker-popover .group-section:last-child { margin-bottom: 0; }
+.tag-picker-popover .chips { display: flex; flex-wrap: wrap; gap: 4px 5px; }
+
+/* items */
+.items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+
+.item-card {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 2px;
+  padding: 16px 18px; cursor: pointer;
+  transition: border-color 0.18s, transform 0.18s, background 0.18s;
+  position: relative; display: flex; flex-direction: column; gap: 10px;
+  animation: cardIn 0.4s ease both;
+}
+@keyframes cardIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.item-card:hover { border-color: var(--accent-soft); background: var(--paper-hi); transform: translateY(-1px); }
+.item-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); opacity: 0; transition: opacity 0.2s; }
+.item-card:hover::before { opacity: 1; }
+
+.item-card .row1 { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.item-card .title { font-family: 'Instrument Serif', serif; font-size: 22px; line-height: 1.15; color: var(--ink); flex: 1; word-break: break-word; }
+.item-card .rating { color: var(--gold); font-size: 12px; letter-spacing: 0.05em; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.item-card .rating .empty { color: var(--ink-faint); opacity: 0.4; }
+
+.item-card .meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 10.5px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.12em; align-items: center; }
+.item-card .status-pill { padding: 2px 8px; border-radius: 2px; font-weight: 600; font-size: 9.5px; }
+.status-queued { background: rgba(176, 154, 122, 0.15); color: var(--ink-dim); }
+.status-active { background: rgba(216, 98, 63, 0.18); color: var(--accent); }
+.status-done { background: rgba(201, 164, 90, 0.15); color: var(--gold); }
+.status-dropped { background: rgba(180, 80, 80, 0.12); color: #c47878; }
+
+.item-card .notes-preview { font-size: 12px; color: var(--ink-dim); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item-card .has-config, .item-card .has-claude { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; display: flex; align-items: center; gap: 5px; }
+.item-card .has-config { color: var(--accent); }
+.item-card .has-config::before { content: '◆'; }
+.item-card .has-claude { color: var(--c-dusty-fg); }
+.item-card .has-claude::before { content: '✦'; }
+.item-card .has-claude-takes { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c-dusty-fg); display: flex; align-items: center; gap: 5px; opacity: 0.85; }
+.item-card .has-claude-takes::before { content: '◌'; }
+
+/* claude takes panel inside entry modal */
+.claude-takes-section { padding: 16px 26px 4px; border-top: 1px solid var(--line-soft); margin-top: 4px; }
+.claude-takes-section h4 { font-family: 'Instrument Serif', serif; font-size: 18px; font-style: italic; color: var(--c-dusty-fg); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+.claude-takes-section h4 button { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; }
+.claude-takes-section h4 button:hover { color: #c47878; }
+.claude-take { padding: 10px 12px; background: var(--paper); border-left: 2px solid var(--c-dusty-fg); border-radius: 2px; margin-bottom: 8px; font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
+.claude-take .meta { display: block; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; font-family: 'JetBrains Mono', monospace; }
+
+.item-card .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.tag {
+  font-size: 10px; padding: 1px 7px; border-radius: 2px;
+  cursor: pointer; user-select: none;
+  background: var(--bg); color: var(--ink-faint);
+  border: 1px solid var(--line);
+  transition: filter 0.12s, transform 0.12s;
+}
+.tag:hover { filter: brightness(1.25); transform: translateY(-1px); }
+.tag.active { color: var(--bg) !important; background: var(--accent) !important; border-color: var(--accent) !important; }
+
+.tag-color-terracotta { color: var(--c-terracotta-fg); background: var(--c-terracotta-bg); border-color: var(--c-terracotta-bd); }
+.tag-color-gold       { color: var(--c-gold-fg); background: var(--c-gold-bg); border-color: var(--c-gold-bd); }
+.tag-color-sage       { color: var(--c-sage-fg); background: var(--c-sage-bg); border-color: var(--c-sage-bd); }
+.tag-color-dusty      { color: var(--c-dusty-fg); background: var(--c-dusty-bg); border-color: var(--c-dusty-bd); }
+.tag-color-plum       { color: var(--c-plum-fg); background: var(--c-plum-bg); border-color: var(--c-plum-bd); }
+.tag-color-ochre      { color: var(--c-ochre-fg); background: var(--c-ochre-bg); border-color: var(--c-ochre-bd); }
+.tag-color-rust       { color: var(--c-rust-fg); background: var(--c-rust-bg); border-color: var(--c-rust-bd); }
+.tag-color-ash        { color: var(--c-ash-fg); background: var(--c-ash-bg); border-color: var(--c-ash-bd); }
+
+.swatch { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s, border-color 0.12s; }
+.swatch:hover { transform: scale(1.15); }
+.swatch.selected { border-color: var(--ink); }
+.swatch-terracotta { background: var(--c-terracotta-fg); }
+.swatch-gold       { background: var(--c-gold-fg); }
+.swatch-sage       { background: var(--c-sage-fg); }
+.swatch-dusty      { background: var(--c-dusty-fg); }
+.swatch-plum       { background: var(--c-plum-fg); }
+.swatch-ochre      { background: var(--c-ochre-fg); }
+.swatch-rust       { background: var(--c-rust-fg); }
+.swatch-ash        { background: var(--c-ash-fg); }
+
+/* empty state */
+.empty-state { text-align: center; padding: 80px 20px; color: var(--ink-faint); display: none; }
+.empty-state.show { display: block; }
+.empty-state .ornament { font-family: 'Instrument Serif', serif; font-size: 60px; color: var(--accent); opacity: 0.4; margin-bottom: 8px; }
+.empty-state h3 { font-family: 'Instrument Serif', serif; font-size: 26px; font-style: italic; color: var(--ink-dim); margin-bottom: 8px; }
+.empty-state p { font-size: 12px; max-width: 340px; margin: 0 auto; line-height: 1.6; }
+.empty-state p kbd { background: var(--paper); border: 1px solid var(--line); padding: 1px 6px; border-radius: 2px; color: var(--ink-dim); }
+
+/* modals */
+dialog { border: none; padding: 0; background: transparent; color: inherit; max-width: none; max-height: none; }
+dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); }
+.modal { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 3px; width: min(620px, 92vw); max-height: 88vh; display: flex; flex-direction: column; box-shadow: var(--shadow); animation: modalIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.modal.wide { width: min(760px, 94vw); }
+@keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.modal header { display: flex; justify-content: space-between; align-items: baseline; padding: 22px 26px 14px; border-bottom: 1px solid var(--line); }
+.modal header h2 { font-size: 26px; font-style: italic; }
+.modal header p { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
+.modal .close { font-size: 22px; color: var(--ink-faint); padding: 0 6px; line-height: 1; }
+.modal .close:hover { color: var(--accent); }
+.modal-body { padding: 20px 26px; overflow-y: auto; }
+.modal footer { display: flex; justify-content: space-between; padding: 16px 26px 22px; border-top: 1px solid var(--line); gap: 12px; flex-wrap: wrap; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+.form-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-faint); font-weight: 600; }
+.form-grid label.span-2 { grid-column: 1 / -1; }
+.form-grid input[type="text"], .form-grid input[type="password"], .form-grid select, .form-grid textarea {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 2px;
+  padding: 9px 11px; font-size: 13px; color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0; text-transform: none; font-weight: 400;
+  transition: border-color 0.12s, background 0.12s;
+}
+.form-grid input:focus, .form-grid select:focus, .form-grid textarea:focus { border-color: var(--accent); background: var(--paper-hi); }
+.form-grid textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+.form-grid textarea.config-field { font-feature-settings: "calt" 0; background: var(--bg); font-size: 12px; color: var(--gold); }
+.form-grid textarea.claude-field { background: var(--bg); color: var(--c-dusty-fg); border-color: rgba(136,164,196,0.25); }
+.form-grid select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23b09a7a' fill='none' stroke-width='1.2'/></svg>");
+  background-repeat: no-repeat; background-position: right 11px center; padding-right: 28px;
+}
+
+.star-input { display: flex; gap: 2px; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; padding: 8px 11px; align-items: center; }
+.star-input button { color: var(--ink-faint); font-size: 16px; padding: 0; width: 22px; line-height: 1; transition: color 0.1s; }
+.star-input button.filled { color: var(--gold); }
+.star-input button:hover { color: var(--accent); }
+.star-input .clear { margin-left: 8px; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; width: auto; }
+
+.modal footer .submit, .btn-primary { background: var(--accent); color: var(--bg); padding: 9px 22px; border-radius: 2px; font-weight: 600; letter-spacing: 0.02em; transition: background 0.15s; }
+.modal footer .submit:hover, .btn-primary:hover { background: #e87650; }
+.modal footer .danger, .btn-danger { color: #c47878; padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; transition: color 0.15s; }
+.modal footer .danger:hover, .btn-danger:hover { color: #e88080; }
+.modal footer .danger.hidden { visibility: hidden; }
+.btn-secondary { color: var(--ink-dim); padding: 9px 16px; border: 1px solid var(--line); border-radius: 2px; font-size: 12px; transition: color 0.15s, border-color 0.15s; }
+.btn-secondary:hover { color: var(--ink); border-color: var(--accent-soft); }
+
+.prompt-modal { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 3px; width: min(460px, 92vw); padding: 24px 26px; box-shadow: var(--shadow); }
+.prompt-modal h2 { font-size: 22px; font-style: italic; margin-bottom: 6px; }
+.prompt-modal p { color: var(--ink-dim); font-size: 12px; margin-bottom: 16px; line-height: 1.6; }
+.prompt-modal input { width: 100%; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; padding: 10px 12px; font-size: 13px; margin-bottom: 16px; }
+.prompt-modal input:focus { border-color: var(--accent); }
+.prompt-modal .actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+.section-block { margin-bottom: 24px; }
+.section-block h3 { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-faint); margin-bottom: 12px; }
+.group-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; margin-bottom: 6px; }
+.group-row .name { flex: 1; color: var(--ink); font-size: 13px; }
+.group-row .swatch { width: 16px; height: 16px; }
+.group-row .actions { display: flex; gap: 4px; }
+.group-row .actions button { color: var(--ink-faint); padding: 2px 8px; font-size: 11px; }
+.group-row .actions button:hover { color: var(--accent); }
+.tag-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); }
+.tag-row:last-child { border-bottom: none; }
+.tag-row .tag-pill { justify-self: start; }
+.tag-row select { background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 4px 22px 4px 8px; font-size: 11px; color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; appearance: none; cursor: pointer; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M1 1l3 3 3-3' stroke='%23b09a7a' fill='none' stroke-width='1.2'/></svg>"); background-repeat: no-repeat; background-position: right 7px center; }
+.tag-row select:hover { color: var(--ink); border-color: var(--accent-soft); }
+
+.settings-section { background: var(--paper); border: 1px solid var(--line); border-radius: 3px; padding: 16px 18px; margin-bottom: 14px; }
+.settings-section h3 { font-family: 'Instrument Serif', serif; font-size: 18px; font-style: italic; color: var(--ink); margin-bottom: 4px; text-transform: none; letter-spacing: 0; }
+.settings-section .desc { color: var(--ink-faint); font-size: 11px; line-height: 1.5; margin-bottom: 12px; }
+.settings-section textarea { width: 100%; min-height: 120px; background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 10px 12px; font-size: 12px; color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; line-height: 1.5; resize: vertical; }
+.settings-section textarea:focus { border-color: var(--accent); color: var(--ink); }
+.toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--ink-dim); cursor: pointer; user-select: none; }
+.toggle-row input[type="checkbox"] { appearance: none; width: 32px; height: 18px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.toggle-row input[type="checkbox"]::before { content: ''; position: absolute; top: 1px; left: 1px; width: 14px; height: 14px; background: var(--ink-faint); border-radius: 50%; transition: left 0.15s, background 0.15s; }
+.toggle-row input[type="checkbox"]:checked { background: var(--c-sage-bg); border-color: var(--c-sage-bd); }
+.toggle-row input[type="checkbox"]:checked::before { left: 15px; background: var(--c-sage-fg); }
+
+.sync-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); margin-top: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+.sync-status.ok { color: var(--c-sage-fg); }
+.sync-status.err { color: #c47878; }
+
+.import-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; margin: 10px 0 18px; font-size: 12px; color: var(--ink-dim); }
+.import-card .label { color: var(--ink-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; }
+.import-card .vals { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* claude floating panel */
+.claude-panel {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 380px; max-height: 60vh;
+  background: var(--bg-elev); border: 1px solid var(--c-dusty-bd);
+  border-radius: 3px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+  z-index: 900;
+  animation: claudeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.claude-panel.hidden { display: none; }
+@keyframes claudeIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+.claude-panel header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.claude-panel .badge { color: var(--c-dusty-fg); font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 600; }
+.claude-panel .panel-title { flex: 1; font-family: 'Instrument Serif', serif; font-style: italic; color: var(--ink); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.claude-panel .panel-close { color: var(--ink-faint); font-size: 18px; line-height: 1; padding: 0 4px; }
+.claude-panel .panel-close:hover { color: var(--accent); }
+.claude-panel .panel-body { padding: 14px 16px; font-size: 13px; line-height: 1.6; color: var(--ink); overflow-y: auto; white-space: pre-wrap; }
+.claude-panel .panel-body.thinking { color: var(--ink-faint); font-style: italic; display: flex; align-items: center; gap: 8px; }
+.claude-panel .panel-body.thinking::before { content: '✦'; color: var(--c-dusty-fg); animation: pulse 1.2s infinite; font-style: normal; }
+.claude-panel.error .panel-body { color: #c47878; font-size: 12px; }
+.claude-panel .panel-foot { padding: 8px 16px 12px; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line-soft); }
+.claude-panel .panel-foot button { color: var(--ink-faint); font-size: 10px; transition: color 0.12s; }
+.claude-panel .panel-foot button:hover { color: var(--accent); }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--paper-hi); border: 1px solid var(--accent-soft); color: var(--ink); padding: 10px 18px; font-size: 12px; border-radius: 2px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 1000; max-width: 80vw; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+.toast.err { border-color: #c47878; }
+
+@media (max-width: 880px) {
+  .app { grid-template-columns: 1fr; grid-template-areas: "topbar" "sidebar" "content"; }
+  .sidebar { border-right: none; border-bottom: 1px solid var(--line); padding: 18px 20px; flex-direction: row; flex-wrap: wrap; gap: 18px; overflow-x: auto; }
+  .sidebar section { flex: 1; min-width: 160px; }
+  .tools { width: 100%; flex-direction: row; gap: 6px; flex-wrap: wrap; }
+  .topbar { padding: 20px 20px 14px; flex-wrap: wrap; gap: 12px; }
+  .brand h1 { font-size: 36px; }
+  .tagline { display: none; }
+  .search-wrap { width: 100%; }
+  .actions { width: 100%; flex-wrap: wrap; }
+  .content { padding: 20px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .tag-picker-trigger { width: 100%; }
+  .tag-picker-popover { left: 0; right: 0; max-width: none; }
+  .claude-panel { width: calc(100vw - 32px); right: 16px; bottom: 16px; }
+}
+
+::selection { background: var(--accent-soft); color: var(--ink); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--paper-hi); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--line); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Bitácora</h1>
+      <span class="tagline">— a log of things watched, played, and tuned</span>
+    </div>
+    <div class="actions">
+      <button class="sync-pip" id="sync-pip" title="cloud sync — click for settings">
+        <span class="dot"></span><span id="sync-pip-label">offline</span>
+      </button>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+        <input id="search" placeholder="search titles, tags, notes…" autocomplete="off">
+        <kbd>/</kbd>
+      </div>
+      <button class="add-btn" id="add-entry-btn">＋ entry</button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <section>
+      <h3>Collections</h3>
+      <ul class="nav-list" id="collection-list"></ul>
+      <button class="ghost-btn" id="add-collection-btn">+ new collection</button>
+    </section>
+    <section>
+      <h3>Status</h3>
+      <ul class="nav-list" id="status-list">
+        <li data-status="all" class="active"><span>All</span><span class="count" id="count-all">0</span></li>
+        <li data-status="queued"><span>Queued</span><span class="count" id="count-queued">0</span></li>
+        <li data-status="active"><span>In progress</span><span class="count" id="count-active">0</span></li>
+        <li data-status="done"><span>Done</span><span class="count" id="count-done">0</span></li>
+        <li data-status="dropped"><span>Dropped</span><span class="count" id="count-dropped">0</span></li>
+      </ul>
+    </section>
+    <section class="tools">
+      <button class="ghost-btn" id="tag-mgr-btn">◐ manage tags</button>
+      <button class="ghost-btn" id="settings-btn">⚙ settings</button>
+      <button class="ghost-btn" id="export-btn">↓ export json</button>
+      <button class="ghost-btn" id="import-btn">↑ import json</button>
+      <button class="ghost-btn" id="claude-summary-btn">⎘ summary for claude</button>
+    </section>
+  </aside>
+
+  <main class="content">
+    <div class="content-header">
+      <h2 id="current-view">Everything</h2>
+      <div class="view-meta" id="view-meta">0 entries</div>
+    </div>
+    <div class="filter-bar">
+      <div class="sort-bar">
+        <span>sort:</span>
+        <button data-sort="recent" class="active">recent</button>
+        <button data-sort="alpha">a–z</button>
+        <button data-sort="rating">rating</button>
+        <button data-sort="status">status</button>
+      </div>
+      <div class="tag-picker" id="tag-picker">
+        <button class="tag-picker-trigger" id="tag-picker-trigger">
+          <span id="tag-picker-label">Filter by tag</span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="tag-picker-popover hidden" id="tag-picker-popover"></div>
+      </div>
+    </div>
+    <div id="items-grid" class="items-grid"></div>
+    <div id="empty-state" class="empty-state">
+      <div class="ornament">❦</div>
+      <h3>nothing here yet</h3>
+      <p>Press <kbd>n</kbd> or click <strong>+ entry</strong> to log your first piece.</p>
+    </div>
+  </main>
+</div>
+
+<!-- entry modal -->
+<dialog id="entry-modal">
+  <div class="modal">
+    <form id="entry-form">
+      <header><h2 id="modal-title">New entry</h2><button type="button" class="close" data-close="entry">×</button></header>
+      <div class="modal-body">
+        <div class="form-grid">
+          <label class="span-2">Title<input type="text" name="title" required autocomplete="off"></label>
+          <label>Collection<select name="collectionId" id="form-collection"></select></label>
+          <label>Status
+            <select name="status">
+              <option value="queued">Queued</option><option value="active">In progress</option>
+              <option value="done">Done</option><option value="dropped">Dropped</option>
+            </select>
+          </label>
+          <label>Rating
+            <div class="star-input" id="rating-input">
+              <button type="button" data-r="1">★</button><button type="button" data-r="2">★</button>
+              <button type="button" data-r="3">★</button><button type="button" data-r="4">★</button>
+              <button type="button" data-r="5">★</button>
+              <button type="button" class="clear" data-r="0">clear</button>
+            </div>
+            <input type="hidden" name="rating" value="0">
+          </label>
+          <label>Tags<input type="text" name="tags" placeholder="comma, separated" autocomplete="off"></label>
+          <label class="span-2">Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— private</span><textarea name="notes" rows="3" placeholder="thoughts, quotes, who recommended it…"></textarea></label>
+          <label class="span-2">Note for Claude <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--c-dusty-fg)">— ✦ for taste-learning, included in the digest</span><textarea name="claudeNote" class="claude-field" rows="2" placeholder="why this rating, what to recommend more/less of, taste signal Claude should learn…"></textarea></label>
+          <label class="span-2">Setup / config<textarea name="config" class="config-field" rows="4" placeholder="for games: platform, sensitivity, keybinds, mods…"></textarea></label>
+        </div>
+        <div id="claude-takes-section" class="claude-takes-section" style="display:none">
+          <h4>✦ Claude's takes on this <button type="button" id="clear-takes-btn" title="wipe Claude's history for this entry">× clear history</button></h4>
+          <div id="claude-takes-list"></div>
+        </div>
+      </div>
+      <footer>
+        <button type="button" class="danger hidden" id="delete-entry">delete entry</button>
+        <button type="submit" class="submit">save</button>
+      </footer>
+    </form>
+  </div>
+</dialog>
+
+<!-- tag manager -->
+<dialog id="tag-mgr-modal">
+  <div class="modal wide">
+    <header><div><h2>Manage tags</h2><p>Group tags by color so the picker stays organized.</p></div><button type="button" class="close" data-close="tag-mgr">×</button></header>
+    <div class="modal-body">
+      <div class="section-block">
+        <h3>Tag groups</h3>
+        <div id="group-rows"></div>
+        <button class="btn-secondary" id="new-group-btn" style="margin-top:8px">+ new group</button>
+      </div>
+      <div class="section-block">
+        <h3>All tags</h3>
+        <div id="tag-rows"></div>
+        <p id="no-tags-msg" style="color:var(--ink-faint);font-size:12px;display:none">No tags yet — add some by tagging an entry.</p>
+      </div>
+    </div>
+    <footer><span style="color:var(--ink-faint);font-size:11px">changes save automatically</span><button class="submit" data-close="tag-mgr">done</button></footer>
+  </div>
+</dialog>
+
+<!-- settings modal -->
+<dialog id="settings-modal">
+  <div class="modal wide">
+    <header><div><h2>Settings</h2><p>House rules, Claude integration, cloud sync.</p></div><button type="button" class="close" data-close="settings">×</button></header>
+    <div class="modal-body">
+
+      <div class="settings-section">
+        <h3>House rules for Claude</h3>
+        <div class="desc">Pre-written guidance Claude sees when you paste your digest into a chat <em>and</em> when it responds to your logs.</div>
+        <textarea id="claude-rules"></textarea>
+      </div>
+
+      <div class="settings-section">
+        <h3>Claude responds when I log</h3>
+        <div class="desc">Paste your Anthropic API key. After every save, Claude reacts in a panel (bottom-right) — taste-aware, 2-3 sentences. Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com/settings/keys</a>.</div>
+        <div class="form-grid">
+          <label class="span-2">Anthropic API key<input type="password" id="claude-api-key" placeholder="sk-ant-..." autocomplete="off"></label>
+          <label>Model
+            <select id="claude-model">
+              <option value="claude-haiku-4-5-20251001">Haiku — fast & cheap</option>
+              <option value="claude-sonnet-4-6">Sonnet — balanced</option>
+              <option value="claude-opus-4-6">Opus — best, slowest</option>
+            </select>
+          </label>
+          <label>&nbsp;
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn-primary" id="claude-save-btn" type="button">Save</button>
+              <button class="btn-danger" id="claude-disable-btn" type="button">Forget key</button>
+            </div>
+          </label>
+          <label class="span-2">
+            <div class="toggle-row">
+              <input type="checkbox" id="claude-respond-toggle">
+              <span>Respond when I save an entry</span>
+            </div>
+          </label>
+        </div>
+        <div class="sync-status" id="claude-status">disabled</div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Cloud sync (GitHub Gist)</h3>
+        <div class="desc">Your data lives in a private gist on your GitHub account. Last-write-wins between devices. Setup is one click + paste.</div>
+        <p style="margin:6px 0 12px;font-size:12px;color:var(--ink-dim);line-height:1.6">
+          <strong style="color:var(--ink)">Step 1.</strong> <a href="https://github.com/settings/tokens/new?scopes=gist&description=Bit%C3%A1cora%20sync" target="_blank" rel="noopener">Open GitHub token page (pre-configured)</a>. Click <em>Generate token</em> at the bottom, then copy the <code style="color:var(--gold)">ghp_…</code> string.<br>
+          <strong style="color:var(--ink)">Step 2.</strong> Paste below. Leave Gist ID blank on your first device — click "Enable & sync" to create.<br>
+          <strong style="color:var(--ink)">Step 3.</strong> On other devices, paste the <em>same</em> token + the gist ID shown after step 2.
+        </p>
+        <div id="sync-config-blurb"></div>
+        <div class="form-grid">
+          <label class="span-2">GitHub personal access token<input type="password" id="sync-pat" placeholder="ghp_..." autocomplete="off"></label>
+          <label>Gist ID <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— blank to create new</span><input type="text" id="sync-gist-id" placeholder="optional" autocomplete="off"></label>
+          <label>&nbsp;
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn-primary" id="sync-enable-btn" type="button">Enable & sync</button>
+              <button class="btn-secondary" id="sync-now-btn" type="button">Sync now</button>
+              <button class="btn-danger" id="sync-disable-btn" type="button">Forget credentials</button>
+            </div>
+          </label>
+        </div>
+        <div class="sync-status" id="sync-status">disabled</div>
+      </div>
+
+    </div>
+    <footer><span style="color:var(--ink-faint);font-size:11px">changes save automatically</span><button class="submit" data-close="settings">done</button></footer>
+  </div>
+</dialog>
+
+<!-- import dialog -->
+<dialog id="import-modal">
+  <div class="modal">
+    <header><div><h2>Import library</h2><p>Choose how to handle the file.</p></div><button type="button" class="close" data-close="import">×</button></header>
+    <div class="modal-body">
+      <div class="import-card"><span class="label">Currently in your library</span><span class="vals" id="import-current">0 entries</span></div>
+      <div class="import-card"><span class="label">Incoming from file</span><span class="vals" id="import-incoming">0 entries</span></div>
+      <p style="font-size:12px;color:var(--ink-dim);line-height:1.6;margin-top:6px"><strong style="color:var(--ink)">Merge</strong> keeps both libraries — incoming entries get fresh IDs and are added alongside yours.</p>
+      <p style="font-size:12px;color:var(--ink-dim);line-height:1.6;margin-top:6px"><strong style="color:var(--ink)">Replace all</strong> wipes your current library. Best when restoring from a backup.</p>
+    </div>
+    <footer>
+      <button class="btn-secondary" data-close="import">Cancel</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-danger" id="import-replace">Replace all</button>
+        <button class="btn-primary" id="import-merge">Merge</button>
+      </div>
+    </footer>
+  </div>
+</dialog>
+
+<!-- prompt modal -->
+<dialog id="prompt-modal">
+  <div class="prompt-modal">
+    <h2 id="prompt-title">New collection</h2>
+    <p id="prompt-message"></p>
+    <input type="text" id="prompt-input" autocomplete="off">
+    <div id="prompt-color-picker" style="display:none;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
+    <div class="actions">
+      <button type="button" class="btn-secondary" data-close="prompt">cancel</button>
+      <button type="button" class="btn-primary" id="prompt-ok">save</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- claude floating panel -->
+<aside class="claude-panel hidden" id="claude-panel">
+  <header>
+    <span class="badge">✦ claude</span>
+    <span class="panel-title" id="claude-panel-title"></span>
+    <button class="panel-close" id="claude-panel-close">×</button>
+  </header>
+  <div class="panel-body" id="claude-panel-body"></div>
+  <div class="panel-foot" id="claude-panel-foot"></div>
+</aside>
+
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ─────────────────────────── constants ───────────────────────
+const STORAGE_KEY = 'bitacora.v2';
+const LEGACY_KEY  = 'bitacora.v1';
+const DEFAULT_COLLECTIONS = [
+  { id: 'films', name: 'Films' }, { id: 'tv', name: 'TV' },
+  { id: 'games', name: 'Games' }, { id: 'books', name: 'Books' },
+];
+const STATUSES = ['queued', 'active', 'done', 'dropped'];
+const STATUS_LABELS = { queued: 'Queued', active: 'In progress', done: 'Done', dropped: 'Dropped' };
+const TAG_COLORS = ['terracotta', 'gold', 'sage', 'dusty', 'plum', 'ochre', 'rust', 'ash'];
+const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, follow these rules:
+
+1. Don't invent source/origin tags like 'recommended-by-claude' or 'from-friend'. The act of recommending isn't worth a tag.
+2. Prefer existing tags over new ones. Only invent a new tag if no existing one fits.
+3. Tags must be lowercase, short (1–2 words), hyphenated if multi-word ('slow-burn' not 'slow burn').
+4. For music: use broad genres only (jazz, ambient, classical, hip-hop, rock). No micro-genres.
+5. Keep notes concise — max ~2 sentences of why I'd care, not a Wikipedia summary.
+6. If you don't know my taste signal, leave the rating empty (0). Don't guess.
+7. Status defaults to 'queued' for things you're recommending. Use 'active' or 'done' only if I explicitly say so.`;
+
+// ─────────────────────────── state ───────────────────────────
+let state = load();
+let view  = { collection: 'all', status: 'all', search: '', sort: 'recent', tag: null };
+let editing = null;
+
+function migrate(s) {
+  s.tagGroups       = s.tagGroups       || [];
+  s.tagAssignments  = s.tagAssignments  || {};
+  s.settings        = s.settings        || {};
+  s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
+  s.settings.sync   = s.settings.sync   || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
+  s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };
+  s.lastModified    = s.lastModified    || Date.now();
+  for (const it of s.items) {
+    if (typeof it.claudeNote === 'undefined') it.claudeNote = '';
+    if (!Array.isArray(it.claudeReplies)) it.claudeReplies = [];
+  }
+  return s;
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return migrate(JSON.parse(raw));
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const parsed = JSON.parse(legacy);
+      const s = migrate({ ...parsed });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+      return s;
+    }
+  } catch (e) { console.warn('load failed', e); }
+  return migrate({ collections: [...DEFAULT_COLLECTIONS], items: [] });
+}
+
+let suppressSync = false;
+function save({ markModified = true, push = true } = {}) {
+  if (markModified) state.lastModified = Date.now();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (push && !suppressSync && isSyncEnabled()) scheduleSyncPush();
+}
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const today = () => new Date().toISOString().slice(0, 10);
+
+// ─────────────────────────── helpers ─────────────────────────
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escapeAttr(s) { return escapeHtml(s); }
+
+function getAllTags() {
+  const counts = new Map();
+  for (const it of state.items) for (const t of it.tags || []) counts.set(t, (counts.get(t) || 0) + 1);
+  return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+function getTagColor(tag) {
+  const groupId = state.tagAssignments[tag];
+  if (!groupId) return null;
+  const g = state.tagGroups.find(g => g.id === groupId);
+  return g ? g.color : null;
+}
+function groupTags() {
+  const all = getAllTags();
+  const byGroup = new Map();
+  const ungrouped = [];
+  for (const [tag, count] of all) {
+    const groupId = state.tagAssignments[tag];
+    if (!groupId) { ungrouped.push([tag, count]); continue; }
+    if (!byGroup.has(groupId)) byGroup.set(groupId, []);
+    byGroup.get(groupId).push([tag, count]);
+  }
+  const groups = state.tagGroups.filter(g => byGroup.has(g.id)).map(g => ({ ...g, tags: byGroup.get(g.id) }));
+  return { groups, ungrouped };
+}
+
+// ─────────────────────────── filter / sort ──────────────────
+function getFilteredItems() {
+  let items = state.items.slice();
+  if (view.collection !== 'all') items = items.filter(i => i.collectionId === view.collection);
+  if (view.status !== 'all')     items = items.filter(i => i.status === view.status);
+  if (view.tag)                  items = items.filter(i => (i.tags || []).includes(view.tag));
+  if (view.search) {
+    const q = view.search.toLowerCase();
+    items = items.filter(i =>
+      i.title.toLowerCase().includes(q) ||
+      (i.notes || '').toLowerCase().includes(q) ||
+      (i.claudeNote || '').toLowerCase().includes(q) ||
+      (i.config || '').toLowerCase().includes(q) ||
+      (i.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
+  switch (view.sort) {
+    case 'alpha':   items.sort((a, b) => a.title.localeCompare(b.title)); break;
+    case 'rating':  items.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
+    case 'status': {
+      const order = { active: 0, queued: 1, done: 2, dropped: 3 };
+      items.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+      break;
+    }
+    default: items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  }
+  return items;
+}
+
+// ─────────────────────────── render ──────────────────────────
+function tagPillHtml(tag, isActive) {
+  const color = getTagColor(tag);
+  const colorClass = color ? ` tag-color-${color}` : '';
+  const activeClass = isActive ? ' active' : '';
+  return `<span class="tag${colorClass}${activeClass}" data-tag="${escapeAttr(tag)}">${escapeHtml(tag)}</span>`;
+}
+
+function renderCollections() {
+  const ul = document.getElementById('collection-list');
+  const items = state.items;
+  const allLi = `<li data-collection="all"${view.collection === 'all' ? ' class="active"' : ''}><span>Everything</span><span class="count">${items.length}</span></li>`;
+  const collLis = state.collections.map(c => {
+    const count = items.filter(i => i.collectionId === c.id).length;
+    const isActive = view.collection === c.id;
+    const isCustom = !DEFAULT_COLLECTIONS.find(d => d.id === c.id);
+    return `<li data-collection="${c.id}"${isActive ? ' class="active"' : ''}>
+      <span>${escapeHtml(c.name)}</span>
+      <span class="collection-actions">
+        ${isCustom ? `<button class="tiny" data-rename="${c.id}" title="rename">✎</button><button class="tiny" data-delete-collection="${c.id}" title="remove">×</button>` : ''}
+        <span class="count">${count}</span>
+      </span>
+    </li>`;
+  }).join('');
+  ul.innerHTML = allLi + collLis;
+}
+
+function renderStatusCounts() {
+  const items = view.collection === 'all' ? state.items : state.items.filter(i => i.collectionId === view.collection);
+  document.getElementById('count-all').textContent = items.length;
+  STATUSES.forEach(s => { document.getElementById('count-' + s).textContent = items.filter(i => i.status === s).length; });
+  document.querySelectorAll('#status-list li').forEach(li => li.classList.toggle('active', li.dataset.status === view.status));
+}
+
+function renderItems() {
+  const grid = document.getElementById('items-grid');
+  const empty = document.getElementById('empty-state');
+  const items = getFilteredItems();
+
+  let metaHtml = `<span>${items.length} ${items.length === 1 ? 'entry' : 'entries'}</span>`;
+  if (view.tag) metaHtml += `<span class="active-tag">tag: ${escapeHtml(view.tag)}<button id="clear-tag" type="button">×</button></span>`;
+  document.getElementById('view-meta').innerHTML = metaHtml;
+
+  document.getElementById('current-view').textContent = view.collection === 'all'
+    ? 'Everything'
+    : (state.collections.find(c => c.id === view.collection)?.name || 'Everything');
+
+  if (items.length === 0) { grid.innerHTML = ''; empty.classList.add('show'); return; }
+  empty.classList.remove('show');
+
+  grid.innerHTML = items.map((it, idx) => {
+    const collection = state.collections.find(c => c.id === it.collectionId);
+    const collName = collection ? collection.name : '—';
+    const stars = '★'.repeat(it.rating || 0) + `<span class="empty">${'★'.repeat(5 - (it.rating || 0))}</span>`;
+    const tagsHtml = (it.tags && it.tags.length)
+      ? `<div class="tags">${it.tags.slice(0, 6).map(t => tagPillHtml(t, t === view.tag)).join('')}</div>` : '';
+    const notesPreview = it.notes ? `<div class="notes-preview">${escapeHtml(it.notes)}</div>` : '';
+    const takeCount = (it.claudeReplies || []).length;
+    const flagsHtml = [
+      it.config && it.config.trim() ? `<div class="has-config">setup logged</div>` : '',
+      it.claudeNote && it.claudeNote.trim() ? `<div class="has-claude">note for claude</div>` : '',
+      takeCount > 0 ? `<div class="has-claude-takes">${takeCount} claude take${takeCount === 1 ? '' : 's'}</div>` : '',
+    ].filter(Boolean).join('');
+    return `<article class="item-card" data-id="${it.id}" style="animation-delay: ${Math.min(idx, 12) * 22}ms">
+      <div class="row1"><div class="title">${escapeHtml(it.title)}</div><div class="rating" title="${it.rating || 0}/5">${stars}</div></div>
+      <div class="meta"><span class="status-pill status-${it.status}">${STATUS_LABELS[it.status]}</span><span>${escapeHtml(collName)}</span></div>
+      ${notesPreview}${flagsHtml}${tagsHtml}
+    </article>`;
+  }).join('');
+}
+
+function renderTagPicker() {
+  const trigger = document.getElementById('tag-picker-trigger');
+  const label = document.getElementById('tag-picker-label');
+  const popover = document.getElementById('tag-picker-popover');
+  const { groups, ungrouped } = groupTags();
+  const total = groups.reduce((s, g) => s + g.tags.length, 0) + ungrouped.length;
+
+  if (total === 0) {
+    label.textContent = 'no tags yet';
+    trigger.disabled = true; trigger.classList.remove('active');
+    popover.classList.add('hidden');
+    return;
+  }
+  trigger.disabled = false;
+  label.textContent = view.tag ? view.tag : 'Filter by tag';
+  trigger.classList.toggle('active', !!view.tag);
+
+  let html = '';
+  if (view.tag) html += `<div class="clear-row"><button id="picker-clear-btn">× clear filter</button></div>`;
+  for (const g of groups) {
+    html += `<div class="group-section">
+      <div class="group-header"><span class="swatch swatch-${g.color}"></span>${escapeHtml(g.name)}</div>
+      <div class="chips">${g.tags.map(([t]) => tagPillHtml(t, t === view.tag)).join('')}</div>
+    </div>`;
+  }
+  if (ungrouped.length) {
+    html += `<div class="group-section">
+      <div class="group-header">other</div>
+      <div class="chips">${ungrouped.map(([t]) => tagPillHtml(t, t === view.tag)).join('')}</div>
+    </div>`;
+  }
+  popover.innerHTML = html;
+}
+
+function populateFormCollections() {
+  const sel = document.getElementById('form-collection');
+  sel.innerHTML = state.collections.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+}
+
+function renderAll() {
+  renderCollections();
+  renderStatusCounts();
+  renderItems();
+  renderTagPicker();
+  populateFormCollections();
+  renderSyncPip();
+}
+
+// ─────────────────────────── entry modal ─────────────────────
+const entryModal = document.getElementById('entry-modal');
+const entryForm  = document.getElementById('entry-form');
+
+function openEntryModal(item) {
+  editing = item ? item.id : null;
+  document.getElementById('modal-title').textContent = item ? 'Edit entry' : 'New entry';
+  entryForm.reset();
+  populateFormCollections();
+  setRating(item ? item.rating || 0 : 0);
+  if (item) {
+    entryForm.title.value = item.title;
+    entryForm.collectionId.value = item.collectionId;
+    entryForm.status.value = item.status;
+    entryForm.tags.value = (item.tags || []).join(', ');
+    entryForm.notes.value = item.notes || '';
+    entryForm.claudeNote.value = item.claudeNote || '';
+    entryForm.config.value = item.config || '';
+    document.getElementById('delete-entry').classList.remove('hidden');
+  } else {
+    entryForm.collectionId.value = view.collection !== 'all' ? view.collection : state.collections[0].id;
+    entryForm.status.value = 'queued';
+    document.getElementById('delete-entry').classList.add('hidden');
+  }
+  renderClaudeTakes(item);
+  entryModal.showModal();
+  setTimeout(() => entryForm.title.focus(), 50);
+}
+
+function renderClaudeTakes(item) {
+  const section = document.getElementById('claude-takes-section');
+  const list = document.getElementById('claude-takes-list');
+  const replies = item?.claudeReplies || [];
+  if (replies.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = [...replies].reverse().map(r => {
+    const when = new Date(r.at).toLocaleString();
+    const model = (r.model || '').split('-')[1] || 'claude';
+    return `<div class="claude-take">
+      <span class="meta">${when} · ${model}</span>${escapeHtml(r.text)}
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('clear-takes-btn').addEventListener('click', () => {
+  if (!editing) return;
+  if (!confirm("Wipe Claude's history for this entry? The entry stays; just the takes go.")) return;
+  const item = state.items.find(i => i.id === editing);
+  if (!item) return;
+  item.claudeReplies = [];
+  save();
+  renderClaudeTakes(item);
+  renderItems();
+  toast("claude's takes cleared.");
+});
+function closeEntryModal() { entryModal.close(); editing = null; }
+function setRating(n) {
+  document.querySelectorAll('#rating-input button[data-r]').forEach(b => {
+    if (b.dataset.r === '0') return;
+    b.classList.toggle('filled', parseInt(b.dataset.r) <= n);
+  });
+  entryForm.rating.value = n;
+}
+document.getElementById('rating-input').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-r]'); if (btn) setRating(parseInt(btn.dataset.r));
+});
+
+entryForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const fd = new FormData(entryForm);
+  const tags = fd.get('tags').split(',').map(t => t.trim()).filter(Boolean);
+  const data = {
+    title: fd.get('title').trim(),
+    collectionId: fd.get('collectionId'),
+    status: fd.get('status'),
+    rating: parseInt(fd.get('rating')) || 0,
+    tags,
+    notes: fd.get('notes').trim(),
+    claudeNote: fd.get('claudeNote').trim(),
+    config: fd.get('config'),
+  };
+  if (!data.title) return;
+  const now = Date.now();
+  let savedItem;
+  const isNew = !editing;
+  if (editing) {
+    const idx = state.items.findIndex(i => i.id === editing);
+    if (idx >= 0) {
+      const prev = state.items[idx];
+      savedItem = { ...prev, ...data,
+        completedAt: data.status === 'done' && prev.status !== 'done' ? today() : prev.completedAt,
+        updatedAt: now };
+      state.items[idx] = savedItem;
+    }
+  } else {
+    savedItem = { id: uid(), ...data, createdAt: today(), completedAt: data.status === 'done' ? today() : null, updatedAt: now };
+    state.items.push(savedItem);
+    toast('logged.');
+  }
+  save();
+  closeEntryModal();
+  renderAll();
+  if (savedItem && isClaudeEnabled() && state.settings.claude.respondOnLog) {
+    respondOnLog(savedItem, isNew);
+  }
+});
+
+document.getElementById('delete-entry').addEventListener('click', () => {
+  if (!editing) return;
+  if (!confirm('Delete this entry permanently?')) return;
+  state.items = state.items.filter(i => i.id !== editing);
+  save();
+  closeEntryModal();
+  renderAll();
+  toast('deleted.');
+});
+
+// ─────────────────────────── prompt modal ────────────────────
+const promptModal = document.getElementById('prompt-modal');
+const promptInput = document.getElementById('prompt-input');
+const promptColorPicker = document.getElementById('prompt-color-picker');
+let promptResolve = null;
+let promptColor = null;
+
+function askPrompt(title, message, defaultValue = '', { withColor = false, defaultColor = 'terracotta' } = {}) {
+  document.getElementById('prompt-title').textContent = title;
+  document.getElementById('prompt-message').textContent = message;
+  promptInput.value = defaultValue;
+  promptColor = defaultColor;
+  if (withColor) {
+    promptColorPicker.style.display = 'flex';
+    promptColorPicker.innerHTML = TAG_COLORS.map(c => `<div class="swatch swatch-${c}${c === defaultColor ? ' selected' : ''}" data-color="${c}" title="${c}"></div>`).join('');
+  } else { promptColorPicker.style.display = 'none'; }
+  promptModal.showModal();
+  setTimeout(() => promptInput.select(), 50);
+  return new Promise(resolve => { promptResolve = resolve; });
+}
+
+promptColorPicker.addEventListener('click', e => {
+  const sw = e.target.closest('.swatch'); if (!sw) return;
+  promptColor = sw.dataset.color;
+  promptColorPicker.querySelectorAll('.swatch').forEach(s => s.classList.toggle('selected', s === sw));
+});
+
+document.getElementById('prompt-ok').addEventListener('click', () => {
+  if (promptResolve) {
+    const name = promptInput.value.trim();
+    if (!name) promptResolve(null);
+    else promptResolve(promptColorPicker.style.display === 'flex' ? { name, color: promptColor } : name);
+  }
+  promptModal.close();
+});
+promptInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('prompt-ok').click(); } });
+
+// ─────────────────────────── tag manager ─────────────────────
+const tagMgrModal = document.getElementById('tag-mgr-modal');
+function openTagManager() { renderTagManager(); tagMgrModal.showModal(); }
+function renderTagManager() {
+  const groupsEl = document.getElementById('group-rows');
+  if (state.tagGroups.length === 0) {
+    groupsEl.innerHTML = `<p style="color:var(--ink-faint);font-size:12px">No groups yet — create one to start coloring tags.</p>`;
+  } else {
+    groupsEl.innerHTML = state.tagGroups.map(g => `
+      <div class="group-row" data-group-id="${g.id}">
+        <div class="swatch swatch-${g.color}" data-edit-color="${g.id}" title="change color"></div>
+        <span class="name">${escapeHtml(g.name)}</span>
+        <div class="actions">
+          <button data-rename-group="${g.id}">rename</button>
+          <button data-delete-group="${g.id}">delete</button>
+        </div>
+      </div>`).join('');
+  }
+  const tagsEl = document.getElementById('tag-rows');
+  const noMsg = document.getElementById('no-tags-msg');
+  const all = getAllTags();
+  if (all.length === 0) { tagsEl.innerHTML = ''; noMsg.style.display = 'block'; return; }
+  noMsg.style.display = 'none';
+  tagsEl.innerHTML = all.map(([tag, count]) => {
+    const groupId = state.tagAssignments[tag] || '';
+    const opts = `<option value="">— no group —</option>` +
+      state.tagGroups.map(g => `<option value="${g.id}"${groupId === g.id ? ' selected' : ''}>${escapeHtml(g.name)}</option>`).join('');
+    return `<div class="tag-row">
+      <span class="tag-pill">${tagPillHtml(tag, false)} <span style="color:var(--ink-faint);font-size:10px;margin-left:6px">${count}</span></span>
+      <select data-assign-tag="${escapeAttr(tag)}">${opts}</select>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('new-group-btn').addEventListener('click', async () => {
+  const result = await askPrompt('New tag group', 'e.g., Time, Genre, Mood, Source', '', { withColor: true });
+  if (!result || !result.name) return;
+  state.tagGroups.push({ id: uid(), name: result.name, color: result.color });
+  save();
+  renderTagManager(); renderAll();
+});
+
+document.getElementById('group-rows').addEventListener('click', async e => {
+  const renameBtn = e.target.closest('[data-rename-group]');
+  const deleteBtn = e.target.closest('[data-delete-group]');
+  const colorBtn  = e.target.closest('[data-edit-color]');
+  if (renameBtn || colorBtn) {
+    const id = (renameBtn || colorBtn).dataset.renameGroup || (renameBtn || colorBtn).dataset.editColor;
+    const g = state.tagGroups.find(x => x.id === id);
+    const result = await askPrompt('Edit group', 'Name and color:', g.name, { withColor: true, defaultColor: g.color });
+    if (result && result.name) { g.name = result.name; g.color = result.color; save(); renderTagManager(); renderAll(); }
+    return;
+  }
+  if (deleteBtn) {
+    const id = deleteBtn.dataset.deleteGroup;
+    if (!confirm('Delete this group? Tags inside go back to "no group".')) return;
+    state.tagGroups = state.tagGroups.filter(g => g.id !== id);
+    Object.keys(state.tagAssignments).forEach(t => { if (state.tagAssignments[t] === id) delete state.tagAssignments[t]; });
+    save(); renderTagManager(); renderAll();
+  }
+});
+
+document.getElementById('tag-rows').addEventListener('change', e => {
+  const sel = e.target.closest('[data-assign-tag]'); if (!sel) return;
+  const tag = sel.dataset.assignTag;
+  const gid = sel.value;
+  if (gid) state.tagAssignments[tag] = gid; else delete state.tagAssignments[tag];
+  save();
+  renderTagManager(); renderAll();
+});
+document.getElementById('tag-mgr-btn').addEventListener('click', openTagManager);
+
+// ─────────────────────────── settings ────────────────────────
+const settingsModal = document.getElementById('settings-modal');
+
+function openSettings() {
+  document.getElementById('claude-rules').value = state.settings.claudeRules || DEFAULT_CLAUDE_RULES;
+  document.getElementById('claude-api-key').value = state.settings.claude.apiKey || '';
+  document.getElementById('claude-model').value = state.settings.claude.model || 'claude-haiku-4-5-20251001';
+  document.getElementById('claude-respond-toggle').checked = !!state.settings.claude.respondOnLog;
+  document.getElementById('sync-pat').value = state.settings.sync.githubPat || '';
+  document.getElementById('sync-gist-id').value = state.settings.sync.gistId || '';
+  renderClaudeStatus();
+  renderSyncStatus();
+  settingsModal.showModal();
+}
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+document.getElementById('sync-pip').addEventListener('click', openSettings);
+
+document.getElementById('claude-rules').addEventListener('input', e => { state.settings.claudeRules = e.target.value; save(); });
+document.getElementById('claude-respond-toggle').addEventListener('change', e => {
+  state.settings.claude.respondOnLog = e.target.checked; save(); renderClaudeStatus();
+});
+document.getElementById('claude-model').addEventListener('change', e => { state.settings.claude.model = e.target.value; save(); });
+document.getElementById('claude-save-btn').addEventListener('click', () => {
+  const key = document.getElementById('claude-api-key').value.trim();
+  if (!key) { toast('paste a key first.', true); return; }
+  state.settings.claude.apiKey = key;
+  state.settings.claude.enabled = true;
+  state.settings.claude.model = document.getElementById('claude-model').value;
+  state.settings.claude.respondOnLog = document.getElementById('claude-respond-toggle').checked;
+  save();
+  renderClaudeStatus();
+  toast('claude enabled.');
+});
+document.getElementById('claude-disable-btn').addEventListener('click', () => {
+  if (!confirm('Forget your API key? Claude responses stop on this device.')) return;
+  state.settings.claude = { enabled: false, apiKey: null, model: state.settings.claude.model, respondOnLog: state.settings.claude.respondOnLog };
+  save();
+  document.getElementById('claude-api-key').value = '';
+  renderClaudeStatus();
+  toast('key cleared.');
+});
+
+function renderClaudeStatus() {
+  const el = document.getElementById('claude-status');
+  if (!isClaudeEnabled()) { el.textContent = 'disabled · paste a key to enable'; el.className = 'sync-status'; return; }
+  el.textContent = state.settings.claude.respondOnLog ? `enabled · ${state.settings.claude.model.split('-')[1]}` : 'enabled · respond-on-log OFF';
+  el.className = 'sync-status ok';
+}
+
+function renderSyncStatus() {
+  const el = document.getElementById('sync-status');
+  const blurb = document.getElementById('sync-config-blurb');
+  if (!isSyncEnabled()) { el.textContent = 'disabled · paste a token below to enable'; el.className = 'sync-status'; blurb.innerHTML = ''; return; }
+  const last = state.settings.sync.lastSyncedAt ? new Date(state.settings.sync.lastSyncedAt).toLocaleString() : 'never';
+  el.textContent = `enabled · last sync ${last}`;
+  el.className = 'sync-status ok';
+  blurb.innerHTML = `<div style="font-size:11px;color:var(--ink-dim);margin:6px 0 12px">Gist ID: <code style="color:var(--gold)">${escapeHtml(state.settings.sync.gistId || '—')}</code></div>`;
+}
+
+// ─────────────────────────── sync (gist) ─────────────────────
+function isSyncEnabled() {
+  return !!(state.settings.sync.enabled && state.settings.sync.githubPat && state.settings.sync.gistId);
+}
+
+async function gistFetch(method, path, body = null) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${state.settings.sync.githubPat}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`${res.status} — ${txt.slice(0, 120)}`);
+  }
+  return res.json();
+}
+
+let syncPushTimer = null;
+function scheduleSyncPush() {
+  if (!isSyncEnabled()) return;
+  clearTimeout(syncPushTimer);
+  syncPushTimer = setTimeout(syncPush, 1500);
+}
+
+async function syncPull(force = false) {
+  if (!isSyncEnabled()) return;
+  try {
+    setSyncPipState('syncing');
+    const gist = await gistFetch('GET', `/gists/${state.settings.sync.gistId}`);
+    const file = gist.files?.['bitacora.json'];
+    if (!file) { setSyncPipState('on'); return; }
+    const remoteState = JSON.parse(file.content);
+    const remoteModified = remoteState.lastModified || 0;
+    const localModified = state.lastModified || 0;
+    if (force || remoteModified > localModified) {
+      const preservedSync = state.settings.sync;
+      const preservedClaude = state.settings.claude;
+      state = migrate(remoteState);
+      state.settings.sync = preservedSync;
+      state.settings.claude = preservedClaude;
+      state.settings.sync.lastSyncedAt = Date.now();
+      suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
+      renderAll();
+      toast('synced from cloud.');
+    } else {
+      state.settings.sync.lastSyncedAt = Date.now();
+      save({ markModified: false, push: false });
+    }
+    setSyncPipState('on');
+  } catch (e) {
+    console.error('sync pull failed', e);
+    toast('pull failed: ' + e.message, true);
+    setSyncPipState('error');
+  }
+}
+
+async function syncPush() {
+  if (!isSyncEnabled()) return;
+  try {
+    setSyncPipState('syncing');
+    // strip credentials before pushing — they're per-device
+    const cleaned = { ...state, settings: { ...state.settings,
+      sync: { lastModified: state.lastModified },
+      claude: { model: state.settings.claude.model, respondOnLog: state.settings.claude.respondOnLog }
+    } };
+    const content = JSON.stringify(cleaned, null, 2);
+    await gistFetch('PATCH', `/gists/${state.settings.sync.gistId}`, { files: { 'bitacora.json': { content } } });
+    state.settings.sync.lastSyncedAt = Date.now();
+    suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
+    setSyncPipState('on');
+  } catch (e) {
+    console.error('sync push failed', e);
+    toast('push failed: ' + e.message, true);
+    setSyncPipState('error');
+  }
+}
+
+function setSyncPipState(s) {
+  const pip = document.getElementById('sync-pip');
+  pip.classList.remove('on', 'syncing', 'error');
+  if (s) pip.classList.add(s);
+  document.getElementById('sync-pip-label').textContent =
+    s === 'syncing' ? 'syncing…' : s === 'on' ? 'synced' : s === 'error' ? 'sync error' : 'offline';
+}
+function renderSyncPip() { if (!isSyncEnabled()) setSyncPipState(null); else if (!document.getElementById('sync-pip').classList.contains('syncing')) setSyncPipState('on'); }
+
+document.getElementById('sync-enable-btn').addEventListener('click', async () => {
+  const pat = document.getElementById('sync-pat').value.trim();
+  const gistId = document.getElementById('sync-gist-id').value.trim();
+  if (!pat) { toast('paste a token first.', true); return; }
+  state.settings.sync.githubPat = pat;
+  state.settings.sync.gistId = gistId || null;
+  state.settings.sync.enabled = true;
+  save({ push: false });
+  if (!gistId) {
+    try {
+      setSyncPipState('syncing');
+      const created = await gistFetch('POST', '/gists', {
+        description: 'Bitácora — personal media log',
+        public: false,
+        files: { 'bitacora.json': { content: JSON.stringify(state, null, 2) } },
+      });
+      state.settings.sync.gistId = created.id;
+      state.settings.sync.lastSyncedAt = Date.now();
+      save({ push: false });
+      toast('cloud sync ready · new gist created.');
+      renderSyncStatus();
+      setSyncPipState('on');
+    } catch (e) {
+      state.settings.sync.enabled = false;
+      save({ push: false });
+      toast('failed to create gist: ' + e.message, true);
+      setSyncPipState('error');
+    }
+  } else {
+    await syncPull(true);
+    renderSyncStatus();
+  }
+  renderSyncPip();
+});
+
+document.getElementById('sync-now-btn').addEventListener('click', async () => {
+  if (!isSyncEnabled()) { toast('enable sync first.', true); return; }
+  await syncPull(); await syncPush(); renderSyncStatus();
+});
+
+document.getElementById('sync-disable-btn').addEventListener('click', () => {
+  if (!confirm('Forget your token and gist ID? Your data stays in the gist on GitHub but this device stops syncing.')) return;
+  state.settings.sync = { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
+  save({ push: false });
+  document.getElementById('sync-pat').value = '';
+  document.getElementById('sync-gist-id').value = '';
+  renderSyncStatus(); renderSyncPip();
+  toast('credentials cleared.');
+});
+
+// ─────────────────────────── claude API ──────────────────────
+function isClaudeEnabled() { return !!(state.settings.claude.enabled && state.settings.claude.apiKey); }
+
+async function callClaude({ system, userMessage, maxTokens = 350 }) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': state.settings.claude.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: state.settings.claude.model,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: userMessage }],
+    }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = `${res.status}`;
+    try { const j = JSON.parse(txt); msg = j.error?.message || msg; } catch {}
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data.content?.[0]?.text || '(empty response)';
+}
+
+function buildClaudeSystem() {
+  const lines = [];
+  lines.push("You are Claude, embedded in Leandro's Bitácora — a personal media log of films, TV, games, books. He just saved an entry. Respond in 2–3 short sentences. You can: react to the rating, suggest one related piece, note a pattern across his taste, or give a hot take. Be casual, observant, and direct — no hedging, no 'great choice!' filler. Don't list multiple recommendations. Don't add tags. Don't repeat his note back.");
+  lines.push('');
+  lines.push("## Leandro's house rules:");
+  lines.push(state.settings.claudeRules || DEFAULT_CLAUDE_RULES);
+  lines.push('');
+  const sample = [...state.items]
+    .filter(i => i.rating >= 4 || i.status === 'done' || i.status === 'dropped')
+    .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
+    .slice(0, 24);
+  if (sample.length) {
+    lines.push('## Sample of his taste (rated/finished entries):');
+    for (const it of sample) {
+      const c = state.collections.find(c => c.id === it.collectionId);
+      const stars = it.rating ? '★'.repeat(it.rating) : '·';
+      const note = it.claudeNote ? ` — taste-note: ${it.claudeNote}` : '';
+      lines.push(`- ${it.title} (${c?.name || '—'}) ${stars} · ${it.status}${note}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+function buildClaudeMessage(entry, isNew) {
+  const c = state.collections.find(c => c.id === entry.collectionId);
+  const lines = [];
+  lines.push(isNew ? "I just logged a new entry:" : "I just updated an entry:");
+  lines.push('');
+  lines.push(`- Title: ${entry.title}`);
+  lines.push(`- Collection: ${c?.name || '—'}`);
+  lines.push(`- Status: ${entry.status}`);
+  if (entry.rating) lines.push(`- Rating: ${entry.rating}/5`);
+  if (entry.tags?.length) lines.push(`- Tags: ${entry.tags.join(', ')}`);
+  if (entry.notes) lines.push(`- Notes: ${entry.notes}`);
+  if (entry.claudeNote) lines.push(`- Note for you: ${entry.claudeNote}`);
+  if (entry.claudeReplies && entry.claudeReplies.length) {
+    lines.push('');
+    lines.push('## Your prior takes on this entry (oldest → newest):');
+    for (const r of entry.claudeReplies.slice(-4)) {
+      lines.push(`- (${new Date(r.at).toISOString().slice(0,10)}) ${r.text}`);
+    }
+    lines.push('');
+    lines.push("Don't repeat yourself. Build on or revise these if the entry's changed.");
+  }
+  lines.push('');
+  lines.push('React in 2–3 sentences.');
+  return lines.join('\n');
+}
+
+async function respondOnLog(entry, isNew) {
+  const entryId = entry.id;
+  showClaudePanel({ title: entry.title, status: 'thinking', text: 'thinking…' });
+  try {
+    const text = await callClaude({ system: buildClaudeSystem(), userMessage: buildClaudeMessage(entry, isNew) });
+    showClaudePanel({ title: entry.title, status: 'done', text });
+    // persist the take to the live entry
+    const liveItem = state.items.find(i => i.id === entryId);
+    if (liveItem) {
+      if (!Array.isArray(liveItem.claudeReplies)) liveItem.claudeReplies = [];
+      liveItem.claudeReplies.push({ at: Date.now(), model: state.settings.claude.model, text });
+      save();
+      renderItems();
+    }
+  } catch (e) {
+    showClaudePanel({ title: entry.title, status: 'error', text: 'claude error: ' + e.message });
+  }
+}
+
+function showClaudePanel({ title, status, text }) {
+  const panel = document.getElementById('claude-panel');
+  panel.classList.remove('hidden', 'error');
+  if (status === 'error') panel.classList.add('error');
+  document.getElementById('claude-panel-title').textContent = title;
+  const body = document.getElementById('claude-panel-body');
+  body.className = 'panel-body' + (status === 'thinking' ? ' thinking' : '');
+  body.textContent = text;
+  document.getElementById('claude-panel-foot').innerHTML =
+    status === 'thinking'
+      ? `<span>${state.settings.claude.model.split('-')[1]}</span><span>•</span>`
+      : `<span>${state.settings.claude.model.split('-')[1]}</span><span>${new Date().toLocaleTimeString()}</span>`;
+}
+
+document.getElementById('claude-panel-close').addEventListener('click', () => {
+  document.getElementById('claude-panel').classList.add('hidden');
+});
+
+// ─────────────────────────── import / export ────────────────
+const importModal = document.getElementById('import-modal');
+let pendingImport = null;
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `bitacora-${today()}.json`; a.click();
+  URL.revokeObjectURL(url);
+  toast('exported.');
+});
+
+document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
+
+document.getElementById('import-file').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!parsed.collections || !parsed.items) throw new Error('Not a Bitácora file');
+    pendingImport = parsed;
+    document.getElementById('import-current').textContent = `${state.items.length} ${state.items.length === 1 ? 'entry' : 'entries'}`;
+    document.getElementById('import-incoming').textContent = `${parsed.items.length} ${parsed.items.length === 1 ? 'entry' : 'entries'}`;
+    importModal.showModal();
+  } catch (err) { toast('import failed: ' + err.message, true); }
+  finally { e.target.value = ''; }
+});
+
+document.getElementById('import-merge').addEventListener('click', () => {
+  if (!pendingImport) return;
+  const existingIds = new Set(state.collections.map(c => c.id));
+  pendingImport.collections.forEach(c => { if (!existingIds.has(c.id)) state.collections.push(c); });
+  state.items.push(...pendingImport.items.map(i => ({ ...i, id: uid(), claudeNote: i.claudeNote || '' })));
+  if (pendingImport.tagGroups) {
+    const existingGids = new Set(state.tagGroups.map(g => g.id));
+    pendingImport.tagGroups.forEach(g => { if (!existingGids.has(g.id)) state.tagGroups.push(g); });
+  }
+  if (pendingImport.tagAssignments) Object.assign(state.tagAssignments, pendingImport.tagAssignments);
+  save();
+  pendingImport = null;
+  importModal.close();
+  renderAll();
+  toast('merged.');
+});
+
+document.getElementById('import-replace').addEventListener('click', () => {
+  if (!pendingImport) return;
+  if (!confirm('Replace your entire library? This cannot be undone.')) return;
+  const preservedSync = state.settings?.sync;
+  const preservedClaude = state.settings?.claude;
+  state = migrate(pendingImport);
+  if (preservedSync) state.settings.sync = preservedSync;
+  if (preservedClaude) state.settings.claude = preservedClaude;
+  save();
+  pendingImport = null;
+  importModal.close();
+  renderAll();
+  toast('replaced.');
+});
+
+// ─────────────────────────── digest for claude ──────────────
+document.getElementById('claude-summary-btn').addEventListener('click', async () => {
+  const lines = [];
+  lines.push(`# Leandro's Bitácora — digest for Claude`);
+  lines.push(`# generated ${new Date().toISOString().slice(0,10)} · ${state.items.length} entries`);
+  lines.push('');
+  lines.push('## House rules');
+  lines.push('');
+  lines.push(state.settings.claudeRules || DEFAULT_CLAUDE_RULES);
+  lines.push('');
+  const { groups, ungrouped } = groupTags();
+  if (groups.length || ungrouped.length) {
+    lines.push('## Existing tags (use these where possible)');
+    lines.push('');
+    for (const g of groups) lines.push(`- **${g.name}**: ${g.tags.map(([t]) => t).join(', ')}`);
+    if (ungrouped.length) lines.push(`- **(no group)**: ${ungrouped.map(([t]) => t).join(', ')}`);
+    lines.push('');
+  }
+  for (const c of state.collections) {
+    const items = state.items.filter(i => i.collectionId === c.id);
+    if (!items.length) continue;
+    lines.push(`## ${c.name} (${items.length})`);
+    lines.push('');
+    const sorted = [...items].sort((a, b) => (b.rating || 0) - (a.rating || 0) || a.title.localeCompare(b.title));
+    for (const it of sorted) {
+      const stars = it.rating ? '★'.repeat(it.rating) : '·';
+      const status = STATUS_LABELS[it.status];
+      const tags = it.tags && it.tags.length ? ` [${it.tags.join(', ')}]` : '';
+      lines.push(`- **${it.title}** — ${stars} · ${status}${tags}`);
+      if (it.notes)      lines.push(`  - notes: ${it.notes.replace(/\n+/g, ' ')}`);
+      if (it.claudeNote) lines.push(`  - ✦ for-claude: ${it.claudeNote.replace(/\n+/g, ' ')}`);
+      if (it.claudeReplies && it.claudeReplies.length) {
+        lines.push(`  - ✦ your prior takes (most recent first):`);
+        [...it.claudeReplies].reverse().forEach(r => {
+          const when = new Date(r.at).toISOString().slice(0,10);
+          lines.push(`    - (${when}) ${r.text.replace(/\n+/g, ' ')}`);
+        });
+      }
+      if (it.config && it.config.trim()) lines.push(`  - setup: ${it.config.replace(/\n+/g, ' | ')}`);
+    }
+    lines.push('');
+  }
+  const text = lines.join('\n');
+  try { await navigator.clipboard.writeText(text); toast('copied to clipboard — paste into a Claude chat.'); }
+  catch {
+    const blob = new Blob([text], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `bitacora-for-claude-${today()}.md`; a.click();
+    URL.revokeObjectURL(url);
+    toast('downloaded.');
+  }
+});
+
+// ─────────────────────────── sidebar / filter wiring ────────
+document.getElementById('add-entry-btn').addEventListener('click', () => openEntryModal(null));
+
+document.getElementById('add-collection-btn').addEventListener('click', async () => {
+  const name = await askPrompt('New collection', 'Name it (e.g., Albums, Restaurants, Anime).');
+  if (!name) return;
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Math.random().toString(36).slice(2, 5);
+  state.collections.push({ id, name });
+  save();
+  view.collection = id;
+  renderAll();
+  toast('collection added.');
+});
+
+document.getElementById('collection-list').addEventListener('click', async e => {
+  const renameBtn = e.target.closest('[data-rename]');
+  const deleteBtn = e.target.closest('[data-delete-collection]');
+  if (renameBtn) {
+    e.stopPropagation();
+    const id = renameBtn.dataset.rename;
+    const c = state.collections.find(x => x.id === id);
+    const newName = await askPrompt('Rename collection', 'New name:', c.name);
+    if (newName) { c.name = newName; save(); renderAll(); }
+    return;
+  }
+  if (deleteBtn) {
+    e.stopPropagation();
+    const id = deleteBtn.dataset.deleteCollection;
+    const itemCount = state.items.filter(i => i.collectionId === id).length;
+    const ok = confirm(itemCount > 0 ? `Delete this collection and its ${itemCount} ${itemCount === 1 ? 'entry' : 'entries'}?` : 'Delete this collection?');
+    if (!ok) return;
+    state.collections = state.collections.filter(c => c.id !== id);
+    state.items = state.items.filter(i => i.collectionId !== id);
+    if (view.collection === id) view.collection = 'all';
+    save(); renderAll(); toast('removed.');
+    return;
+  }
+  const li = e.target.closest('li[data-collection]'); if (!li) return;
+  view.collection = li.dataset.collection; renderAll();
+});
+
+document.getElementById('status-list').addEventListener('click', e => {
+  const li = e.target.closest('li[data-status]'); if (!li) return;
+  view.status = li.dataset.status; renderAll();
+});
+document.querySelector('.sort-bar').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-sort]'); if (!btn) return;
+  view.sort = btn.dataset.sort;
+  document.querySelectorAll('.sort-bar button').forEach(b => b.classList.toggle('active', b === btn));
+  renderItems();
+});
+document.getElementById('search').addEventListener('input', e => { view.search = e.target.value.trim(); renderItems(); });
+
+document.getElementById('items-grid').addEventListener('click', e => {
+  const tagEl = e.target.closest('.tag');
+  if (tagEl) {
+    e.stopPropagation();
+    const tagVal = tagEl.dataset.tag;
+    view.tag = view.tag === tagVal ? null : tagVal;
+    renderAll();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  const card = e.target.closest('.item-card'); if (!card) return;
+  const item = state.items.find(i => i.id === card.dataset.id);
+  if (item) openEntryModal(item);
+});
+
+document.getElementById('view-meta').addEventListener('click', e => {
+  if (e.target.id === 'clear-tag') { view.tag = null; renderAll(); }
+});
+
+// ─────────────────────────── tag picker (popover) ────────────
+const tagPickerEl = document.getElementById('tag-picker');
+const tagPickerTriggerEl = document.getElementById('tag-picker-trigger');
+const tagPickerPopoverEl = document.getElementById('tag-picker-popover');
+
+tagPickerTriggerEl.addEventListener('click', e => {
+  e.stopPropagation();
+  if (tagPickerTriggerEl.disabled) return;
+  const open = !tagPickerPopoverEl.classList.contains('hidden');
+  tagPickerPopoverEl.classList.toggle('hidden', open);
+  tagPickerEl.classList.toggle('open', !open);
+});
+
+tagPickerPopoverEl.addEventListener('click', e => {
+  if (e.target.id === 'picker-clear-btn') {
+    view.tag = null; renderAll();
+    tagPickerPopoverEl.classList.add('hidden');
+    tagPickerEl.classList.remove('open');
+    return;
+  }
+  const tagEl = e.target.closest('.tag');
+  if (tagEl) {
+    const tagVal = tagEl.dataset.tag;
+    view.tag = view.tag === tagVal ? null : tagVal;
+    renderAll();
+    tagPickerPopoverEl.classList.add('hidden');
+    tagPickerEl.classList.remove('open');
+  }
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#tag-picker')) {
+    tagPickerPopoverEl.classList.add('hidden');
+    tagPickerEl.classList.remove('open');
+  }
+});
+
+// ─────────────────────────── close handlers ─────────────────
+document.querySelectorAll('[data-close]').forEach(b => {
+  b.addEventListener('click', () => {
+    const which = b.dataset.close;
+    if (which === 'entry')   closeEntryModal();
+    if (which === 'tag-mgr') tagMgrModal.close();
+    if (which === 'settings') settingsModal.close();
+    if (which === 'import')  { pendingImport = null; importModal.close(); }
+    if (which === 'prompt')  { if (promptResolve) promptResolve(null); promptModal.close(); }
+  });
+});
+
+[entryModal, tagMgrModal, settingsModal, importModal, promptModal].forEach(d => {
+  d.addEventListener('click', e => {
+    if (e.target === d) {
+      if (d === entryModal)    closeEntryModal();
+      else if (d === promptModal) { if (promptResolve) promptResolve(null); promptModal.close(); }
+      else if (d === importModal) { pendingImport = null; importModal.close(); }
+      else d.close();
+    }
+  });
+});
+
+// ─────────────────────────── keyboard ───────────────────────
+document.addEventListener('keydown', e => {
+  const inField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+  if (e.key === 'Escape') {
+    if (entryModal.open) closeEntryModal();
+    if (tagMgrModal.open) tagMgrModal.close();
+    if (settingsModal.open) settingsModal.close();
+    if (importModal.open) { pendingImport = null; importModal.close(); }
+    if (promptModal.open) { if (promptResolve) promptResolve(null); promptModal.close(); }
+    if (!tagPickerPopoverEl.classList.contains('hidden')) {
+      tagPickerPopoverEl.classList.add('hidden'); tagPickerEl.classList.remove('open');
+    }
+    if (view.tag) { view.tag = null; renderAll(); }
+  }
+  if (inField) return;
+  if (e.key === '/') { e.preventDefault(); document.getElementById('search').focus(); }
+  if (e.key === 'n') { e.preventDefault(); openEntryModal(null); }
+});
+
+// ─────────────────────────── toast ──────────────────────────
+let toastTimer = null;
+function toast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isError);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ─────────────────────────── boot ───────────────────────────
+renderAll();
+if (isSyncEnabled()) { setSyncPipState('on'); syncPull(); }
+</script>
+</body>
+</html>
