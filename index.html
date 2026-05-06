@@ -131,7 +131,6 @@ a:hover { color: #e87650; }
 .nav-list li:hover .collection-actions button.tiny:hover { color: var(--accent); }
 .ghost-btn { color: var(--ink-faint); text-align: left; padding: 6px 10px; border-radius: 2px; font-size: 12px; transition: color 0.12s, background 0.12s; }
 .ghost-btn:hover { color: var(--ink); background: var(--paper); }
-.tools { margin-top: auto; }
 .tools .ghost-btn { font-size: 11px; }
 
 .content { grid-area: content; padding: 28px 36px 60px; overflow: hidden; }
@@ -255,11 +254,25 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   background-repeat: no-repeat; background-position: right 11px center; padding-right: 28px;
 }
 
-.star-input { display: flex; gap: 2px; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; padding: 8px 11px; align-items: center; }
-.star-input button { color: var(--ink-faint); font-size: 16px; padding: 0; width: 22px; line-height: 1; transition: color 0.1s; }
-.star-input button.filled { color: var(--gold); }
-.star-input button:hover { color: var(--accent); }
-.star-input .clear { margin-left: 8px; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; width: auto; }
+.star-input { display: flex; gap: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; padding: 10px 12px; align-items: center; }
+.star-slot { position: relative; width: 30px; height: 30px; line-height: 30px; flex-shrink: 0; }
+.star-slot .bg, .star-slot .fg { position: absolute; inset: 0; font-size: 28px; line-height: 30px; text-align: center; pointer-events: none; user-select: none; }
+.star-slot .bg { color: var(--ink-faint); opacity: 0.45; }
+.star-slot .fg { color: var(--gold); width: 0; overflow: hidden; transition: width 0.08s; }
+.star-slot.half .fg { width: 50%; }
+.star-slot.full .fg { width: 100%; }
+.star-slot .zone { position: absolute; top: 0; bottom: 0; cursor: pointer; background: transparent; border: 0; padding: 0; transition: background 0.1s; border-radius: 2px; }
+.star-slot .zone.half { left: 0; width: 50%; }
+.star-slot .zone.full { left: 50%; right: 0; }
+.star-slot .zone:hover { background: rgba(216,98,63,0.1); }
+.star-input .clear { margin-left: 10px; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; padding: 4px 8px; border-radius: 2px; transition: color 0.12s, background 0.12s; }
+.star-input .clear:hover { color: var(--accent); background: var(--bg); }
+
+/* read-only star display (cards, anywhere) */
+.rating-stars { display: inline-flex; gap: 1px; font-size: 15px; line-height: 1; letter-spacing: 0; }
+.rating-stars .sd { color: rgba(107,94,78,0.45); }
+.rating-stars .sd.f { color: var(--gold); }
+.rating-stars .sd.h { background: linear-gradient(to right, var(--gold) 50%, rgba(107,94,78,0.45) 50%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
 .modal footer .submit, .btn-primary { background: var(--accent); color: var(--bg); padding: 9px 22px; border-radius: 2px; font-weight: 600; letter-spacing: 0.02em; transition: background 0.15s; }
 .modal footer .submit:hover, .btn-primary:hover { background: #e87650; }
@@ -284,11 +297,16 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .group-row .actions { display: flex; gap: 4px; }
 .group-row .actions button { color: var(--ink-faint); padding: 2px 8px; font-size: 11px; }
 .group-row .actions button:hover { color: var(--accent); }
-.tag-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); }
+.tag-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); }
 .tag-row:last-child { border-bottom: none; }
 .tag-row .tag-pill { justify-self: start; }
 .tag-row select { background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 4px 22px 4px 8px; font-size: 11px; color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; appearance: none; cursor: pointer; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M1 1l3 3 3-3' stroke='%23b09a7a' fill='none' stroke-width='1.2'/></svg>"); background-repeat: no-repeat; background-position: right 7px center; }
 .tag-row select:hover { color: var(--ink); border-color: var(--accent-soft); }
+.tag-row .delete-tag { color: var(--ink-faint); padding: 4px 8px; font-size: 13px; line-height: 1; border-radius: 2px; transition: color 0.12s, background 0.12s; }
+.tag-row .delete-tag:hover { color: #c47878; background: var(--bg); }
+
+.tag-mgr-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.tag-mgr-actions button { padding: 6px 12px; border-radius: 2px; font-size: 11px; letter-spacing: 0.05em; }
 
 .settings-section { background: var(--paper); border: 1px solid var(--line); border-radius: 3px; padding: 16px 18px; margin-bottom: 14px; }
 .settings-section h3 { font-family: 'Instrument Serif', serif; font-size: 18px; font-style: italic; color: var(--ink); margin-bottom: 4px; text-transform: none; letter-spacing: 0; }
@@ -338,7 +356,8 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   .app { grid-template-columns: 1fr; grid-template-areas: "topbar" "sidebar" "content"; }
   .sidebar { border-right: none; border-bottom: 1px solid var(--line); padding: 18px 20px; flex-direction: row; flex-wrap: wrap; gap: 18px; overflow-x: auto; }
   .sidebar section { flex: 1; min-width: 160px; }
-  .tools { width: 100%; flex-direction: row; gap: 6px; flex-wrap: wrap; }
+  /* tools first on mobile so the most-used buttons don't sit below collections */
+  .tools { width: 100%; flex-direction: row; gap: 6px; flex-wrap: wrap; order: -1; }
   .topbar { padding: 20px 20px 14px; flex-wrap: wrap; gap: 12px; }
   .brand h1 { font-size: 36px; }
   .tagline { display: none; }
@@ -460,9 +479,11 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
           </label>
           <label>Rating
             <div class="star-input" id="rating-input">
-              <button type="button" data-r="1">★</button><button type="button" data-r="2">★</button>
-              <button type="button" data-r="3">★</button><button type="button" data-r="4">★</button>
-              <button type="button" data-r="5">★</button>
+              <div class="star-slot" data-slot="1"><span class="bg">★</span><span class="fg">★</span><button type="button" class="zone half" data-r="0.5" aria-label="0.5 stars"></button><button type="button" class="zone full" data-r="1" aria-label="1 star"></button></div>
+              <div class="star-slot" data-slot="2"><span class="bg">★</span><span class="fg">★</span><button type="button" class="zone half" data-r="1.5" aria-label="1.5 stars"></button><button type="button" class="zone full" data-r="2" aria-label="2 stars"></button></div>
+              <div class="star-slot" data-slot="3"><span class="bg">★</span><span class="fg">★</span><button type="button" class="zone half" data-r="2.5" aria-label="2.5 stars"></button><button type="button" class="zone full" data-r="3" aria-label="3 stars"></button></div>
+              <div class="star-slot" data-slot="4"><span class="bg">★</span><span class="fg">★</span><button type="button" class="zone half" data-r="3.5" aria-label="3.5 stars"></button><button type="button" class="zone full" data-r="4" aria-label="4 stars"></button></div>
+              <div class="star-slot" data-slot="5"><span class="bg">★</span><span class="fg">★</span><button type="button" class="zone half" data-r="4.5" aria-label="4.5 stars"></button><button type="button" class="zone full" data-r="5" aria-label="5 stars"></button></div>
               <button type="button" class="clear" data-r="0">clear</button>
             </div>
             <input type="hidden" name="rating" value="0">
@@ -496,6 +517,9 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
       </div>
       <div class="section-block">
         <h3>All tags</h3>
+        <div class="tag-mgr-actions">
+          <button class="btn-secondary" id="claude-organize-btn" title="Use Claude to suggest groupings (requires API key in settings)">✦ ask claude to organize</button>
+        </div>
         <div id="tag-rows"></div>
         <p id="no-tags-msg" style="color:var(--ink-faint);font-size:12px;display:none">No tags yet — add some by tagging an entry.</p>
       </div>
@@ -535,6 +559,27 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
         </div>
         <div class="sync-status" id="claude-status">disabled</div>
       </div>
+      <div class="settings-section">
+        <h3>Auto-push code to GitHub Pages</h3>
+        <div class="desc">Push an updated bitacora.html to your repo without leaving the app. After pushing, your phone gets the new version on next refresh (~30 sec). Requires a <em>separate</em> fine-grained token with Contents: Read & write on the bitacora repo only.</div>
+        <p style="margin:6px 0 12px;font-size:12px;color:var(--ink-dim);line-height:1.6">
+          <strong style="color:var(--ink)">Setup once:</strong> at <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a> → Repository access: <em>Only select repositories</em> → pick <code style="color:var(--gold)">bitacora</code> → Permissions → Repository permissions → <em>Contents: Read and write</em> → Generate token. Copy the <code style="color:var(--gold)">github_pat_…</code> string.
+        </p>
+        <div class="form-grid">
+          <label>Repo (owner/name)<input type="text" id="codepush-repo" placeholder="leandrogn10-ctrl/bitacora" autocomplete="off"></label>
+          <label>File path<input type="text" id="codepush-path" placeholder="index.html" autocomplete="off"></label>
+          <label class="span-2">Repo token<input type="password" id="codepush-pat" placeholder="github_pat_..." autocomplete="off"></label>
+          <label class="span-2">New bitacora.html file<input type="file" id="codepush-file" accept=".html,text/html" style="background:var(--bg);padding:7px 11px"></label>
+          <label>&nbsp;
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn-primary" id="codepush-push-btn" type="button">Push to GitHub</button>
+              <button class="btn-danger" id="codepush-forget-btn" type="button">Forget credentials</button>
+            </div>
+          </label>
+        </div>
+        <div class="sync-status" id="codepush-status">disabled</div>
+      </div>
+
       <div class="settings-section">
         <h3>Cloud sync (GitHub Gist)</h3>
         <div class="desc">Your data lives in a private gist on your GitHub account. Last-write-wins between devices.</div>
@@ -640,6 +685,7 @@ function migrate(s) {
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
   s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };
+  s.settings.codePush = s.settings.codePush || { repo: '', path: 'index.html', pat: null };
   s.lastModified = s.lastModified || Date.now();
   for (const it of s.items) {
     if (typeof it.claudeNote === 'undefined') it.claudeNote = '';
@@ -675,10 +721,27 @@ const today = () => new Date().toISOString().slice(0, 10);
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
 
+const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+const MONTH_SHORT = ['jan','feb','mar','apr','may','jun','jul','aug','sep','sept','oct','nov','dec'];
+function monthIndex(t) {
+  const l = t.toLowerCase();
+  let i = MONTHS.indexOf(l);
+  if (i >= 0) return i;
+  i = MONTH_SHORT.indexOf(l);
+  if (i >= 0) return i === 10 ? 9 : i > 10 ? i - 1 : i; // 'sept' aliases to sep
+  return -1;
+}
+function smartTagCompare(a, b) {
+  const am = monthIndex(a[0]), bm = monthIndex(b[0]);
+  if (am >= 0 && bm >= 0) return am - bm;
+  if (am >= 0) return -1;
+  if (bm >= 0) return 1;
+  return a[0].toLowerCase().localeCompare(b[0].toLowerCase());
+}
 function getAllTags() {
   const counts = new Map();
   for (const it of state.items) for (const t of it.tags || []) counts.set(t, (counts.get(t) || 0) + 1);
-  return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  return [...counts.entries()].sort(smartTagCompare);
 }
 function getTagColor(tag) {
   const groupId = state.tagAssignments[tag];
@@ -779,7 +842,7 @@ function renderItems() {
   grid.innerHTML = items.map((it, idx) => {
     const collection = state.collections.find(c => c.id === it.collectionId);
     const collName = collection ? collection.name : '—';
-    const stars = '★'.repeat(it.rating || 0) + `<span class="empty">${'★'.repeat(5 - (it.rating || 0))}</span>`;
+    const stars = renderStars(it.rating || 0);
     const tagsHtml = (it.tags && it.tags.length) ? `<div class="tags">${it.tags.slice(0, 6).map(t => tagPillHtml(t, t === view.tag)).join('')}</div>` : '';
     const notesPreview = it.notes ? `<div class="notes-preview">${escapeHtml(it.notes)}</div>` : '';
     const takeCount = (it.claudeReplies || []).length;
@@ -871,11 +934,26 @@ function openEntryModal(item) {
 }
 function closeEntryModal() { entryModal.close(); editing = null; }
 function setRating(n) {
-  document.querySelectorAll('#rating-input button[data-r]').forEach(b => {
-    if (b.dataset.r === '0') return;
-    b.classList.toggle('filled', parseInt(b.dataset.r) <= n);
-  });
+  n = parseFloat(n) || 0;
   entryForm.rating.value = n;
+  document.querySelectorAll('#rating-input .star-slot').forEach(slot => {
+    const slotN = parseInt(slot.dataset.slot);
+    slot.classList.remove('half', 'full');
+    if (n >= slotN) slot.classList.add('full');
+    else if (n >= slotN - 0.5) slot.classList.add('half');
+  });
+}
+
+function renderStars(rating) {
+  const r = Math.max(0, Math.min(5, parseFloat(rating) || 0));
+  let html = '<span class="rating-stars">';
+  for (let i = 1; i <= 5; i++) {
+    if (r >= i)            html += '<span class="sd f">★</span>';
+    else if (r >= i - 0.5) html += '<span class="sd h">★</span>';
+    else                   html += '<span class="sd">★</span>';
+  }
+  html += '</span>';
+  return html;
 }
 function renderClaudeTakes(item) {
   const section = document.getElementById('claude-takes-section');
@@ -902,7 +980,7 @@ document.getElementById('clear-takes-btn').addEventListener('click', () => {
   toast("claude's takes cleared.");
 });
 document.getElementById('rating-input').addEventListener('click', e => {
-  const btn = e.target.closest('button[data-r]'); if (btn) setRating(parseInt(btn.dataset.r));
+  const btn = e.target.closest('button[data-r]'); if (btn) setRating(parseFloat(btn.dataset.r));
 });
 
 entryForm.addEventListener('submit', e => {
@@ -913,7 +991,7 @@ entryForm.addEventListener('submit', e => {
     title: fd.get('title').trim(),
     collectionId: fd.get('collectionId'),
     status: fd.get('status'),
-    rating: parseInt(fd.get('rating')) || 0,
+    rating: parseFloat(fd.get('rating')) || 0,
     tags,
     notes: fd.get('notes').trim(),
     claudeNote: fd.get('claudeNote').trim(),
@@ -940,7 +1018,14 @@ entryForm.addEventListener('submit', e => {
   save();
   closeEntryModal();
   renderAll();
-  if (savedItem && isClaudeEnabled() && state.settings.claude.respondOnLog) respondOnLog(savedItem, isNew);
+  if (savedItem) {
+    if (isClaudeEnabled() && state.settings.claude.respondOnLog) {
+      respondOnLog(savedItem, isNew);
+    } else if (state.settings.claude.respondOnLog && !isClaudeEnabled()) {
+      // synced-on, but no API key on this device — gentle nudge
+      setTimeout(() => toast('claude responses are on, but no API key on this device — open ⚙ settings.', false), 600);
+    }
+  }
 });
 
 document.getElementById('delete-entry').addEventListener('click', () => {
@@ -1011,6 +1096,7 @@ function renderTagManager() {
     return `<div class="tag-row">
       <span class="tag-pill">${tagPillHtml(tag, false)} <span style="color:var(--ink-faint);font-size:10px;margin-left:6px">${count}</span></span>
       <select data-assign-tag="${escapeAttr(tag)}">${opts}</select>
+      <button class="delete-tag" data-delete-tag="${escapeAttr(tag)}" title="remove from all entries">×</button>
     </div>`;
   }).join('');
 }
@@ -1046,6 +1132,62 @@ document.getElementById('tag-rows').addEventListener('change', e => {
   if (gid) state.tagAssignments[tag] = gid; else delete state.tagAssignments[tag];
   save(); renderTagManager(); renderAll();
 });
+
+document.getElementById('tag-rows').addEventListener('click', e => {
+  const delBtn = e.target.closest('[data-delete-tag]');
+  if (!delBtn) return;
+  const tag = delBtn.dataset.deleteTag;
+  const count = state.items.filter(i => (i.tags || []).includes(tag)).length;
+  if (!confirm(`Remove "${tag}" from ${count} ${count === 1 ? 'entry' : 'entries'}? This deletes the tag everywhere — entries themselves stay.`)) return;
+  for (const it of state.items) {
+    if (Array.isArray(it.tags)) it.tags = it.tags.filter(t => t !== tag);
+  }
+  delete state.tagAssignments[tag];
+  save();
+  renderTagManager();
+  renderAll();
+  toast(`removed "${tag}" from ${count} ${count === 1 ? 'entry' : 'entries'}.`);
+});
+
+document.getElementById('claude-organize-btn').addEventListener('click', async () => {
+  if (!isClaudeEnabled()) { toast('set up Claude API key in settings first.', true); return; }
+  const allTags = getAllTags();
+  if (allTags.length < 3) { toast('need at least 3 tags to organize.', true); return; }
+  const tagList = allTags.map(([t, c]) => `${t} (${c}x)`).join(', ');
+  const existingGroups = state.tagGroups.length
+    ? `\n\nExisting groups (you can suggest tags for these too): ${state.tagGroups.map(g => `"${g.name}" [${g.color}]`).join(', ')}`
+    : '';
+  const sys = `You organize tag lists for a personal media library into sensible color-coded groups. Return ONLY valid JSON, no preamble. Format: {"groups":[{"name":"Time","color":"gold","tags":["may","june"]}]}. Available colors: terracotta, gold, sage, dusty, plum, ochre, rust, ash. Use 3-6 groups max. Tags that don't fit cleanly should be omitted (they'll stay ungrouped). Group names should be short nouns (Time, Genre, Mood, Source, etc).`;
+  const userMsg = `My tags: ${tagList}${existingGroups}\n\nGroup these and return only the JSON.`;
+  toast('asking claude…');
+  try {
+    const text = await callClaude({ system: sys, userMessage: userMsg, maxTokens: 800 });
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Claude didn't return JSON");
+    const parsed = JSON.parse(match[0]);
+    if (!parsed.groups || !Array.isArray(parsed.groups)) throw new Error('Bad shape');
+    const preview = parsed.groups.map(g => `• ${g.name} (${g.color}): ${g.tags.join(', ')}`).join('\n');
+    if (!confirm(`Claude proposes:\n\n${preview}\n\nApply? New groups will be added; existing groups stay intact. Tag assignments will be updated.`)) return;
+    for (const g of parsed.groups) {
+      if (!g.name || !Array.isArray(g.tags)) continue;
+      const color = TAG_COLORS.includes(g.color) ? g.color : 'ash';
+      // reuse existing group with same name if present, else create
+      let existing = state.tagGroups.find(x => x.name.toLowerCase() === g.name.toLowerCase());
+      let groupId;
+      if (existing) { groupId = existing.id; existing.color = color; }
+      else { groupId = uid(); state.tagGroups.push({ id: groupId, name: g.name, color }); }
+      for (const tag of g.tags) {
+        if (typeof tag === 'string' && tag.trim()) state.tagAssignments[tag.trim()] = groupId;
+      }
+    }
+    save();
+    renderTagManager();
+    renderAll();
+    toast('tags organized.');
+  } catch (e) {
+    toast('failed: ' + e.message, true);
+  }
+});
 document.getElementById('tag-mgr-btn').addEventListener('click', openTagManager);
 
 const settingsModal = document.getElementById('settings-modal');
@@ -1056,7 +1198,10 @@ function openSettings() {
   document.getElementById('claude-respond-toggle').checked = !!state.settings.claude.respondOnLog;
   document.getElementById('sync-pat').value = state.settings.sync.githubPat || '';
   document.getElementById('sync-gist-id').value = state.settings.sync.gistId || '';
-  renderClaudeStatus(); renderSyncStatus();
+  document.getElementById('codepush-repo').value = state.settings.codePush?.repo || '';
+  document.getElementById('codepush-path').value = state.settings.codePush?.path || 'index.html';
+  document.getElementById('codepush-pat').value = state.settings.codePush?.pat || '';
+  renderClaudeStatus(); renderSyncStatus(); renderCodePushStatus();
   settingsModal.showModal();
 }
 document.getElementById('settings-btn').addEventListener('click', openSettings);
@@ -1086,6 +1231,83 @@ function renderClaudeStatus() {
   el.textContent = state.settings.claude.respondOnLog ? `enabled · ${state.settings.claude.model.split('-')[1]}` : 'enabled · respond-on-log OFF';
   el.className = 'sync-status ok';
 }
+function renderCodePushStatus() {
+  const el = document.getElementById('codepush-status');
+  const cp = state.settings.codePush || {};
+  if (!cp.repo || !cp.pat) { el.textContent = 'disabled · paste repo + token to enable'; el.className = 'sync-status'; return; }
+  const last = cp.lastPushedAt ? new Date(cp.lastPushedAt).toLocaleString() : 'never';
+  el.textContent = `ready · ${cp.repo}/${cp.path || 'index.html'} · last push ${last}`;
+  el.className = 'sync-status ok';
+}
+
+async function githubRepoFetch(method, path, body = null) {
+  const cp = state.settings.codePush;
+  const res = await fetch(`https://api.github.com/repos/${cp.repo}/contents/${cp.path || 'index.html'}${path || ''}`, {
+    method,
+    headers: { 'Authorization': `Bearer ${cp.pat}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return res;
+}
+
+document.getElementById('codepush-push-btn').addEventListener('click', async () => {
+  const fileInput = document.getElementById('codepush-file');
+  const file = fileInput.files?.[0];
+  if (!file) { toast('pick the new bitacora.html first.', true); return; }
+  const repo = document.getElementById('codepush-repo').value.trim();
+  const path = document.getElementById('codepush-path').value.trim() || 'index.html';
+  const pat = document.getElementById('codepush-pat').value.trim();
+  if (!repo || !pat) { toast('repo and token required.', true); return; }
+  if (!repo.includes('/')) { toast('repo must look like owner/name.', true); return; }
+  state.settings.codePush = { ...state.settings.codePush, repo, path, pat };
+  save({ push: false });
+  try {
+    toast('reading file…');
+    const content = await file.text();
+    // Get current SHA (if file exists)
+    let sha = null;
+    const head = await githubRepoFetch('GET');
+    if (head.ok) { const d = await head.json(); sha = d.sha; }
+    else if (head.status !== 404) {
+      const t = await head.text(); throw new Error(`${head.status}: ${t.slice(0, 160)}`);
+    }
+    toast('pushing to github…');
+    // base64-encode UTF-8 properly (handles ★, é, ñ, etc.)
+    const utf8 = new TextEncoder().encode(content);
+    let bin = ''; utf8.forEach(b => bin += String.fromCharCode(b));
+    const b64 = btoa(bin);
+    const body = { message: `Update ${path} via Bitácora`, content: b64 };
+    if (sha) body.sha = sha;
+    const put = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${pat}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!put.ok) {
+      const t = await put.text();
+      throw new Error(`${put.status}: ${t.slice(0, 200)}`);
+    }
+    state.settings.codePush.lastPushedAt = Date.now();
+    save({ push: false });
+    fileInput.value = '';
+    renderCodePushStatus();
+    toast('pushed! phone gets the update on next refresh (~30s).');
+  } catch (e) {
+    toast('push failed: ' + e.message, true);
+  }
+});
+
+document.getElementById('codepush-forget-btn').addEventListener('click', () => {
+  if (!confirm('Forget code-push credentials? Your repo on GitHub stays untouched.')) return;
+  state.settings.codePush = { repo: '', path: 'index.html', pat: null };
+  save({ push: false });
+  document.getElementById('codepush-repo').value = '';
+  document.getElementById('codepush-pat').value = '';
+  document.getElementById('codepush-file').value = '';
+  renderCodePushStatus();
+  toast('credentials cleared.');
+});
+
 function renderSyncStatus() {
   const el = document.getElementById('sync-status');
   const blurb = document.getElementById('sync-config-blurb');
@@ -1101,8 +1323,9 @@ function isSyncEnabled() { return !!(state.settings.sync.enabled && state.settin
 // CRITICAL: never push credentials to the gist. Strip them before any write.
 function cleanStateForSync() {
   return { ...state, settings: { ...state.settings,
-    sync:   { lastModified: state.lastModified },
-    claude: { model: state.settings.claude.model, respondOnLog: state.settings.claude.respondOnLog }
+    sync:     { lastModified: state.lastModified },
+    claude:   { model: state.settings.claude.model, respondOnLog: state.settings.claude.respondOnLog },
+    codePush: { repo: state.settings.codePush?.repo || '', path: state.settings.codePush?.path || 'index.html' }
   } };
 }
 async function gistFetch(method, path, body = null) {
@@ -1237,7 +1460,7 @@ function buildClaudeSystem() {
     lines.push('## Sample of his taste (rated/finished entries):');
     for (const it of sample) {
       const c = state.collections.find(c => c.id === it.collectionId);
-      const stars = it.rating ? '★'.repeat(it.rating) : '·';
+      const stars = it.rating ? '★'.repeat(Math.floor(it.rating)) + (it.rating % 1 >= 0.5 ? '½' : '') : '·';
       const note = it.claudeNote ? ` — taste-note: ${it.claudeNote}` : '';
       lines.push(`- ${it.title} (${c?.name || '—'}) ${stars} · ${it.status}${note}`);
     }
@@ -1372,7 +1595,7 @@ document.getElementById('claude-summary-btn').addEventListener('click', async ()
     lines.push('');
     const sorted = [...items].sort((a, b) => (b.rating || 0) - (a.rating || 0) || a.title.localeCompare(b.title));
     for (const it of sorted) {
-      const stars = it.rating ? '★'.repeat(it.rating) : '·';
+      const stars = it.rating ? '★'.repeat(Math.floor(it.rating)) + (it.rating % 1 >= 0.5 ? '½' : '') : '·';
       const status = STATUS_LABELS[it.status];
       const tags = it.tags && it.tags.length ? ` [${it.tags.join(', ')}]` : '';
       lines.push(`- **${it.title}** — ${stars} · ${status}${tags}`);
