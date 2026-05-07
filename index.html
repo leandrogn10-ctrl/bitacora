@@ -297,12 +297,13 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .group-row .actions { display: flex; gap: 4px; }
 .group-row .actions button { color: var(--ink-faint); padding: 2px 8px; font-size: 11px; }
 .group-row .actions button:hover { color: var(--accent); }
-.tag-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); }
+.tag-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); }
 .tag-row:last-child { border-bottom: none; }
 .tag-row .tag-pill { justify-self: start; }
 .tag-row select { background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 4px 22px 4px 8px; font-size: 11px; color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; appearance: none; cursor: pointer; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M1 1l3 3 3-3' stroke='%23b09a7a' fill='none' stroke-width='1.2'/></svg>"); background-repeat: no-repeat; background-position: right 7px center; }
 .tag-row select:hover { color: var(--ink); border-color: var(--accent-soft); }
-.tag-row .delete-tag { color: var(--ink-faint); padding: 4px 8px; font-size: 13px; line-height: 1; border-radius: 2px; transition: color 0.12s, background 0.12s; }
+.tag-row .rename-tag, .tag-row .delete-tag { color: var(--ink-faint); padding: 4px 8px; font-size: 13px; line-height: 1; border-radius: 2px; transition: color 0.12s, background 0.12s; }
+.tag-row .rename-tag:hover { color: var(--accent); background: var(--bg); }
 .tag-row .delete-tag:hover { color: #c47878; background: var(--bg); }
 
 .tag-mgr-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -566,10 +567,9 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
           <strong style="color:var(--ink)">Setup once:</strong> at <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a> → Repository access: <em>Only select repositories</em> → pick <code style="color:var(--gold)">bitacora</code> → Permissions → Repository permissions → <em>Contents: Read and write</em> → Generate token. Copy the <code style="color:var(--gold)">github_pat_…</code> string.
         </p>
         <div class="form-grid">
-          <label>Repo (owner/name)<input type="text" id="codepush-repo" placeholder="leandrogn10-ctrl/bitacora" autocomplete="off"></label>
-          <label>File path<input type="text" id="codepush-path" placeholder="index.html" autocomplete="off"></label>
+          <label class="span-2">Repo (owner/name)<input type="text" id="codepush-repo" placeholder="leandrogn10-ctrl/bitacora" autocomplete="off"></label>
           <label class="span-2">Repo token<input type="password" id="codepush-pat" placeholder="github_pat_..." autocomplete="off"></label>
-          <label class="span-2">New bitacora.html file<input type="file" id="codepush-file" accept=".html,text/html" style="background:var(--bg);padding:7px 11px"></label>
+          <label class="span-2">Files to push <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— pick index.html and sw.js together</span><input type="file" id="codepush-file" accept=".html,.js,text/html,text/javascript" multiple style="background:var(--bg);padding:7px 11px"></label>
           <label>&nbsp;
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
               <button class="btn-primary" id="codepush-push-btn" type="button">Push to GitHub</button>
@@ -983,6 +983,41 @@ document.getElementById('rating-input').addEventListener('click', e => {
   const btn = e.target.closest('button[data-r]'); if (btn) setRating(parseFloat(btn.dataset.r));
 });
 
+// Touch-drag rating: press and slide finger across stars to set rating live.
+(function() {
+  const ratingInput = document.getElementById('rating-input');
+  let dragging = false;
+  function ratingFromTouch(touch) {
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!el) return null;
+    const zone = el.closest('.zone');
+    if (zone) return parseFloat(zone.dataset.r);
+    // outside any zone — figure out which slot we're nearest
+    const slot = el.closest('.star-slot');
+    if (!slot) return null;
+    const rect = slot.getBoundingClientRect();
+    const xInSlot = touch.clientX - rect.left;
+    const slotN = parseInt(slot.dataset.slot);
+    return xInSlot < rect.width / 2 ? slotN - 0.5 : slotN;
+  }
+  ratingInput.addEventListener('touchstart', e => {
+    if (!e.target.closest('.star-slot')) return;
+    dragging = true;
+    const r = ratingFromTouch(e.touches[0]);
+    if (r != null) setRating(r);
+    e.preventDefault();
+  }, { passive: false });
+  ratingInput.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const r = ratingFromTouch(e.touches[0]);
+    if (r != null) setRating(r);
+    e.preventDefault();
+  }, { passive: false });
+  const stop = () => { dragging = false; };
+  ratingInput.addEventListener('touchend', stop);
+  ratingInput.addEventListener('touchcancel', stop);
+})();
+
 entryForm.addEventListener('submit', e => {
   e.preventDefault();
   const fd = new FormData(entryForm);
@@ -1096,6 +1131,7 @@ function renderTagManager() {
     return `<div class="tag-row">
       <span class="tag-pill">${tagPillHtml(tag, false)} <span style="color:var(--ink-faint);font-size:10px;margin-left:6px">${count}</span></span>
       <select data-assign-tag="${escapeAttr(tag)}">${opts}</select>
+      <button class="rename-tag" data-rename-tag="${escapeAttr(tag)}" title="rename across all entries">✎</button>
       <button class="delete-tag" data-delete-tag="${escapeAttr(tag)}" title="remove from all entries">×</button>
     </div>`;
   }).join('');
@@ -1133,20 +1169,50 @@ document.getElementById('tag-rows').addEventListener('change', e => {
   save(); renderTagManager(); renderAll();
 });
 
-document.getElementById('tag-rows').addEventListener('click', e => {
+document.getElementById('tag-rows').addEventListener('click', async e => {
   const delBtn = e.target.closest('[data-delete-tag]');
-  if (!delBtn) return;
-  const tag = delBtn.dataset.deleteTag;
-  const count = state.items.filter(i => (i.tags || []).includes(tag)).length;
-  if (!confirm(`Remove "${tag}" from ${count} ${count === 1 ? 'entry' : 'entries'}? This deletes the tag everywhere — entries themselves stay.`)) return;
-  for (const it of state.items) {
-    if (Array.isArray(it.tags)) it.tags = it.tags.filter(t => t !== tag);
+  const renBtn = e.target.closest('[data-rename-tag]');
+  if (renBtn) {
+    const oldTag = renBtn.dataset.renameTag;
+    const newTagRaw = await askPrompt('Rename tag', `Rename "${oldTag}" to:`, oldTag);
+    if (!newTagRaw) return;
+    const newTag = newTagRaw.trim();
+    if (!newTag || newTag === oldTag) return;
+    const count = state.items.filter(i => (i.tags || []).includes(oldTag)).length;
+    let merged = false;
+    for (const it of state.items) {
+      if (!Array.isArray(it.tags)) continue;
+      if (it.tags.includes(oldTag)) {
+        // dedupe in case both old and new already exist on the same entry
+        const next = new Set(it.tags.map(t => t === oldTag ? newTag : t));
+        if (it.tags.includes(newTag)) merged = true;
+        it.tags = [...next];
+      }
+    }
+    // Move group assignment if the old tag had one and the new one doesn't
+    if (state.tagAssignments[oldTag] && !state.tagAssignments[newTag]) {
+      state.tagAssignments[newTag] = state.tagAssignments[oldTag];
+    }
+    delete state.tagAssignments[oldTag];
+    save();
+    renderTagManager();
+    renderAll();
+    toast(`renamed in ${count} ${count === 1 ? 'entry' : 'entries'}${merged ? ' (merged with existing tag)' : ''}.`);
+    return;
   }
-  delete state.tagAssignments[tag];
-  save();
-  renderTagManager();
-  renderAll();
-  toast(`removed "${tag}" from ${count} ${count === 1 ? 'entry' : 'entries'}.`);
+  if (delBtn) {
+    const tag = delBtn.dataset.deleteTag;
+    const count = state.items.filter(i => (i.tags || []).includes(tag)).length;
+    if (!confirm(`Remove "${tag}" from ${count} ${count === 1 ? 'entry' : 'entries'}? This deletes the tag everywhere — entries themselves stay.`)) return;
+    for (const it of state.items) {
+      if (Array.isArray(it.tags)) it.tags = it.tags.filter(t => t !== tag);
+    }
+    delete state.tagAssignments[tag];
+    save();
+    renderTagManager();
+    renderAll();
+    toast(`removed "${tag}" from ${count} ${count === 1 ? 'entry' : 'entries'}.`);
+  }
 });
 
 document.getElementById('claude-organize-btn').addEventListener('click', async () => {
@@ -1199,7 +1265,6 @@ function openSettings() {
   document.getElementById('sync-pat').value = state.settings.sync.githubPat || '';
   document.getElementById('sync-gist-id').value = state.settings.sync.gistId || '';
   document.getElementById('codepush-repo').value = state.settings.codePush?.repo || '';
-  document.getElementById('codepush-path').value = state.settings.codePush?.path || 'index.html';
   document.getElementById('codepush-pat').value = state.settings.codePush?.pat || '';
   renderClaudeStatus(); renderSyncStatus(); renderCodePushStatus();
   settingsModal.showModal();
@@ -1236,7 +1301,7 @@ function renderCodePushStatus() {
   const cp = state.settings.codePush || {};
   if (!cp.repo || !cp.pat) { el.textContent = 'disabled · paste repo + token to enable'; el.className = 'sync-status'; return; }
   const last = cp.lastPushedAt ? new Date(cp.lastPushedAt).toLocaleString() : 'never';
-  el.textContent = `ready · ${cp.repo}/${cp.path || 'index.html'} · last push ${last}`;
+  el.textContent = `ready · ${cp.repo} · last push ${last}`;
   el.className = 'sync-status ok';
 }
 
@@ -1252,46 +1317,40 @@ async function githubRepoFetch(method, path, body = null) {
 
 document.getElementById('codepush-push-btn').addEventListener('click', async () => {
   const fileInput = document.getElementById('codepush-file');
-  const file = fileInput.files?.[0];
-  if (!file) { toast('pick the new bitacora.html first.', true); return; }
+  const files = Array.from(fileInput.files || []);
+  if (!files.length) { toast('pick the file(s) to push first.', true); return; }
   const repo = document.getElementById('codepush-repo').value.trim();
-  const path = document.getElementById('codepush-path').value.trim() || 'index.html';
   const pat = document.getElementById('codepush-pat').value.trim();
   if (!repo || !pat) { toast('repo and token required.', true); return; }
   if (!repo.includes('/')) { toast('repo must look like owner/name.', true); return; }
-  state.settings.codePush = { ...state.settings.codePush, repo, path, pat };
+  state.settings.codePush = { ...state.settings.codePush, repo, pat };
   save({ push: false });
   try {
-    toast('reading file…');
-    const content = await file.text();
-    // Get current SHA (if file exists)
-    let sha = null;
-    const head = await githubRepoFetch('GET');
-    if (head.ok) { const d = await head.json(); sha = d.sha; }
-    else if (head.status !== 404) {
-      const t = await head.text(); throw new Error(`${head.status}: ${t.slice(0, 160)}`);
-    }
-    toast('pushing to github…');
-    // base64-encode UTF-8 properly (handles ★, é, ñ, etc.)
-    const utf8 = new TextEncoder().encode(content);
-    let bin = ''; utf8.forEach(b => bin += String.fromCharCode(b));
-    const b64 = btoa(bin);
-    const body = { message: `Update ${path} via Bitácora`, content: b64 };
-    if (sha) body.sha = sha;
-    const put = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${pat}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!put.ok) {
-      const t = await put.text();
-      throw new Error(`${put.status}: ${t.slice(0, 200)}`);
+    const headers = { 'Authorization': `Bearer ${pat}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
+    for (const file of files) {
+      const path = file.name;
+      toast(`pushing ${path}…`);
+      const content = await file.text();
+      // Get current SHA (if file exists in repo)
+      let sha = null;
+      const head = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, { headers });
+      if (head.ok) { const d = await head.json(); sha = d.sha; }
+      else if (head.status !== 404) {
+        const t = await head.text(); throw new Error(`${path}: ${head.status} ${t.slice(0, 120)}`);
+      }
+      // base64-encode UTF-8 properly
+      const utf8 = new TextEncoder().encode(content);
+      let bin = ''; utf8.forEach(b => bin += String.fromCharCode(b));
+      const body = { message: `Update ${path} via Bitácora`, content: btoa(bin) };
+      if (sha) body.sha = sha;
+      const put = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, { method: 'PUT', headers, body: JSON.stringify(body) });
+      if (!put.ok) { const t = await put.text(); throw new Error(`${path}: ${put.status} ${t.slice(0, 200)}`); }
     }
     state.settings.codePush.lastPushedAt = Date.now();
     save({ push: false });
     fileInput.value = '';
     renderCodePushStatus();
-    toast('pushed! phone gets the update on next refresh (~30s).');
+    toast(`pushed ${files.length} ${files.length === 1 ? 'file' : 'files'}. phone gets it on next refresh (~30s).`);
   } catch (e) {
     toast('push failed: ' + e.message, true);
   }
@@ -1299,7 +1358,7 @@ document.getElementById('codepush-push-btn').addEventListener('click', async () 
 
 document.getElementById('codepush-forget-btn').addEventListener('click', () => {
   if (!confirm('Forget code-push credentials? Your repo on GitHub stays untouched.')) return;
-  state.settings.codePush = { repo: '', path: 'index.html', pat: null };
+  state.settings.codePush = { repo: '', pat: null };
   save({ push: false });
   document.getElementById('codepush-repo').value = '';
   document.getElementById('codepush-pat').value = '';
@@ -1765,6 +1824,13 @@ function toast(msg, isError = false) {
 
 renderAll();
 if (isSyncEnabled()) { setSyncPipState('on'); syncPull(); }
+
+// Service worker — offline support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW registration failed', e));
+  });
+}
 </script>
 </body>
 </html>
