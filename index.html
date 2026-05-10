@@ -297,7 +297,19 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .group-row .actions { display: flex; gap: 4px; }
 .group-row .actions button { color: var(--ink-faint); padding: 2px 8px; font-size: 11px; }
 .group-row .actions button:hover { color: var(--accent); }
-.tag-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); }
+/* Drag-drop tag manager */
+.tag-group-section { margin-bottom: 12px; border: 1px solid var(--line-soft); border-radius: 3px; overflow: hidden; }
+.tag-group-section .tag-group-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--paper); border-bottom: 1px solid var(--line-soft); font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; }
+.tag-group-section .tag-group-header .swatch { width: 10px; height: 10px; }
+.tag-group-section .tag-group-items { min-height: 32px; padding: 2px 0; transition: background 0.12s; }
+.tag-group-section .tag-group-items:empty::before { content: 'drop here'; display: block; padding: 10px; text-align: center; color: var(--ink-faint); font-size: 11px; opacity: 0.5; font-style: italic; }
+.tag-group-section.drop-target .tag-group-items { background: var(--paper-hi); }
+.tag-row { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--line-soft); background: var(--bg-elev); transition: background 0.12s, opacity 0.12s; }
+.tag-row.dragging { opacity: 0.35; }
+.tag-row.drop-above { box-shadow: inset 0 2px 0 var(--accent); }
+.tag-row.drop-below { box-shadow: inset 0 -2px 0 var(--accent); }
+.tag-row .drag-handle { color: var(--ink-faint); cursor: grab; font-size: 14px; user-select: none; padding: 0 4px; line-height: 1; letter-spacing: -1px; }
+.tag-row .drag-handle:active { cursor: grabbing; }
 .tag-row:last-child { border-bottom: none; }
 .tag-row .tag-pill { justify-self: start; }
 .tag-row select { background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 4px 22px 4px 8px; font-size: 11px; color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; appearance: none; cursor: pointer; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M1 1l3 3 3-3' stroke='%23b09a7a' fill='none' stroke-width='1.2'/></svg>"); background-repeat: no-repeat; background-position: right 7px center; }
@@ -353,22 +365,162 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
 .toast.err { border-color: #c47878; }
 
+/* ── mobile: native iOS-style structure ────────────────── */
+.bottom-tabs, .fab, .sheet-backdrop, .topbar .icon-btn { display: none; }
+
 @media (max-width: 880px) {
-  .app { grid-template-columns: 1fr; grid-template-areas: "topbar" "sidebar" "content"; }
-  .sidebar { border-right: none; border-bottom: 1px solid var(--line); padding: 18px 20px; flex-direction: row; flex-wrap: wrap; gap: 18px; overflow-x: auto; }
-  .sidebar section { flex: 1; min-width: 160px; }
-  /* tools first on mobile so the most-used buttons don't sit below collections */
-  .tools { width: 100%; flex-direction: row; gap: 6px; flex-wrap: wrap; order: -1; }
-  .topbar { padding: 20px 20px 14px; flex-wrap: wrap; gap: 12px; }
-  .brand h1 { font-size: 36px; }
+  .app { grid-template-columns: 1fr; grid-template-areas: "topbar" "content"; }
+
+  /* topbar: compact, sticky */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg);
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: nowrap; gap: 8px;
+  }
+  .topbar::after { display: none; }
+  .brand { gap: 10px; }
+  .brand h1 { font-size: 28px; }
   .tagline { display: none; }
-  .search-wrap { width: 100%; }
-  .actions { width: 100%; flex-wrap: wrap; }
-  .content { padding: 20px; }
+
+  .actions { gap: 6px; flex-wrap: nowrap; }
+  /* hide desktop +entry button — replaced by FAB */
+  .actions .add-btn { display: none; }
+  /* sync pip stays small */
+  .sync-pip { padding: 4px 8px; font-size: 9px; }
+  .sync-pip .dot { width: 5px; height: 5px; }
+  /* search: collapses to an icon, expands when focused */
+  .search-wrap {
+    width: 36px; padding: 6px 8px;
+    transition: width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    overflow: hidden;
+  }
+  .search-wrap input { width: 0; padding: 0; transition: width 0.22s; }
+  .search-wrap kbd { display: none; }
+  .search-wrap.expanded { width: calc(100vw - 130px); }
+  .search-wrap.expanded input { width: 100%; padding: 0; }
+  .search-wrap:focus-within { width: calc(100vw - 130px); }
+  .search-wrap:focus-within input { width: 100%; }
+
+  .content { padding: 16px 16px 100px; }
+  .content-header h2 { font-size: 24px; }
   .form-grid { grid-template-columns: 1fr; }
   .tag-picker-trigger { width: 100%; }
   .tag-picker-popover { left: 0; right: 0; max-width: none; }
-  .claude-panel { width: calc(100vw - 32px); right: 16px; bottom: 16px; }
+
+  /* hide desktop sidebar by default — shown as bottom sheet via .show-as-sheet */
+  .sidebar {
+    display: none;
+    position: fixed; top: auto; left: 0; right: 0; bottom: 0;
+    grid-area: unset;
+    background: var(--bg-elev);
+    border: 1px solid var(--line); border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    padding: 14px 18px calc(20px + env(safe-area-inset-bottom));
+    max-height: 78vh; overflow-y: auto;
+    z-index: 850;
+    flex-direction: column; gap: 22px;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+  }
+  .sidebar.show-as-sheet {
+    display: flex;
+    animation: sheetIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .sidebar.show-as-sheet::before {
+    content: ''; display: block;
+    width: 36px; height: 4px;
+    background: var(--ink-faint); opacity: 0.4;
+    border-radius: 2px;
+    margin: 2px auto 8px;
+  }
+  /* on mobile, hide tools section in the filter sheet (tools live in More tab) */
+  .sidebar.show-as-sheet .tools { display: none; }
+
+  .sheet-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(2px);
+    z-index: 840;
+  }
+  .sheet-backdrop.show { display: block; animation: fadeIn 0.18s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+  /* bottom tab bar */
+  .bottom-tabs {
+    display: flex;
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--bg-elev);
+    border-top: 1px solid var(--line);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    z-index: 800;
+    justify-content: space-around;
+  }
+  .bottom-tabs .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 12px; flex: 1;
+    color: var(--ink-faint);
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+    transition: color 0.14s, transform 0.08s;
+    border-radius: 6px;
+  }
+  .bottom-tabs .tab .icon { font-size: 18px; line-height: 1; font-family: 'Instrument Serif', serif; font-style: italic; }
+  .bottom-tabs .tab.active { color: var(--accent); }
+  .bottom-tabs .tab:active { transform: scale(0.94); background: var(--paper); }
+
+  /* FAB (floating + entry) — bottom-right above tab bar */
+  .fab {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; right: 18px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    width: 56px; height: 56px;
+    background: var(--accent); color: var(--bg);
+    border-radius: 50%;
+    font-size: 30px; font-weight: 300; line-height: 1;
+    box-shadow: 0 6px 20px rgba(216,98,63,0.4), 0 0 0 1px rgba(216,98,63,0.2);
+    z-index: 850;
+    transition: transform 0.1s, box-shadow 0.18s;
+  }
+  .fab:active { transform: scale(0.93); box-shadow: 0 2px 10px rgba(216,98,63,0.5); }
+
+  /* Modals as bottom sheets on mobile */
+  dialog {
+    margin: 0 !important;
+    width: 100% !important; height: 100% !important;
+    max-width: 100% !important; max-height: 100% !important;
+    align-items: flex-end !important;
+    background: transparent;
+  }
+  .modal {
+    width: 100% !important;
+    max-height: 92vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    margin-bottom: 0; margin-top: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheetIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  .modal::before {
+    content: ''; display: block;
+    width: 36px; height: 4px;
+    background: var(--ink-faint); opacity: 0.4;
+    border-radius: 2px;
+    margin: 8px auto 0;
+  }
+  .modal header { padding: 14px 20px 12px; }
+  .modal header h2 { font-size: 22px; }
+  .modal-body { padding: 16px 20px; }
+  .modal footer { padding: 12px 20px 20px; }
+  .prompt-modal { width: 92%; max-width: 460px; margin: auto; border-radius: 12px; padding: 22px; animation: modalIn 0.2s; }
+
+  /* Claude panel: full-width sheet style, sits above tab bar + FAB */
+  .claude-panel {
+    width: calc(100vw - 24px);
+    right: 12px; left: 12px;
+    bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+  /* Toast: above tab bar */
+  .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
 
 /* iOS standalone safe-area handling — kicks in only when launched from home screen */
@@ -492,6 +644,7 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
           <label>Tags<input type="text" name="tags" placeholder="comma, separated" autocomplete="off"></label>
           <label class="span-2">Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— private</span><textarea name="notes" rows="3" placeholder="thoughts, quotes, who recommended it…"></textarea></label>
           <label class="span-2">Note for Claude <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--c-dusty-fg)">— ✦ for taste-learning</span><textarea name="claudeNote" class="claude-field" rows="2" placeholder="why this rating, what to recommend more/less of…"></textarea></label>
+          <label class="span-2">Public review <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— for Letterboxd / Goodreads</span><textarea name="publicReview" rows="3" placeholder="what you'd post publicly…"></textarea></label>
           <label class="span-2">Setup / config<textarea name="config" class="config-field" rows="4" placeholder="for games: platform, sensitivity, keybinds, mods…"></textarea></label>
         </div>
         <div id="claude-takes-section" class="claude-takes-section" style="display:none">
@@ -501,9 +654,35 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
       </div>
       <footer>
         <button type="button" class="danger hidden" id="delete-entry">delete entry</button>
-        <button type="submit" class="submit">save</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn-secondary" id="share-entry-btn">share…</button>
+          <button type="submit" class="submit">save</button>
+        </div>
       </footer>
     </form>
+  </div>
+</dialog>
+
+<!-- share modal -->
+<dialog id="share-modal">
+  <div class="modal">
+    <header>
+      <div><h2>Share entry</h2><p>opens iOS share sheet — pick Letterboxd, Goodreads, anywhere</p></div>
+      <button type="button" class="close" data-close="share">×</button>
+    </header>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label class="span-2">Title<input type="text" id="share-title" readonly style="opacity:0.7"></label>
+        <label class="span-2">Review text <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— edit before sharing</span><textarea id="share-text" rows="6"></textarea></label>
+        <label class="span-2">
+          <div class="toggle-row"><input type="checkbox" id="share-mirror"><span>also save this as my Note for Claude</span></div>
+        </label>
+      </div>
+    </div>
+    <footer>
+      <button class="btn-secondary" data-close="share">Cancel</button>
+      <button class="btn-primary" id="share-go">Share…</button>
+    </footer>
   </div>
 </dialog>
 
@@ -650,6 +829,17 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 </aside>
 
 <input type="file" id="import-file" accept=".json,application/json" hidden>
+
+<!-- Mobile UI: bottom tab bar + FAB + sheet backdrop (CSS hides these on desktop) -->
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<button class="fab" id="fab-add" aria-label="New entry" title="New entry">＋</button>
+<nav class="bottom-tabs" id="bottom-tabs">
+  <button class="tab active" data-tab="library"><span class="icon">B</span><span>Library</span></button>
+  <button class="tab" data-tab="filter"><span class="icon">▽</span><span>Filter</span></button>
+  <button class="tab" data-tab="tags"><span class="icon">◐</span><span>Tags</span></button>
+  <button class="tab" data-tab="settings"><span class="icon">⚙</span><span>Settings</span></button>
+</nav>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -681,6 +871,7 @@ let editing = null;
 function migrate(s) {
   s.tagGroups = s.tagGroups || [];
   s.tagAssignments = s.tagAssignments || {};
+  s.tagOrder = s.tagOrder || {};
   s.settings = s.settings || {};
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
@@ -689,6 +880,7 @@ function migrate(s) {
   s.lastModified = s.lastModified || Date.now();
   for (const it of s.items) {
     if (typeof it.claudeNote === 'undefined') it.claudeNote = '';
+    if (typeof it.publicReview === 'undefined') it.publicReview = '';
     if (!Array.isArray(it.claudeReplies)) it.claudeReplies = [];
   }
   return s;
@@ -921,6 +1113,7 @@ function openEntryModal(item) {
     entryForm.tags.value = (item.tags || []).join(', ');
     entryForm.notes.value = item.notes || '';
     entryForm.claudeNote.value = item.claudeNote || '';
+    entryForm.publicReview.value = item.publicReview || '';
     entryForm.config.value = item.config || '';
     document.getElementById('delete-entry').classList.remove('hidden');
   } else {
@@ -1030,6 +1223,7 @@ entryForm.addEventListener('submit', e => {
     tags,
     notes: fd.get('notes').trim(),
     claudeNote: fd.get('claudeNote').trim(),
+    publicReview: fd.get('publicReview').trim(),
     config: fd.get('config'),
   };
   if (!data.title) return;
@@ -1060,6 +1254,69 @@ entryForm.addEventListener('submit', e => {
       // synced-on, but no API key on this device — gentle nudge
       setTimeout(() => toast('claude responses are on, but no API key on this device — open ⚙ settings.', false), 600);
     }
+  }
+});
+
+// ─────────────────────────── share modal (Letterboxd/Goodreads) ──
+const shareModal = document.getElementById('share-modal');
+let shareItemId = null;
+
+function ratingText(r) {
+  if (!r) return '';
+  return '★'.repeat(Math.floor(r)) + (r % 1 >= 0.5 ? '½' : '');
+}
+
+function openShareModal(item) {
+  shareItemId = item.id;
+  const stars = ratingText(item.rating);
+  document.getElementById('share-title').value = item.title;
+  // Pre-fill: existing publicReview > scaffold from rating
+  const seed = item.publicReview && item.publicReview.trim()
+    ? item.publicReview
+    : (stars ? `${stars} — ` : '');
+  document.getElementById('share-text').value = seed;
+  document.getElementById('share-mirror').checked = false;
+  shareModal.showModal();
+}
+
+document.getElementById('share-entry-btn').addEventListener('click', () => {
+  // Use the form's current values (in case of unsaved edits) or fall back to the live item
+  const draft = editing ? state.items.find(i => i.id === editing) : null;
+  const item = draft ? { ...draft, title: entryForm.title.value, rating: parseFloat(entryForm.rating.value) || 0, publicReview: entryForm.publicReview.value } : { id: null, title: entryForm.title.value, rating: parseFloat(entryForm.rating.value) || 0, publicReview: entryForm.publicReview.value };
+  if (!item.title) { toast('add a title first.', true); return; }
+  openShareModal(item);
+});
+
+document.getElementById('share-go').addEventListener('click', async () => {
+  const text = document.getElementById('share-text').value;
+  const mirror = document.getElementById('share-mirror').checked;
+  // Persist publicReview + optional mirror to the live item
+  if (shareItemId) {
+    const item = state.items.find(i => i.id === shareItemId);
+    if (item) {
+      item.publicReview = text;
+      if (mirror) item.claudeNote = text;
+      item.updatedAt = Date.now();
+      save();
+      renderItems();
+    }
+  }
+  // Build share payload
+  const title = document.getElementById('share-title').value;
+  const shareText = `${title}\n\n${text}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title, text: shareText });
+      shareModal.close();
+      toast('shared.');
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(shareText);
+      toast('Web Share unavailable — copied to clipboard. paste into Letterboxd / Goodreads.');
+    } else {
+      toast('share not supported on this browser.', true);
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') toast('share failed: ' + e.message, true);
   }
 });
 
@@ -1125,16 +1382,51 @@ function renderTagManager() {
   const all = getAllTags();
   if (all.length === 0) { tagsEl.innerHTML = ''; noMsg.style.display = 'block'; return; }
   noMsg.style.display = 'none';
-  tagsEl.innerHTML = all.map(([tag, count]) => {
-    const groupId = state.tagAssignments[tag] || '';
-    const opts = `<option value="">— no group —</option>` + state.tagGroups.map(g => `<option value="${g.id}"${groupId === g.id ? ' selected' : ''}>${escapeHtml(g.name)}</option>`).join('');
-    return `<div class="tag-row">
+
+  // Build sections: one per group + 'ungrouped' bucket
+  const tagsByGroup = new Map();
+  for (const g of state.tagGroups) tagsByGroup.set(g.id, []);
+  tagsByGroup.set('', []);
+  for (const [tag, count] of all) {
+    const gid = state.tagAssignments[tag] || '';
+    if (!tagsByGroup.has(gid)) tagsByGroup.set(gid, []);
+    tagsByGroup.get(gid).push([tag, count]);
+  }
+  // Apply tagOrder per group (manual order beats smart sort within a group)
+  for (const [gid, tags] of tagsByGroup) {
+    const order = state.tagOrder[gid || 'ungrouped'];
+    if (Array.isArray(order)) {
+      tags.sort((a, b) => {
+        const ai = order.indexOf(a[0]); const bi = order.indexOf(b[0]);
+        if (ai >= 0 && bi >= 0) return ai - bi;
+        if (ai >= 0) return -1;
+        if (bi >= 0) return 1;
+        return smartTagCompare(a, b);
+      });
+    }
+  }
+
+  const sectionForGroup = (g) => {
+    const tags = tagsByGroup.get(g?.id ?? '') || [];
+    const gid = g?.id ?? '';
+    const name = g ? escapeHtml(g.name) : 'no group';
+    const swatch = g ? `<span class="swatch swatch-${g.color}"></span>` : '<span style="width:10px"></span>';
+    const rows = tags.map(([tag, count]) => `<div class="tag-row" draggable="true" data-tag="${escapeAttr(tag)}">
+      <span class="drag-handle" aria-hidden="true">⋮⋮</span>
       <span class="tag-pill">${tagPillHtml(tag, false)} <span style="color:var(--ink-faint);font-size:10px;margin-left:6px">${count}</span></span>
-      <select data-assign-tag="${escapeAttr(tag)}">${opts}</select>
       <button class="rename-tag" data-rename-tag="${escapeAttr(tag)}" title="rename across all entries">✎</button>
       <button class="delete-tag" data-delete-tag="${escapeAttr(tag)}" title="remove from all entries">×</button>
+    </div>`).join('');
+    return `<div class="tag-group-section" data-group-id="${gid}">
+      <div class="tag-group-header">${swatch}${name}</div>
+      <div class="tag-group-items" data-group-id="${gid}">${rows}</div>
     </div>`;
-  }).join('');
+  };
+  // Render: each existing group, then ungrouped bucket
+  let html = '';
+  for (const g of state.tagGroups) html += sectionForGroup(g);
+  html += sectionForGroup(null); // ungrouped
+  tagsEl.innerHTML = html;
 }
 document.getElementById('new-group-btn').addEventListener('click', async () => {
   const result = await askPrompt('New tag group', 'e.g., Time, Genre, Mood, Source', '', { withColor: true });
@@ -1168,6 +1460,144 @@ document.getElementById('tag-rows').addEventListener('change', e => {
   if (gid) state.tagAssignments[tag] = gid; else delete state.tagAssignments[tag];
   save(); renderTagManager(); renderAll();
 });
+
+// ─────────────────────────── tag drag-and-drop ───────────────────
+(function setupTagDragDrop() {
+  const tagsEl = document.getElementById('tag-rows');
+  let draggedTag = null;
+  let draggedFromGroup = null;
+  let dropTargetRow = null;
+  let dropTargetSection = null;
+  let dropAbove = false;
+
+  function clearIndicators() {
+    tagsEl.querySelectorAll('.tag-row.drop-above, .tag-row.drop-below').forEach(r => r.classList.remove('drop-above', 'drop-below'));
+    tagsEl.querySelectorAll('.tag-group-section.drop-target').forEach(s => s.classList.remove('drop-target'));
+  }
+
+  function applyIndicator(target, above) {
+    clearIndicators();
+    if (!target) return;
+    const section = target.closest('.tag-group-section');
+    if (section) section.classList.add('drop-target');
+    if (target.classList.contains('tag-row')) {
+      target.classList.add(above ? 'drop-above' : 'drop-below');
+    }
+  }
+
+  function computeTargetFromPoint(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
+    if (!el) return { row: null, section: null, above: false };
+    const row = el.closest('.tag-row');
+    const section = el.closest('.tag-group-section');
+    if (row) {
+      const rect = row.getBoundingClientRect();
+      return { row, section, above: clientY < rect.top + rect.height / 2 };
+    }
+    // hovering over empty group area
+    return { row: null, section, above: false };
+  }
+
+  function commit() {
+    if (!draggedTag) return;
+    clearIndicators();
+    const newGroupId = dropTargetSection ? dropTargetSection.dataset.groupId : draggedFromGroup;
+    // Update group assignment
+    if (newGroupId) state.tagAssignments[draggedTag] = newGroupId;
+    else delete state.tagAssignments[draggedTag];
+
+    // Rebuild order for target group from current DOM, then insert dragged tag at the right spot
+    const targetSection = dropTargetSection || tagsEl.querySelector(`.tag-group-section[data-group-id="${newGroupId}"]`);
+    let tags = [];
+    if (targetSection) {
+      tags = Array.from(targetSection.querySelectorAll('.tag-row'))
+        .map(r => r.dataset.tag)
+        .filter(t => t !== draggedTag);
+    }
+    if (dropTargetRow && dropTargetRow.dataset.tag !== draggedTag) {
+      const idx = tags.indexOf(dropTargetRow.dataset.tag);
+      tags.splice(dropAbove ? idx : idx + 1, 0, draggedTag);
+    } else {
+      tags.push(draggedTag);
+    }
+    state.tagOrder[newGroupId || 'ungrouped'] = tags;
+
+    // Also remove dragged tag from source group's stored order if it moved
+    if (draggedFromGroup !== newGroupId) {
+      const srcKey = draggedFromGroup || 'ungrouped';
+      const srcOrder = state.tagOrder[srcKey];
+      if (Array.isArray(srcOrder)) state.tagOrder[srcKey] = srcOrder.filter(t => t !== draggedTag);
+    }
+
+    save();
+    renderTagManager();
+    renderAll();
+    draggedTag = draggedFromGroup = dropTargetRow = dropTargetSection = null;
+  }
+
+  // ── HTML5 drag-and-drop (desktop) ──
+  tagsEl.addEventListener('dragstart', e => {
+    const row = e.target.closest('.tag-row');
+    if (!row) return;
+    draggedTag = row.dataset.tag;
+    draggedFromGroup = row.closest('.tag-group-section').dataset.groupId;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', draggedTag);
+  });
+  tagsEl.addEventListener('dragover', e => {
+    if (!draggedTag) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const { row, section, above } = computeTargetFromPoint(e.clientX, e.clientY);
+    dropTargetRow = row;
+    dropTargetSection = section;
+    dropAbove = above;
+    applyIndicator(row || section, above);
+  });
+  tagsEl.addEventListener('drop', e => {
+    e.preventDefault();
+    commit();
+    tagsEl.querySelectorAll('.tag-row.dragging').forEach(r => r.classList.remove('dragging'));
+  });
+  tagsEl.addEventListener('dragend', () => {
+    clearIndicators();
+    tagsEl.querySelectorAll('.tag-row.dragging').forEach(r => r.classList.remove('dragging'));
+    draggedTag = draggedFromGroup = dropTargetRow = dropTargetSection = null;
+  });
+
+  // ── Touch fallback (mobile) ──
+  let touchActive = false;
+  tagsEl.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    const row = handle.closest('.tag-row');
+    if (!row) return;
+    draggedTag = row.dataset.tag;
+    draggedFromGroup = row.closest('.tag-group-section').dataset.groupId;
+    row.classList.add('dragging');
+    touchActive = true;
+    e.preventDefault();
+  }, { passive: false });
+  tagsEl.addEventListener('touchmove', e => {
+    if (!touchActive) return;
+    const t = e.touches[0];
+    const { row, section, above } = computeTargetFromPoint(t.clientX, t.clientY);
+    dropTargetRow = row;
+    dropTargetSection = section;
+    dropAbove = above;
+    applyIndicator(row || section, above);
+    e.preventDefault();
+  }, { passive: false });
+  function endTouch() {
+    if (!touchActive) return;
+    touchActive = false;
+    commit();
+    tagsEl.querySelectorAll('.tag-row.dragging').forEach(r => r.classList.remove('dragging'));
+  }
+  tagsEl.addEventListener('touchend', endTouch);
+  tagsEl.addEventListener('touchcancel', endTouch);
+})();
 
 document.getElementById('tag-rows').addEventListener('click', async e => {
   const delBtn = e.target.closest('[data-delete-tag]');
@@ -1658,8 +2088,9 @@ document.getElementById('claude-summary-btn').addEventListener('click', async ()
       const status = STATUS_LABELS[it.status];
       const tags = it.tags && it.tags.length ? ` [${it.tags.join(', ')}]` : '';
       lines.push(`- **${it.title}** — ${stars} · ${status}${tags}`);
-      if (it.notes)      lines.push(`  - notes: ${it.notes.replace(/\n+/g, ' ')}`);
-      if (it.claudeNote) lines.push(`  - ✦ for-claude: ${it.claudeNote.replace(/\n+/g, ' ')}`);
+      if (it.notes)        lines.push(`  - notes: ${it.notes.replace(/\n+/g, ' ')}`);
+      if (it.publicReview) lines.push(`  - public-review: ${it.publicReview.replace(/\n+/g, ' ')}`);
+      if (it.claudeNote)   lines.push(`  - ✦ for-claude: ${it.claudeNote.replace(/\n+/g, ' ')}`);
       if (it.claudeReplies && it.claudeReplies.length) {
         lines.push(`  - ✦ your prior takes (most recent first):`);
         [...it.claudeReplies].reverse().forEach(r => {
@@ -1781,10 +2212,14 @@ document.querySelectorAll('[data-close]').forEach(b => {
     if (which === 'tag-mgr') tagMgrModal.close();
     if (which === 'settings') settingsModal.close();
     if (which === 'import')  { pendingImport = null; importModal.close(); }
+    if (which === 'share')   shareModal.close();
     if (which === 'prompt')  { if (promptResolve) promptResolve(null); promptModal.close(); }
+    // mobile: also clear sheet backdrop + sidebar-as-sheet
+    document.querySelector('.sidebar')?.classList.remove('show-as-sheet');
+    document.getElementById('sheet-backdrop')?.classList.remove('show');
   });
 });
-[entryModal, tagMgrModal, settingsModal, importModal, promptModal].forEach(d => {
+[entryModal, tagMgrModal, settingsModal, importModal, shareModal, promptModal].forEach(d => {
   d.addEventListener('click', e => {
     if (e.target === d) {
       if (d === entryModal) closeEntryModal();
@@ -1801,7 +2236,9 @@ document.addEventListener('keydown', e => {
     if (tagMgrModal.open) tagMgrModal.close();
     if (settingsModal.open) settingsModal.close();
     if (importModal.open) { pendingImport = null; importModal.close(); }
+    if (shareModal.open) shareModal.close();
     if (promptModal.open) { if (promptResolve) promptResolve(null); promptModal.close(); }
+    const sb = document.querySelector('.sidebar'); if (sb?.classList.contains('show-as-sheet')) { sb.classList.remove('show-as-sheet'); document.getElementById('sheet-backdrop')?.classList.remove('show'); }
     if (!tagPickerPopoverEl.classList.contains('hidden')) {
       tagPickerPopoverEl.classList.add('hidden'); tagPickerEl.classList.remove('open');
     }
@@ -1821,6 +2258,66 @@ function toast(msg, isError = false) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
+
+// ─────────────────────────── mobile: tab bar + FAB + sheet backdrop ──
+(function setupMobileUI() {
+  const tabsEl = document.getElementById('bottom-tabs');
+  const backdrop = document.getElementById('sheet-backdrop');
+  const sidebar = document.querySelector('.sidebar');
+  const fab = document.getElementById('fab-add');
+
+  function isMobile() { return window.matchMedia('(max-width: 880px)').matches; }
+  function setActiveTab(name) {
+    tabsEl.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  }
+  function showSheet(el) {
+    el.classList.add('show-as-sheet');
+    backdrop.classList.add('show');
+  }
+  function hideAllSheets() {
+    sidebar.classList.remove('show-as-sheet');
+    [tagMgrModal, settingsModal, importModal, shareModal].forEach(m => { if (m?.open) m.close(); });
+    backdrop.classList.remove('show');
+    setActiveTab('library');
+  }
+
+  tabsEl.addEventListener('click', e => {
+    const tab = e.target.closest('.tab'); if (!tab) return;
+    const name = tab.dataset.tab;
+    // close everything first
+    sidebar.classList.remove('show-as-sheet');
+    [tagMgrModal, settingsModal, importModal, shareModal].forEach(m => { if (m?.open) m.close(); });
+    backdrop.classList.remove('show');
+    if (name === 'library') { setActiveTab('library'); return; }
+    if (name === 'filter')   { setActiveTab('filter');   showSheet(sidebar); return; }
+    if (name === 'tags')     { setActiveTab('tags');     openTagManager(); return; }
+    if (name === 'settings') { setActiveTab('settings'); openSettings();   return; }
+  });
+
+  backdrop.addEventListener('click', hideAllSheets);
+
+  fab.addEventListener('click', () => openEntryModal(null));
+
+  // Search expand on tap (mobile only): tapping the magnifier glyph focuses the input
+  const searchWrap = document.querySelector('.search-wrap');
+  const searchInput = document.getElementById('search');
+  searchWrap.addEventListener('click', e => {
+    if (!isMobile()) return;
+    if (!searchWrap.classList.contains('expanded')) {
+      searchWrap.classList.add('expanded');
+      setTimeout(() => searchInput.focus(), 50);
+    }
+  });
+  searchInput.addEventListener('blur', () => {
+    if (isMobile() && !searchInput.value) searchWrap.classList.remove('expanded');
+  });
+
+  // Sync tab-bar active state when modals close via their own buttons
+  for (const m of [tagMgrModal, settingsModal]) {
+    if (!m) continue;
+    m.addEventListener('close', () => { if (isMobile()) setActiveTab('library'); });
+  }
+})();
 
 renderAll();
 if (isSyncEnabled()) { setSyncPipState('on'); syncPull(); }
