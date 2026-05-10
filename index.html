@@ -46,21 +46,41 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #16110d; --bg-elev: #1f1812; --paper: #2a2018; --paper-hi: #342820;
-  --ink: #ede1c8; --ink-dim: #b09a7a; --ink-faint: #6b5e4e;
-  --accent: #d8623f; --accent-soft: #a23b2b;
-  --line: #3a2e22; --line-soft: #2c2218;
-  --gold: #c9a45a;
-  --shadow: 0 1px 0 rgba(255,220,180,0.04) inset, 0 8px 24px rgba(0,0,0,0.4);
-  --c-terracotta-fg: #d8623f; --c-terracotta-bg: rgba(216,98,63,0.16); --c-terracotta-bd: rgba(216,98,63,0.4);
-  --c-gold-fg: #c9a45a;       --c-gold-bg: rgba(201,164,90,0.16);    --c-gold-bd: rgba(201,164,90,0.4);
-  --c-sage-fg: #9bbf95;       --c-sage-bg: rgba(155,191,149,0.14);   --c-sage-bd: rgba(155,191,149,0.4);
-  --c-dusty-fg: #88a4c4;      --c-dusty-bg: rgba(136,164,196,0.14);  --c-dusty-bd: rgba(136,164,196,0.4);
-  --c-plum-fg: #b888a8;       --c-plum-bg: rgba(184,136,168,0.14);   --c-plum-bd: rgba(184,136,168,0.4);
-  --c-ochre-fg: #c79858;      --c-ochre-bg: rgba(199,152,88,0.14);   --c-ochre-bd: rgba(199,152,88,0.4);
-  --c-rust-fg: #c87858;       --c-rust-bg: rgba(200,120,88,0.14);    --c-rust-bd: rgba(200,120,88,0.4);
-  --c-ash-fg: #a89c8e;        --c-ash-bg: rgba(168,156,142,0.14);    --c-ash-bd: rgba(168,156,142,0.4);
+/* Default theme = Macchiato. Override via <html data-theme="tokyo"> */
+:root, [data-theme="macchiato"] {
+  --bg: #24273a; --bg-elev: #363a4f; --paper: #494d64; --paper-hi: #5b6078;
+  --ink: #cad3f5; --ink-dim: #a5adcb; --ink-faint: #6e738d;
+  --accent: #f5a97f; --accent-soft: #ee99a0;
+  --line: #494d64; --line-soft: #363a4f;
+  --gold: #eed49f;
+  --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.45);
+  --c-terracotta-fg: #f5a97f; --c-terracotta-bg: rgba(245,169,127,0.16); --c-terracotta-bd: rgba(245,169,127,0.4);
+  --c-gold-fg: #eed49f;       --c-gold-bg: rgba(238,212,159,0.14);    --c-gold-bd: rgba(238,212,159,0.4);
+  --c-sage-fg: #a6da95;       --c-sage-bg: rgba(166,218,149,0.14);    --c-sage-bd: rgba(166,218,149,0.4);
+  --c-dusty-fg: #91d7e3;      --c-dusty-bg: rgba(145,215,227,0.14);   --c-dusty-bd: rgba(145,215,227,0.4);
+  --c-plum-fg: #c6a0f6;       --c-plum-bg: rgba(198,160,246,0.14);    --c-plum-bd: rgba(198,160,246,0.4);
+  --c-ochre-fg: #f0c6c6;      --c-ochre-bg: rgba(240,198,198,0.14);   --c-ochre-bd: rgba(240,198,198,0.4);
+  --c-rust-fg: #ee99a0;       --c-rust-bg: rgba(238,153,160,0.14);    --c-rust-bd: rgba(238,153,160,0.4);
+  --c-ash-fg: #b8c0e0;        --c-ash-bg: rgba(184,192,224,0.14);     --c-ash-bd: rgba(184,192,224,0.4);
+  --danger: #ed8796;
+}
+
+[data-theme="tokyo"] {
+  --bg: #1a1b26; --bg-elev: #24283b; --paper: #2f334d; --paper-hi: #414868;
+  --ink: #c0caf5; --ink-dim: #a9b1d6; --ink-faint: #565f89;
+  --accent: #bb9af7; --accent-soft: #9d7cd8;
+  --line: #2f334d; --line-soft: #1f2335;
+  --gold: #e0af68;
+  --shadow: 0 1px 0 rgba(187,154,247,0.06) inset, 0 8px 24px rgba(0,0,0,0.5);
+  --c-terracotta-fg: #ff9e64; --c-terracotta-bg: rgba(255,158,100,0.16); --c-terracotta-bd: rgba(255,158,100,0.4);
+  --c-gold-fg: #e0af68;       --c-gold-bg: rgba(224,175,104,0.14);     --c-gold-bd: rgba(224,175,104,0.4);
+  --c-sage-fg: #9ece6a;       --c-sage-bg: rgba(158,206,106,0.14);     --c-sage-bd: rgba(158,206,106,0.4);
+  --c-dusty-fg: #7aa2f7;      --c-dusty-bg: rgba(122,162,247,0.14);    --c-dusty-bd: rgba(122,162,247,0.4);
+  --c-plum-fg: #bb9af7;       --c-plum-bg: rgba(187,154,247,0.14);     --c-plum-bd: rgba(187,154,247,0.4);
+  --c-ochre-fg: #ff79c6;      --c-ochre-bg: rgba(255,121,198,0.14);    --c-ochre-bd: rgba(255,121,198,0.4);
+  --c-rust-fg: #f7768e;       --c-rust-bg: rgba(247,118,142,0.14);     --c-rust-bd: rgba(247,118,142,0.4);
+  --c-ash-fg: #7dcfff;        --c-ash-bg: rgba(125,207,255,0.14);      --c-ash-bd: rgba(125,207,255,0.4);
+  --danger: #f7768e;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -70,9 +90,9 @@ body {
   background: var(--bg); color: var(--ink);
   font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55;
   background-image:
-    radial-gradient(ellipse at 15% 10%, rgba(216,98,63,0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 85% 90%, rgba(201,164,90,0.04) 0%, transparent 55%),
-    repeating-linear-gradient(0deg, rgba(255,220,180,0.008) 0 1px, transparent 1px 3px);
+    radial-gradient(ellipse at 15% 10%, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 90%, color-mix(in srgb, var(--gold) 5%, transparent) 0%, transparent 55%),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink) 1%, transparent) 0 1px, transparent 1px 3px);
   min-height: 100vh; -webkit-font-smoothing: antialiased;
 }
 
@@ -331,6 +351,23 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .toggle-row input[type="checkbox"]::before { content: ''; position: absolute; top: 1px; left: 1px; width: 14px; height: 14px; background: var(--ink-faint); border-radius: 50%; transition: left 0.15s, background 0.15s; }
 .toggle-row input[type="checkbox"]:checked { background: var(--c-sage-bg); border-color: var(--c-sage-bd); }
 .toggle-row input[type="checkbox"]:checked::before { left: 15px; background: var(--c-sage-fg); }
+
+/* Theme toggle */
+.theme-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.theme-toggle button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  padding: 14px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.08s;
+  text-align: left;
+}
+.theme-toggle button:hover { border-color: var(--accent-soft); }
+.theme-toggle button:active { transform: scale(0.98); }
+.theme-toggle button.active { border-color: var(--accent); background: var(--paper); box-shadow: 0 0 0 1px var(--accent) inset; }
+.theme-toggle .swatches { display: flex; gap: 4px; }
+.theme-toggle .sw { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.08); }
+.theme-toggle .label { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 17px; color: var(--ink); }
+.theme-toggle .sub { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.12em; }
+@media (max-width: 880px) { .theme-toggle { grid-template-columns: 1fr; } }
 
 .sync-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); margin-top: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
 .sync-status.ok { color: var(--c-sage-fg); }
@@ -713,6 +750,22 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
     <header><div><h2>Settings</h2><p>House rules, Claude integration, cloud sync.</p></div><button type="button" class="close" data-close="settings">×</button></header>
     <div class="modal-body">
       <div class="settings-section">
+        <h3>Theme</h3>
+        <div class="desc">Two flavors. Both bright, both dark. Pick whichever fits your mood.</div>
+        <div class="theme-toggle">
+          <button type="button" data-theme-pick="macchiato">
+            <span class="swatches"><span class="sw" style="background:#24273a"></span><span class="sw" style="background:#f5a97f"></span><span class="sw" style="background:#c6a0f6"></span></span>
+            <span class="label">Macchiato</span>
+            <span class="sub">warm slate / peach</span>
+          </button>
+          <button type="button" data-theme-pick="tokyo">
+            <span class="swatches"><span class="sw" style="background:#1a1b26"></span><span class="sw" style="background:#bb9af7"></span><span class="sw" style="background:#7dcfff"></span></span>
+            <span class="label">Tokyo</span>
+            <span class="sub">deep navy / lavender</span>
+          </button>
+        </div>
+      </div>
+      <div class="settings-section">
         <h3>House rules for Claude</h3>
         <div class="desc">Pre-written guidance Claude sees when you paste your digest into a chat <em>and</em> when it responds to your logs.</div>
         <textarea id="claude-rules"></textarea>
@@ -877,6 +930,7 @@ function migrate(s) {
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
   s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };
   s.settings.codePush = s.settings.codePush || { repo: '', path: 'index.html', pat: null };
+  s.settings.theme = s.settings.theme || 'macchiato';
   s.lastModified = s.lastModified || Date.now();
   for (const it of s.items) {
     if (typeof it.claudeNote === 'undefined') it.claudeNote = '';
@@ -2258,6 +2312,25 @@ function toast(msg, isError = false) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
+
+// ─────────────────────────── theme toggle ────────────────────
+function applyTheme(theme) {
+  const t = theme === 'tokyo' ? 'tokyo' : 'macchiato';
+  document.documentElement.setAttribute('data-theme', t);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', t === 'tokyo' ? '#1a1b26' : '#24273a');
+  document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('active', b.dataset.themePick === t));
+}
+applyTheme(state.settings.theme);
+
+document.querySelectorAll('[data-theme-pick]').forEach(b => {
+  b.addEventListener('click', () => {
+    const t = b.dataset.themePick;
+    state.settings.theme = t;
+    save();
+    applyTheme(t);
+  });
+});
 
 // ─────────────────────────── mobile: tab bar + FAB + sheet backdrop ──
 (function setupMobileUI() {
