@@ -1180,9 +1180,14 @@ function openEntryModal(item) {
   setTimeout(() => entryForm.title.focus(), 50);
 }
 function closeEntryModal() { entryModal.close(); editing = null; }
-function setRating(n) {
+function setRating(n, userInitiated = false) {
   n = parseFloat(n) || 0;
   entryForm.rating.value = n;
+  // Rating a Queued item implies you've finished it — auto-advance to Done.
+  // Only on a real tap (not when loading an existing entry), and never override Active/Dropped.
+  if (userInitiated && n > 0 && entryForm.status.value === 'queued') {
+    entryForm.status.value = 'done';
+  }
   document.querySelectorAll('#rating-input .star-slot').forEach(slot => {
     const slotN = parseInt(slot.dataset.slot);
     slot.classList.remove('half', 'full');
@@ -1227,7 +1232,7 @@ document.getElementById('clear-takes-btn').addEventListener('click', () => {
   toast("claude's takes cleared.");
 });
 document.getElementById('rating-input').addEventListener('click', e => {
-  const btn = e.target.closest('button[data-r]'); if (btn) setRating(parseFloat(btn.dataset.r));
+  const btn = e.target.closest('button[data-r]'); if (btn) setRating(parseFloat(btn.dataset.r), true);
 });
 
 // Touch-drag rating: press and slide finger across stars to set rating live.
@@ -1251,13 +1256,13 @@ document.getElementById('rating-input').addEventListener('click', e => {
     if (!e.target.closest('.star-slot')) return;
     dragging = true;
     const r = ratingFromTouch(e.touches[0]);
-    if (r != null) setRating(r);
+    if (r != null) setRating(r, true);
     e.preventDefault();
   }, { passive: false });
   ratingInput.addEventListener('touchmove', e => {
     if (!dragging) return;
     const r = ratingFromTouch(e.touches[0]);
-    if (r != null) setRating(r);
+    if (r != null) setRating(r, true);
     e.preventDefault();
   }, { passive: false });
   const stop = () => { dragging = false; };
