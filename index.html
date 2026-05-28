@@ -1287,14 +1287,14 @@ entryForm.addEventListener('submit', e => {
   };
   if (!data.title) return;
   const now = Date.now();
-  let savedItem;
+  let savedItem, prevItem = null;
   const isNew = !editing;
   if (editing) {
     const idx = state.items.findIndex(i => i.id === editing);
     if (idx >= 0) {
-      const prev = state.items[idx];
-      savedItem = { ...prev, ...data,
-        completedAt: data.status === 'done' && prev.status !== 'done' ? today() : prev.completedAt,
+      prevItem = state.items[idx];
+      savedItem = { ...prevItem, ...data,
+        completedAt: data.status === 'done' && prevItem.status !== 'done' ? today() : prevItem.completedAt,
         updatedAt: now };
       state.items[idx] = savedItem;
     }
@@ -1307,7 +1307,7 @@ entryForm.addEventListener('submit', e => {
   closeEntryModal();
   renderAll();
   if (savedItem) {
-    if (isClaudeEnabled() && state.settings.claude.respondOnLog) {
+    if (isClaudeEnabled() && state.settings.claude.respondOnLog && shouldTriggerClaude(prevItem, savedItem, isNew)) {
       respondOnLog(savedItem, isNew);
     } else if (state.settings.claude.respondOnLog && !isClaudeEnabled()) {
       // synced-on, but no API key on this device — gentle nudge
@@ -1993,9 +1993,28 @@ async function callClaude({ system, userMessage, maxTokens = 350 }) {
   const data = await res.json();
   return data.content?.[0]?.text || '(empty response)';
 }
+// Skip Claude on housekeeping edits (status-only or tag-only changes) — only fire on substantive logging.
+function shouldTriggerClaude(prev, next, isNew) {
+  if (isNew) return true;
+  if (!prev) return true;
+  if ((prev.rating || 0) !== (next.rating || 0)) return true;
+  if ((prev.notes || '') !== (next.notes || '')) return true;
+  if ((prev.claudeNote || '') !== (next.claudeNote || '')) return true;
+  if ((prev.publicReview || '') !== (next.publicReview || '')) return true;
+  // status-only / tag-only / collection-only changes are housekeeping → skip
+  return false;
+}
+
 function buildClaudeSystem() {
   const lines = [];
   lines.push("You are Claude, embedded in Leandro's Bitácora — a personal media log of films, TV, games, books. He just saved an entry. Respond in 2–3 short sentences. You can: react to the rating, suggest one related piece, note a pattern across his taste, or give a hot take. Be casual, observant, and direct — no hedging, no 'great choice!' filler. Don't list multiple recommendations. Don't add tags.");
+  lines.push('');
+  lines.push("## Field semantics — important, read carefully");
+  lines.push("- `notes` is freeform text. It might be Leandro's own thoughts, OR an imported description, OR a friend's recommendation blurb. **Do not assume Leandro wrote it.** Many of his entries were seeded from an imported schedule with editorial blurbs; those are not his words. Use notes only as background, not as taste signal.");
+  lines.push("- `Note for Claude` (also called `taste-note`) IS Leandro's voice, written specifically for you. This is the only field where you can be sure the words are his.");
+  lines.push("- `Public review` is Leandro's voice, written for sharing on Letterboxd/Goodreads.");
+  lines.push("- `tags` are categorical labels — meaningful but lightweight.");
+  lines.push("- `rating` and `status` are his structured signal.");
   lines.push('');
   lines.push("## Leandro's house rules:");
   lines.push(state.settings.claudeRules || DEFAULT_CLAUDE_RULES);
@@ -2025,8 +2044,9 @@ function buildClaudeMessage(entry, isNew) {
   lines.push(`- Status: ${entry.status}`);
   if (entry.rating) lines.push(`- Rating: ${entry.rating}/5`);
   if (entry.tags?.length) lines.push(`- Tags: ${entry.tags.join(', ')}`);
-  if (entry.notes) lines.push(`- Notes: ${entry.notes}`);
-  if (entry.claudeNote) lines.push(`- Note for you: ${entry.claudeNote}`);
+  if (entry.notes) lines.push(`- Notes (freeform — could be a description, recommender blurb, or my own; don't assume I wrote it): ${entry.notes}`);
+  if (entry.claudeNote) lines.push(`- Note for you (my voice, taste-signal): ${entry.claudeNote}`);
+  if (entry.publicReview) lines.push(`- Public review (my voice, for sharing): ${entry.publicReview}`);
   if (entry.claudeReplies && entry.claudeReplies.length) {
     lines.push('');
     lines.push('## Your prior takes on this entry (oldest → newest):');
