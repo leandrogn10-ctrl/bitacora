@@ -1140,7 +1140,7 @@ function renderSpotlight() {
   const row = document.getElementById('spot-row');
   if (!wrap || !row) return;
   const isDefault = view.collection === 'all' && view.status === 'all' && !view.tag && !view.search;
-  const active = isDefault ? state.items.filter(i => i.status === 'active').slice(0, 4) : [];
+  const active = isDefault ? state.items.filter(i => i.status === 'active') : [];
   if (!active.length) { wrap.style.display = 'none'; row.innerHTML = ''; return; }
   wrap.style.display = '';
   row.innerHTML = active.map(it => {
