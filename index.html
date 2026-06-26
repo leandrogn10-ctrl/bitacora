@@ -253,7 +253,7 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .modal header p { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
 .modal .close { font-size: 22px; color: var(--ink-faint); padding: 0 6px; line-height: 1; }
 .modal .close:hover { color: var(--accent); }
-.modal-body { padding: 20px 26px; overflow-y: auto; }
+.modal-body { padding: 20px 26px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .modal footer { display: flex; justify-content: space-between; padding: 16px 26px 22px; border-top: 1px solid var(--line); gap: 12px; flex-wrap: wrap; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
@@ -289,8 +289,8 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .star-input .clear:hover { color: var(--accent); background: var(--bg); }
 
 /* read-only star display (cards, anywhere) */
-.rating-stars { display: inline-flex; gap: 1px; font-size: 15px; line-height: 1; letter-spacing: 0; }
-.rating-stars .sd { color: rgba(107,94,78,0.45); }
+.rating-stars { display: inline-flex; gap: 1.5px; font-size: 16.5px; line-height: 1; letter-spacing: 0; }
+.rating-stars .sd { color: rgba(150,134,114,0.62); }
 .rating-stars .sd.f { color: var(--gold); }
 .rating-stars .sd.h { background: linear-gradient(to right, var(--gold) 50%, rgba(107,94,78,0.45) 50%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
@@ -647,8 +647,8 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
     <div id="items-grid" class="items-grid"></div>
     <div id="empty-state" class="empty-state">
       <div class="ornament">❦</div>
-      <h3>nothing here yet</h3>
-      <p>Press <kbd>n</kbd> or click <strong>+ entry</strong> to log your first piece.</p>
+      <h3 id="empty-heading">nothing here yet</h3>
+      <p id="empty-sub">Press <kbd>n</kbd> or click <strong>+ entry</strong> to log your first piece.</p>
     </div>
   </main>
 </div>
@@ -932,10 +932,14 @@ function migrate(s) {
   s.settings.codePush = s.settings.codePush || { repo: '', path: 'index.html', pat: null };
   s.settings.theme = s.settings.theme || 'macchiato';
   s.lastModified = s.lastModified || Date.now();
+  const collIds = new Set((s.collections || []).map(c => c.id));
   for (const it of s.items) {
     if (typeof it.claudeNote === 'undefined') it.claudeNote = '';
     if (typeof it.publicReview === 'undefined') it.publicReview = '';
     if (!Array.isArray(it.claudeReplies)) it.claudeReplies = [];
+    // Drop dangling collection references so the entry still shows under "Everything"
+    // (as "—") instead of being silently filtered into a collection that no longer exists.
+    if (it.collectionId && !collIds.has(it.collectionId)) it.collectionId = null;
   }
   return s;
 }
@@ -955,14 +959,48 @@ function load() {
 }
 
 let suppressSync = false;
+// Guard every localStorage write: on quota exhaustion, shed the heaviest non-essential
+// payload (old Claude replies, keeping the latest one per entry) and retry once before
+// surfacing the failure — so a save never silently vanishes on reload.
+function persistState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    const quota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+    if (quota) {
+      let trimmed = 0;
+      for (const it of state.items) {
+        if (Array.isArray(it.claudeReplies) && it.claudeReplies.length > 1) {
+          trimmed += it.claudeReplies.length - 1;
+          it.claudeReplies = it.claudeReplies.slice(-1);
+        }
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if (trimmed) toast(`storage was full — archived ${trimmed} old claude take${trimmed === 1 ? '' : 's'} to save room.`, true);
+        return true;
+      } catch (e2) {
+        toast('storage full — could not save. export a backup and prune entries.', true);
+        console.error('persist failed after prune', e2);
+        return false;
+      }
+    }
+    toast('save failed: ' + ((e && e.message) || e), true);
+    console.error('persist failed', e);
+    return false;
+  }
+}
 function save({ markModified = true, push = true } = {}) {
   if (markModified) state.lastModified = Date.now();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  persistState();
   if (push && !suppressSync && isSyncEnabled()) scheduleSyncPush();
 }
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const today = () => new Date().toISOString().slice(0, 10);
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const clampRating = (n) => { const r = Math.max(0, Math.min(5, parseFloat(n) || 0)); return Math.round(r * 2) / 2; };
 
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
@@ -1082,7 +1120,21 @@ function renderItems() {
   document.getElementById('current-view').textContent = view.collection === 'all'
     ? 'Everything' : (state.collections.find(c => c.id === view.collection)?.name || 'Everything');
 
-  if (items.length === 0) { grid.innerHTML = ''; empty.classList.add('show'); return; }
+  if (items.length === 0) {
+    grid.innerHTML = '';
+    const filtersActive = view.status !== 'all' || view.collection !== 'all' || !!view.tag || !!view.search;
+    const heading = document.getElementById('empty-heading');
+    const sub = document.getElementById('empty-sub');
+    if (filtersActive) {
+      heading.textContent = 'nothing matches';
+      sub.innerHTML = 'No entries fit the current filter. <button type="button" id="empty-clear">clear filters</button>';
+    } else {
+      heading.textContent = 'nothing here yet';
+      sub.innerHTML = 'Press <kbd>n</kbd> or click <strong>+ entry</strong> to log your first piece.';
+    }
+    empty.classList.add('show');
+    return;
+  }
   empty.classList.remove('show');
 
   grid.innerHTML = items.map((it, idx) => {
@@ -1181,7 +1233,7 @@ function openEntryModal(item) {
 }
 function closeEntryModal() { entryModal.close(); editing = null; }
 function setRating(n, userInitiated = false) {
-  n = parseFloat(n) || 0;
+  n = clampRating(n);
   entryForm.rating.value = n;
   // Rating a Queued item implies you've finished it — auto-advance to Done.
   // Only on a real tap (not when loading an existing entry), and never override Active/Dropped.
@@ -1240,17 +1292,34 @@ document.getElementById('rating-input').addEventListener('click', e => {
   const ratingInput = document.getElementById('rating-input');
   let dragging = false;
   function ratingFromTouch(touch) {
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (!el) return null;
-    const zone = el.closest('.zone');
-    if (zone) return parseFloat(zone.dataset.r);
-    // outside any zone — figure out which slot we're nearest
-    const slot = el.closest('.star-slot');
-    if (!slot) return null;
-    const rect = slot.getBoundingClientRect();
-    const xInSlot = touch.clientX - rect.left;
-    const slotN = parseInt(slot.dataset.slot);
-    return xInSlot < rect.width / 2 ? slotN - 0.5 : slotN;
+    const slots = [...ratingInput.querySelectorAll('.star-slot')];
+    const x = touch.clientX;
+    // Clamp finger overshoot to the ends instead of dropping to null (which froze the drag).
+    if (slots.length) {
+      const first = slots[0].getBoundingClientRect();
+      const last = slots[slots.length - 1].getBoundingClientRect();
+      if (x <= first.left) return 0.5;
+      if (x >= last.right) return slots.length;
+    }
+    const el = document.elementFromPoint(x, touch.clientY);
+    if (el) {
+      const zone = el.closest('.zone');
+      if (zone) return parseFloat(zone.dataset.r);
+      const slot = el.closest('.star-slot');
+      if (slot) {
+        const rect = slot.getBoundingClientRect();
+        const slotN = parseInt(slot.dataset.slot);
+        return (x - rect.left) < rect.width / 2 ? slotN - 0.5 : slotN;
+      }
+    }
+    // Vertical overshoot between slots: map x across the whole row so the drag still tracks.
+    if (slots.length) {
+      const first = slots[0].getBoundingClientRect();
+      const last = slots[slots.length - 1].getBoundingClientRect();
+      const frac = (x - first.left) / Math.max(1, last.right - first.left);
+      return clampRating(frac * slots.length) || 0.5;
+    }
+    return null;
   }
   ratingInput.addEventListener('touchstart', e => {
     if (!e.target.closest('.star-slot')) return;
@@ -1273,12 +1342,12 @@ document.getElementById('rating-input').addEventListener('click', e => {
 entryForm.addEventListener('submit', e => {
   e.preventDefault();
   const fd = new FormData(entryForm);
-  const tags = fd.get('tags').split(',').map(t => t.trim()).filter(Boolean);
+  const tags = [...new Set(fd.get('tags').split(',').map(t => t.trim().slice(0, 60)).filter(Boolean))].slice(0, 30);
   const data = {
-    title: fd.get('title').trim(),
+    title: fd.get('title').trim().slice(0, 300),
     collectionId: fd.get('collectionId'),
     status: fd.get('status'),
-    rating: parseFloat(fd.get('rating')) || 0,
+    rating: clampRating(fd.get('rating')),
     tags,
     notes: fd.get('notes').trim(),
     claudeNote: fd.get('claudeNote').trim(),
@@ -1294,7 +1363,11 @@ entryForm.addEventListener('submit', e => {
     if (idx >= 0) {
       prevItem = state.items[idx];
       savedItem = { ...prevItem, ...data,
-        completedAt: data.status === 'done' && prevItem.status !== 'done' ? today() : prevItem.completedAt,
+        // Stamp completedAt when entering "done", keep it while it stays done,
+        // and clear it when the entry leaves "done".
+        completedAt: data.status === 'done'
+          ? (prevItem.status === 'done' ? prevItem.completedAt : today())
+          : null,
         updatedAt: now };
       state.items[idx] = savedItem;
     }
@@ -1876,18 +1949,49 @@ function cleanStateForSync() {
     codePush: { repo: state.settings.codePush?.repo || '', path: state.settings.codePush?.path || 'index.html' }
   } };
 }
+// A downloadable backup must never carry secrets (PAT / API key / code-push token / gist id).
+// Strip them so a shared or cloud-synced export can't leak credentials.
+function cleanStateForExport() {
+  const s = state.settings || {};
+  return { ...state, settings: { ...s,
+    sync:     { enabled: false, githubPat: null, gistId: null, lastSyncedAt: s.sync?.lastSyncedAt || null },
+    claude:   { enabled: false, apiKey: null, model: s.claude?.model || null, respondOnLog: s.claude?.respondOnLog ?? true },
+    codePush: { repo: s.codePush?.repo || '', path: s.codePush?.path || 'index.html', pat: null },
+  } };
+}
 async function gistFetch(method, path, body = null) {
-  const res = await fetch(`https://api.github.com${path}`, {
-    method,
-    headers: { 'Authorization': `Bearer ${state.settings.sync.githubPat}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) { const txt = await res.text(); throw new Error(`${res.status} — ${txt.slice(0, 120)}`); }
-  return res.json();
+  // Time-box every gist call so a flaky network can't hang the sync indefinitely.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(`https://api.github.com${path}`, {
+      method,
+      headers: { 'Authorization': `Bearer ${state.settings.sync.githubPat}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+    });
+    if (!res.ok) { const txt = await res.text(); throw new Error(`${res.status} — ${txt.slice(0, 120)}`); }
+    return res.json();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('timed out — check your connection');
+    throw e;
+  } finally { clearTimeout(timer); }
 }
 let syncPushTimer = null;
 function scheduleSyncPush() { if (!isSyncEnabled()) return; clearTimeout(syncPushTimer); syncPushTimer = setTimeout(syncPush, 1500); }
-async function syncPull(force = false) {
+
+// Single-flight queue: serialize every gist read/write so a pull and a push (or two
+// back-to-back pushes) can never overlap and clobber each other mid-flight.
+let _syncQueue = Promise.resolve();
+function _enqueueSync(label, fn) {
+  const run = () => Promise.resolve().then(fn).catch(e => console.error('sync ' + label, e));
+  _syncQueue = _syncQueue.then(run, run);
+  return _syncQueue;
+}
+function syncPull(force = false) { return _enqueueSync('pull', () => _syncPull(force)); }
+function syncPush() { return _enqueueSync('push', () => _syncPush()); }
+
+async function _syncPull(force = false) {
   if (!isSyncEnabled()) return;
   try {
     setSyncPipState('syncing');
@@ -1912,9 +2016,9 @@ async function syncPull(force = false) {
       save({ markModified: false, push: false });
     }
     setSyncPipState('on');
-  } catch (e) { console.error('pull', e); toast('pull failed: ' + e.message, true); setSyncPipState('error'); }
+  } catch (e) { console.error('pull', e); toast('pull failed: ' + e.message, true); setSyncPipState(navigator.onLine ? 'error' : 'offline'); }
 }
-async function syncPush() {
+async function _syncPush() {
   if (!isSyncEnabled()) return;
   try {
     setSyncPipState('syncing');
@@ -1923,13 +2027,18 @@ async function syncPush() {
     state.settings.sync.lastSyncedAt = Date.now();
     suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
     setSyncPipState('on');
-  } catch (e) { console.error('push', e); toast('push failed: ' + e.message, true); setSyncPipState('error'); }
+  } catch (e) { console.error('push', e); toast('push failed: ' + e.message, true); setSyncPipState(navigator.onLine ? 'error' : 'offline'); }
 }
 function setSyncPipState(s) {
   const pip = document.getElementById('sync-pip');
-  pip.classList.remove('on', 'syncing', 'error');
-  if (s) pip.classList.add(s);
-  document.getElementById('sync-pip-label').textContent = s === 'syncing' ? 'syncing…' : s === 'on' ? 'synced' : s === 'error' ? 'sync error' : 'offline';
+  pip.classList.remove('on', 'syncing', 'error', 'offline');
+  if (s === 'on' || s === 'syncing' || s === 'error' || s === 'offline') pip.classList.add(s);
+  const label = s === 'syncing' ? 'syncing…'
+    : s === 'on'      ? 'synced'
+    : s === 'error'   ? 'sync error'
+    : s === 'offline' ? 'offline'
+    : 'sync off';   // null / disabled — distinct from a real network outage
+  document.getElementById('sync-pip-label').textContent = label;
 }
 function renderSyncPip() { if (!isSyncEnabled()) setSyncPipState(null); else if (!document.getElementById('sync-pip').classList.contains('syncing')) setSyncPipState('on'); }
 
@@ -2005,7 +2114,7 @@ function shouldTriggerClaude(prev, next, isNew) {
   return false;
 }
 
-function buildClaudeSystem() {
+function buildClaudeSystem(excludeId = null) {
   const lines = [];
   lines.push("You are Claude, embedded in Leandro's Bitácora — a personal media log of films, TV, games, books. He just saved an entry. Respond in 2–3 short sentences. You can: react to the rating, suggest one related piece, note a pattern across his taste, or give a hot take. Be casual, observant, and direct — no hedging, no 'great choice!' filler. Don't list multiple recommendations. Don't add tags.");
   lines.push('');
@@ -2020,6 +2129,7 @@ function buildClaudeSystem() {
   lines.push(state.settings.claudeRules || DEFAULT_CLAUDE_RULES);
   lines.push('');
   const sample = [...state.items]
+    .filter(i => i.id !== excludeId)
     .filter(i => i.rating >= 4 || i.status === 'done' || i.status === 'dropped')
     .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
     .slice(0, 24);
@@ -2064,7 +2174,7 @@ async function respondOnLog(entry, isNew) {
   const entryId = entry.id;
   showClaudePanel({ title: entry.title, status: 'thinking', text: 'thinking…' });
   try {
-    const text = await callClaude({ system: buildClaudeSystem(), userMessage: buildClaudeMessage(entry, isNew) });
+    const text = await callClaude({ system: buildClaudeSystem(entry.id), userMessage: buildClaudeMessage(entry, isNew) });
     showClaudePanel({ title: entry.title, status: 'done', text });
     const liveItem = state.items.find(i => i.id === entryId);
     if (liveItem) {
@@ -2094,21 +2204,46 @@ document.getElementById('claude-panel-close').addEventListener('click', () => { 
 
 const importModal = document.getElementById('import-modal');
 let pendingImport = null;
+// Validate + coerce an imported file so malformed data can't silently corrupt state
+// (bad status, out-of-range rating, missing title/id, dangling collection, junk replies).
+function sanitizeImport(parsed) {
+  if (!parsed || typeof parsed !== 'object') throw new Error('Not a Bitácora file');
+  if (!Array.isArray(parsed.collections) || !Array.isArray(parsed.items)) throw new Error('Missing collections or items');
+  const validStatus = new Set(STATUSES);
+  parsed.collections = parsed.collections.filter(c => c && typeof c.id === 'string' && typeof c.name === 'string');
+  const collIds = new Set(parsed.collections.map(c => c.id));
+  const fallbackColl = parsed.collections[0]?.id || null;
+  parsed.items = parsed.items
+    .filter(it => it && typeof it.title === 'string' && it.title.trim())
+    .map(it => ({
+      ...it,
+      id: (typeof it.id === 'string' && it.id) ? it.id : uid(),
+      title: String(it.title).trim().slice(0, 300),
+      status: validStatus.has(it.status) ? it.status : 'queued',
+      rating: clampRating(it.rating),
+      collectionId: collIds.has(it.collectionId) ? it.collectionId : fallbackColl,
+      tags: Array.isArray(it.tags) ? [...new Set(it.tags.filter(t => typeof t === 'string').map(t => t.trim().slice(0, 60)).filter(Boolean))].slice(0, 30) : [],
+      notes: typeof it.notes === 'string' ? it.notes : '',
+      claudeNote: typeof it.claudeNote === 'string' ? it.claudeNote : '',
+      publicReview: typeof it.publicReview === 'string' ? it.publicReview : '',
+      claudeReplies: Array.isArray(it.claudeReplies) ? it.claudeReplies.filter(r => r && typeof r.text === 'string') : [],
+    }));
+  return parsed;
+}
 document.getElementById('export-btn').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(cleanStateForExport(), null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `bitacora-${today()}.json`; a.click();
   URL.revokeObjectURL(url);
-  toast('exported.');
+  toast('exported · credentials excluded.');
 });
 document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
 document.getElementById('import-file').addEventListener('change', async e => {
   const file = e.target.files[0]; if (!file) return;
   try {
     const text = await file.text();
-    const parsed = JSON.parse(text);
-    if (!parsed.collections || !parsed.items) throw new Error('Not a Bitácora file');
+    const parsed = sanitizeImport(JSON.parse(text));
     pendingImport = parsed;
     document.getElementById('import-current').textContent = `${state.items.length} ${state.items.length === 1 ? 'entry' : 'entries'}`;
     document.getElementById('import-incoming').textContent = `${parsed.items.length} ${parsed.items.length === 1 ? 'entry' : 'entries'}`;
@@ -2237,7 +2372,8 @@ document.querySelector('.sort-bar').addEventListener('click', e => {
   document.querySelectorAll('.sort-bar button').forEach(b => b.classList.toggle('active', b === btn));
   renderItems();
 });
-document.getElementById('search').addEventListener('input', e => { view.search = e.target.value.trim(); renderItems(); });
+const _runSearch = debounce(renderItems, 140);
+document.getElementById('search').addEventListener('input', e => { view.search = e.target.value.trim(); _runSearch(); });
 document.getElementById('items-grid').addEventListener('click', e => {
   const tagEl = e.target.closest('.tag');
   if (tagEl) {
@@ -2254,6 +2390,13 @@ document.getElementById('items-grid').addEventListener('click', e => {
 });
 document.getElementById('view-meta').addEventListener('click', e => {
   if (e.target.id === 'clear-tag') { view.tag = null; renderAll(); }
+});
+document.getElementById('empty-state').addEventListener('click', e => {
+  if (e.target.id === 'empty-clear') {
+    view.status = 'all'; view.collection = 'all'; view.tag = null; view.search = '';
+    const s = document.getElementById('search'); if (s) s.value = '';
+    renderAll();
+  }
 });
 
 const tagPickerEl = document.getElementById('tag-picker');
@@ -2408,6 +2551,15 @@ document.querySelectorAll('[data-theme-pick]').forEach(b => {
   });
   searchInput.addEventListener('blur', () => {
     if (isMobile() && !searchInput.value) searchWrap.classList.remove('expanded');
+  });
+  // Leaving the mobile breakpoint (rotate / resize / split-view) must not strand
+  // the mobile-only expanded-search or sheet states.
+  window.addEventListener('resize', () => {
+    if (!isMobile()) {
+      searchWrap.classList.remove('expanded');
+      sidebar.classList.remove('show-as-sheet');
+      backdrop.classList.remove('show');
+    }
   });
 
   // Sync tab-bar active state when modals close via their own buttons
