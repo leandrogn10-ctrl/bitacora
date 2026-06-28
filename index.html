@@ -2773,11 +2773,11 @@ document.getElementById('sync-disable-btn').addEventListener('click', () => {
 });
 
 function isClaudeEnabled() { return !!(state.settings.claude.enabled && state.settings.claude.apiKey); }
-async function callClaude({ system, userMessage, maxTokens = 350 }) {
+async function callClaude({ system, userMessage, maxTokens = 350, model }) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': state.settings.claude.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: state.settings.claude.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: userMessage }] }),
+    body: JSON.stringify({ model: model || state.settings.claude.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: userMessage }] }),
   });
   if (!res.ok) {
     const txt = await res.text();
@@ -2788,6 +2788,9 @@ async function callClaude({ system, userMessage, maxTokens = 350 }) {
   const data = await res.json();
   return data.content?.[0]?.text || '(empty response)';
 }
+// Year/creator lookups run on Sonnet (more accurate, fewer confabulations) no matter
+// which model handles the conversational takes — isolates accuracy from the cost choice.
+const ENRICH_MODEL = 'claude-sonnet-4-6';
 // Ask Claude for the work's release year + creator as strict JSON. Title-level metadata
 // (stable across rewatches). Returns {year, creator} (either may be null) or null on failure.
 async function fetchYearCreator(title, collName) {
@@ -2799,7 +2802,8 @@ async function fetchYearCreator(title, collName) {
     + 'If the title is obscure, generic, ambiguous, or recent enough that you may not know it (especially the last few years), '
     + 'return null for that field. A confabulated, plausible-sounding name or year is far worse than null — '
     + 'when in doubt, return null and let the human fill it in. Do not guess.';
-  const txt = await callClaude({ system, userMessage: `Title: ${title}\nMedium: ${collName || 'unknown'}`, maxTokens: 80 });
+  // Accuracy-critical lookup → always use Sonnet, regardless of the chat-take model.
+  const txt = await callClaude({ system, userMessage: `Title: ${title}\nMedium: ${collName || 'unknown'}`, maxTokens: 80, model: ENRICH_MODEL });
   const m = txt.match(/\{[\s\S]*\}/); if (!m) return null;
   const d = JSON.parse(m[0]);
   return {
