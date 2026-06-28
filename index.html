@@ -247,6 +247,37 @@ a:hover { color: var(--accent-soft); }
 .tag-color-rust       { color: var(--c-rust-fg); background: var(--c-rust-bg); border-color: var(--c-rust-bd); }
 .tag-color-ash        { color: var(--c-ash-fg); background: var(--c-ash-bg); border-color: var(--c-ash-bd); }
 
+/* --- FEAT-09: token field (editor) --- */
+.tag-field { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 6px 8px; min-height: 36px; cursor: text; transition: border-color 0.12s; text-transform: none; letter-spacing: normal; }
+.tag-field:focus-within { border-color: var(--accent-soft); }
+.tag-chips { display: contents; }
+.tag-field .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 2px 4px 2px 8px; border-radius: 2px; background: var(--bg-elev); color: var(--ink-dim); border: 1px solid var(--line); }
+.tag-field .chip .chip-canon { cursor: pointer; color: var(--accent); font-size: 10px; padding-left: 5px; margin-left: 1px; border-left: 1px solid var(--line); }
+.tag-field .chip .chip-canon:hover { color: var(--gold); }
+.tag-field .chip .chip-x { cursor: pointer; color: var(--ink-faint); font-size: 13px; line-height: 1; padding: 0 2px; }
+.tag-field .chip .chip-x:hover { color: var(--accent2); }
+.tag-entry { flex: 1 1 90px; min-width: 90px; border: none; background: transparent; padding: 3px 2px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink); outline: none; }
+.tag-suggest { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 3px; box-shadow: var(--shadow); z-index: 60; max-height: 220px; overflow-y: auto; padding: 4px; animation: popIn 0.14s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.tag-suggest.hidden { display: none; }
+.tag-suggest .opt { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 2px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-dim); }
+.tag-suggest .opt.active, .tag-suggest .opt:hover { background: var(--paper); color: var(--ink); }
+.tag-suggest .opt .cnt { margin-left: auto; color: var(--ink-faint); font-size: 10px; }
+.tag-suggest .opt b { color: var(--accent); font-weight: 600; }
+
+/* --- FEAT-09: merge / dupe-scan (tag manager) --- */
+.tag-merge-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 10px; background: var(--paper-hi); border: 1px solid var(--accent-soft); border-radius: 3px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+.tag-merge-bar.hidden { display: none; }
+.tag-merge-bar #merge-count { margin-right: auto; letter-spacing: 0.05em; }
+.tag-row .tag-check { accent-color: var(--accent); cursor: pointer; margin: 0; }
+.dupe-results { margin-top: 10px; }
+.dupe-results.hidden { display: none; }
+.dupe-results .dupe-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--line-soft); border-radius: 3px; margin-bottom: 6px; background: var(--bg-elev); }
+.dupe-results .dupe-cluster { flex: 1; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--ink-dim); }
+.dupe-results .dupe-cluster b { color: var(--accent); }
+.dupe-results .dupe-cluster .dc { color: var(--ink-faint); font-size: 9px; }
+.dupe-results .dupe-merge { white-space: nowrap; }
+.dupe-results .dupe-empty { color: var(--ink-faint); font-size: 12px; line-height: 1.5; }
+
 .swatch { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s, border-color 0.12s; }
 .swatch:hover { transform: scale(1.15); }
 .swatch.selected { border-color: var(--ink); }
@@ -347,7 +378,7 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .tag-group-section .tag-group-items { min-height: 32px; padding: 2px 0; transition: background 0.12s; }
 .tag-group-section .tag-group-items:empty::before { content: 'drop here'; display: block; padding: 10px; text-align: center; color: var(--ink-faint); font-size: 11px; opacity: 0.5; font-style: italic; }
 .tag-group-section.drop-target .tag-group-items { background: var(--paper-hi); }
-.tag-row { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--line-soft); background: var(--bg-elev); transition: background 0.12s, opacity 0.12s; }
+.tag-row { display: grid; grid-template-columns: auto auto 1fr auto auto; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--line-soft); background: var(--bg-elev); transition: background 0.12s, opacity 0.12s; }
 .tag-row.dragging { opacity: 0.35; }
 .tag-row.drop-above { box-shadow: inset 0 2px 0 var(--accent); }
 .tag-row.drop-below { box-shadow: inset 0 -2px 0 var(--accent); }
@@ -912,7 +943,13 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
             </div>
             <input type="hidden" name="rating" value="0">
           </label>
-          <label>Tags<input type="text" name="tags" placeholder="comma, separated" autocomplete="off"></label>
+          <label>Tags
+            <div class="tag-field" id="tag-field">
+              <span class="tag-chips" id="tag-chips"></span><input type="text" id="tag-entry" class="tag-entry" placeholder="add a tag…" autocomplete="off" aria-label="add a tag">
+              <div class="tag-suggest hidden" id="tag-suggest"></div>
+            </div>
+            <input type="hidden" name="tags" id="tags-hidden">
+          </label>
           <label>Year<input type="number" name="year" placeholder="release year" autocomplete="off" min="0" max="2100" step="1"></label>
           <label>Creator <button type="button" id="enrich-btn" class="enrich-btn" title="ask Claude to fill year & creator">✦ fill</button><input type="text" name="creator" placeholder="director / author / studio" autocomplete="off"></label>
           <label class="span-2">Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— private</span><textarea name="notes" rows="3" placeholder="thoughts, quotes, who recommended it…"></textarea></label>
@@ -976,6 +1013,13 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
         <h3>All tags</h3>
         <div class="tag-mgr-actions">
           <button class="btn-secondary" id="claude-organize-btn" title="Use Claude to suggest groupings (requires API key in settings)">✦ ask claude to organize</button>
+          <button class="btn-secondary" id="find-dupes-btn" title="find tags that differ only by case, spacing or punctuation">⌖ find duplicates</button>
+        </div>
+        <div id="dupe-results" class="dupe-results hidden"></div>
+        <div id="tag-merge-bar" class="tag-merge-bar hidden">
+          <span id="merge-count">0 selected</span>
+          <button class="btn-secondary" id="merge-selected-btn">merge into…</button>
+          <button class="ghost-btn" id="merge-clear-btn">clear</button>
         </div>
         <div id="tag-rows"></div>
         <p id="no-tags-msg" style="color:var(--ink-faint);font-size:12px;display:none">No tags yet — add some by tagging an entry.</p>
@@ -1407,6 +1451,41 @@ function groupTags() {
   const groups = state.tagGroups.filter(g => byGroup.has(g.id)).map(g => ({ ...g, tags: byGroup.get(g.id) }));
   return { groups, ungrouped };
 }
+// Fold to a comparison key: case-, spacing- and punctuation-insensitive. "Genre"/"genre"/
+// "sci-fi"/"sci fi" collapse together; "Music Genre" stays distinct (different words).
+function normalizeTag(t) { return (t || '').toLowerCase().replace(/[\s\-_/.]+/g, ' ').replace(/[^a-z0-9 ]/g, '').trim(); }
+// Merge one or more source tags INTO a target across the whole library (rename = merge of one).
+// Returns # entries touched. Inherits a group assignment if the target lacks one. Caller saves+rerenders.
+function applyTagMerge(fromTags, toTag) {
+  const from = new Set((fromTags || []).filter(t => t && t !== toTag));
+  if (!from.size || !toTag) return 0;
+  let touched = 0;
+  for (const it of state.items) {
+    if (!Array.isArray(it.tags) || !it.tags.some(t => from.has(t))) continue;
+    it.tags = [...new Set(it.tags.map(t => from.has(t) ? toTag : t))];   // map + dedupe per entry
+    touched++;
+  }
+  if (!state.tagAssignments[toTag]) {
+    for (const t of from) if (state.tagAssignments[t]) { state.tagAssignments[toTag] = state.tagAssignments[t]; break; }
+  }
+  for (const t of from) delete state.tagAssignments[t];
+  for (const key of Object.keys(state.tagOrder)) {           // prune merged names from manual orders
+    const arr = state.tagOrder[key];
+    if (Array.isArray(arr)) state.tagOrder[key] = arr.filter(t => !from.has(t));
+  }
+  return touched;
+}
+// Cluster all library tags by normalized key; clusters with >1 distinct spelling are dupes.
+function findTagDupeClusters() {
+  const byNorm = new Map();
+  for (const [t, c] of getAllTags()) {
+    const n = normalizeTag(t); if (!n) continue;
+    if (!byNorm.has(n)) byNorm.set(n, []);
+    byNorm.get(n).push([t, c]);
+  }
+  return [...byNorm.values()].filter(arr => arr.length > 1)
+    .map(arr => { arr.sort((a, b) => b[1] - a[1] || smartTagCompare(a, b)); return { canonical: arr[0][0], members: arr }; });
+}
 
 function getFilteredItems() {
   let items = state.items.slice();
@@ -1797,6 +1876,106 @@ function renderTagPicker() {
   popover.innerHTML = html;
 }
 
+// --- FEAT-09: editor tag token field ---------------------------------------
+let tagChipState = [];           // tag strings currently in the editor
+let tagSuggestItems = [];        // [{t, c, m}] current suggestions
+let tagSuggestActive = -1;
+const tagFieldEl = document.getElementById('tag-field');
+const tagEntryEl = document.getElementById('tag-entry');
+const tagSuggestEl = document.getElementById('tag-suggest');
+const tagsHiddenEl = document.getElementById('tags-hidden');
+
+function setTagChips(tags) {
+  tagChipState = [...new Set((tags || []).map(t => String(t).trim().slice(0, 60)).filter(Boolean))].slice(0, 30);
+  renderTagChips();
+}
+// A DIFFERENT existing library tag that normalizes the same and is used at least as much → the canonical spelling.
+function canonicalFor(tag) {
+  const norm = normalizeTag(tag); if (!norm) return null;
+  let best = null, bestCount = -1;
+  for (const [t, c] of getAllTags()) {
+    if (t === tag) continue;
+    if (normalizeTag(t) === norm && c > bestCount) { best = t; bestCount = c; }
+  }
+  return best;
+}
+function renderTagChips() {
+  const wrap = document.getElementById('tag-chips');
+  wrap.innerHTML = tagChipState.map(t => {
+    const color = getTagColor(t);
+    const cc = color ? ` tag-color-${color}` : '';
+    const canon = canonicalFor(t);
+    const canonHtml = canon ? `<span class="chip-canon" data-canon="${escapeAttr(canon)}" data-from="${escapeAttr(t)}" title="use existing tag “${escapeAttr(canon)}” instead">≈ ${escapeHtml(canon)}</span>` : '';
+    return `<span class="chip${cc}" data-tag="${escapeAttr(t)}">${escapeHtml(t)}${canonHtml}<span class="chip-x" data-x="${escapeAttr(t)}" title="remove" aria-label="remove ${escapeAttr(t)}">×</span></span>`;
+  }).join('');
+  tagsHiddenEl.value = tagChipState.join(', ');
+}
+function addTagChip(raw) {
+  const t = String(raw || '').trim().slice(0, 60);
+  if (!t) return false;
+  if (tagChipState.includes(t)) return false;
+  if (tagChipState.length >= 30) { toast('30 tags max.', true); return false; }
+  tagChipState.push(t); renderTagChips(); return true;
+}
+function removeTagChip(t) { tagChipState = tagChipState.filter(x => x !== t); renderTagChips(); }
+function highlightTagMatch(text, positions) {
+  const set = new Set(positions); let out = '';
+  for (let i = 0; i < text.length; i++) out += set.has(i) ? `<b>${escapeHtml(text[i])}</b>` : escapeHtml(text[i]);
+  return out;
+}
+function renderTagSuggest() {
+  const q = tagEntryEl.value.trim();
+  tagSuggestActive = -1;
+  if (!q) { tagSuggestItems = []; tagSuggestEl.classList.add('hidden'); tagSuggestEl.innerHTML = ''; return; }
+  const inUse = new Set(tagChipState);
+  tagSuggestItems = getAllTags()
+    .filter(([t]) => !inUse.has(t))
+    .map(([t, c]) => ({ t, c, m: fuzzyMatch(q, t) }))
+    .filter(x => x.m)
+    .sort((a, b) => b.m.score - a.m.score || b.c - a.c)
+    .slice(0, 8);
+  if (!tagSuggestItems.length) { tagSuggestEl.classList.add('hidden'); tagSuggestEl.innerHTML = ''; return; }
+  tagSuggestEl.innerHTML = tagSuggestItems.map((s, i) => {
+    const color = getTagColor(s.t);
+    const dot = color ? `<span class="swatch swatch-${color}" style="width:8px;height:8px"></span>` : '';
+    return `<div class="opt" data-i="${i}">${dot}<span>${highlightTagMatch(s.t, s.m.positions)}</span><span class="cnt">${s.c}</span></div>`;
+  }).join('');
+  tagSuggestEl.classList.remove('hidden');
+}
+function paintTagSuggestActive() {
+  tagSuggestEl.querySelectorAll('.opt').forEach((el, i) => el.classList.toggle('active', i === tagSuggestActive));
+}
+function hideTagSuggest() { tagSuggestEl.classList.add('hidden'); tagSuggestItems = []; tagSuggestActive = -1; }
+// Commit on Enter/Tab: take the highlighted suggestion if any, else the literal typed text (new tags always allowed).
+function commitTagEntry() {
+  if (tagSuggestActive >= 0 && tagSuggestItems[tagSuggestActive]) addTagChip(tagSuggestItems[tagSuggestActive].t);
+  else addTagChip(tagEntryEl.value);
+  tagEntryEl.value = ''; hideTagSuggest();
+}
+tagEntryEl.addEventListener('input', renderTagSuggest);
+tagEntryEl.addEventListener('keydown', e => {
+  if (e.key === ',') { e.preventDefault(); addTagChip(tagEntryEl.value); tagEntryEl.value = ''; hideTagSuggest(); }
+  else if (e.key === 'Enter') { e.preventDefault(); commitTagEntry(); }
+  else if (e.key === 'Tab' && (tagEntryEl.value.trim() || tagSuggestActive >= 0)) { e.preventDefault(); commitTagEntry(); }
+  else if (e.key === 'Backspace' && !tagEntryEl.value && tagChipState.length) { e.preventDefault(); removeTagChip(tagChipState[tagChipState.length - 1]); }
+  else if (e.key === 'ArrowDown' && tagSuggestItems.length) { e.preventDefault(); tagSuggestActive = Math.min(tagSuggestActive + 1, tagSuggestItems.length - 1); paintTagSuggestActive(); }
+  else if (e.key === 'ArrowUp' && tagSuggestItems.length) { e.preventDefault(); tagSuggestActive = Math.max(tagSuggestActive - 1, -1); paintTagSuggestActive(); }
+  else if (e.key === 'Escape' && !tagSuggestEl.classList.contains('hidden')) { e.preventDefault(); e.stopPropagation(); hideTagSuggest(); }
+});
+tagEntryEl.addEventListener('paste', e => {
+  const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+  if (text.includes(',')) { e.preventDefault(); text.split(',').forEach(addTagChip); tagEntryEl.value = ''; hideTagSuggest(); }
+});
+tagEntryEl.addEventListener('blur', () => setTimeout(hideTagSuggest, 130));   // delay so an option click lands first
+tagFieldEl.addEventListener('click', e => {
+  const x = e.target.closest('[data-x]'); if (x) { removeTagChip(x.dataset.x); tagEntryEl.focus(); return; }
+  const canon = e.target.closest('[data-canon]');
+  if (canon) { tagChipState = [...new Set(tagChipState.map(t => t === canon.dataset.from ? canon.dataset.canon : t))]; renderTagChips(); tagEntryEl.focus(); return; }
+  const opt = e.target.closest('.opt');
+  if (opt) { addTagChip(tagSuggestItems[+opt.dataset.i].t); tagEntryEl.value = ''; hideTagSuggest(); tagEntryEl.focus(); return; }
+  if (e.target === tagFieldEl || e.target.id === 'tag-chips') tagEntryEl.focus();
+});
+
 function populateFormCollections() {
   const sel = document.getElementById('form-collection');
   sel.innerHTML = state.collections.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
@@ -1822,11 +2001,12 @@ function openEntryModal(item) {
   entryForm.reset();
   populateFormCollections();
   setRating(item ? item.rating || 0 : 0);
+  setTagChips(item ? (item.tags || []) : []);
+  tagEntryEl.value = ''; hideTagSuggest();
   if (item) {
     entryForm.title.value = item.title;
     entryForm.collectionId.value = item.collectionId;
     entryForm.status.value = item.status;
-    entryForm.tags.value = (item.tags || []).join(', ');
     entryForm.year.value = item.year || '';
     entryForm.creator.value = item.creator || '';
     entryForm.notes.value = item.notes || '';
@@ -2015,6 +2195,7 @@ document.getElementById('rating-input').addEventListener('click', e => {
 
 entryForm.addEventListener('submit', e => {
   e.preventDefault();
+  if (tagEntryEl.value.trim()) { addTagChip(tagEntryEl.value); tagEntryEl.value = ''; hideTagSuggest(); }
   const fd = new FormData(entryForm);
   const tags = [...new Set(fd.get('tags').split(',').map(t => t.trim().slice(0, 60)).filter(Boolean))].slice(0, 30);
   const data = {
@@ -2211,7 +2392,19 @@ document.getElementById('prompt-ok').addEventListener('click', () => {
 promptInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('prompt-ok').click(); } });
 
 const tagMgrModal = document.getElementById('tag-mgr-modal');
-function openTagManager() { renderTagManager(); tagMgrModal.showModal(); }
+let mergeSelected = new Set();    // tags ticked for a multi-merge (ephemeral)
+let dupeClustersCache = [];       // last "find duplicates" result, for one-click merge
+function updateMergeBar() {
+  const n = mergeSelected.size;
+  document.getElementById('merge-count').textContent = `${n} selected`;
+  document.getElementById('tag-merge-bar').classList.toggle('hidden', n === 0);
+}
+function openTagManager() {
+  mergeSelected.clear(); dupeClustersCache = [];
+  document.getElementById('dupe-results').classList.add('hidden');
+  renderTagManager(); updateMergeBar();
+  tagMgrModal.showModal();
+}
 function renderTagManager() {
   const groupsEl = document.getElementById('group-rows');
   if (state.tagGroups.length === 0) {
@@ -2259,6 +2452,7 @@ function renderTagManager() {
     const name = g ? escapeHtml(g.name) : 'no group';
     const swatch = g ? `<span class="swatch swatch-${g.color}"></span>` : '<span style="width:10px"></span>';
     const rows = tags.map(([tag, count]) => `<div class="tag-row" draggable="true" data-tag="${escapeAttr(tag)}">
+      <input type="checkbox" class="tag-check" data-check="${escapeAttr(tag)}" title="select for merge"${mergeSelected.has(tag) ? ' checked' : ''}>
       <span class="drag-handle" aria-hidden="true">⋮⋮</span>
       <span class="tag-pill">${tagPillHtml(tag, false)} <span style="color:var(--ink-faint);font-size:10px;margin-left:6px">${count}</span></span>
       <button class="rename-tag" data-rename-tag="${escapeAttr(tag)}" title="rename across all entries">✎</button>
@@ -2453,24 +2647,10 @@ document.getElementById('tag-rows').addEventListener('click', async e => {
     const oldTag = renBtn.dataset.renameTag;
     const newTagRaw = await askPrompt('Rename tag', `Rename "${oldTag}" to:`, oldTag);
     if (!newTagRaw) return;
-    const newTag = newTagRaw.trim();
+    const newTag = newTagRaw.trim().slice(0, 60);
     if (!newTag || newTag === oldTag) return;
-    const count = state.items.filter(i => (i.tags || []).includes(oldTag)).length;
-    let merged = false;
-    for (const it of state.items) {
-      if (!Array.isArray(it.tags)) continue;
-      if (it.tags.includes(oldTag)) {
-        // dedupe in case both old and new already exist on the same entry
-        const next = new Set(it.tags.map(t => t === oldTag ? newTag : t));
-        if (it.tags.includes(newTag)) merged = true;
-        it.tags = [...next];
-      }
-    }
-    // Move group assignment if the old tag had one and the new one doesn't
-    if (state.tagAssignments[oldTag] && !state.tagAssignments[newTag]) {
-      state.tagAssignments[newTag] = state.tagAssignments[oldTag];
-    }
-    delete state.tagAssignments[oldTag];
+    const merged = state.items.some(i => Array.isArray(i.tags) && i.tags.includes(newTag));
+    const count = applyTagMerge([oldTag], newTag);
     save();
     renderTagManager();
     renderAll();
@@ -2530,6 +2710,48 @@ document.getElementById('claude-organize-btn').addEventListener('click', async (
   } catch (e) {
     toast('failed: ' + e.message, true);
   }
+});
+// Multi-select merge: tick rows → "merge into…"
+document.getElementById('tag-rows').addEventListener('change', e => {
+  const cb = e.target.closest('[data-check]'); if (!cb) return;
+  if (cb.checked) mergeSelected.add(cb.dataset.check); else mergeSelected.delete(cb.dataset.check);
+  updateMergeBar();
+});
+document.getElementById('merge-clear-btn').addEventListener('click', () => { mergeSelected.clear(); renderTagManager(); updateMergeBar(); });
+document.getElementById('merge-selected-btn').addEventListener('click', async () => {
+  const sources = [...mergeSelected]; if (!sources.length) return;
+  const targetRaw = await askPrompt('Merge tags', `Merge ${sources.length} tag${sources.length > 1 ? 's' : ''} into (an existing tag, or a new name):`, sources[0]);
+  if (!targetRaw) return;
+  const target = targetRaw.trim().slice(0, 60); if (!target) return;
+  const count = applyTagMerge(sources, target);
+  mergeSelected.clear();
+  save(); renderTagManager(); updateMergeBar();
+  document.getElementById('dupe-results').classList.add('hidden');
+  renderAll();
+  toast(`merged into "${target}" across ${count} ${count === 1 ? 'entry' : 'entries'}.`);
+});
+// Auto dupe-scan: cluster by normalized key, one-click merge each cluster into its canonical spelling.
+document.getElementById('find-dupes-btn').addEventListener('click', () => {
+  const box = document.getElementById('dupe-results');
+  dupeClustersCache = findTagDupeClusters();
+  box.classList.remove('hidden');
+  if (!dupeClustersCache.length) {
+    box.innerHTML = `<p class="dupe-empty">No mechanical duplicates — every tag differs by more than case, spacing or punctuation.<br>For meaning-based dupes (e.g. “Music Genre” → “Genre”), tick the rows below and use “merge into…”.</p>`;
+    return;
+  }
+  box.innerHTML = dupeClustersCache.map((cl, i) => {
+    const chips = cl.members.map(([t, c]) => `${escapeHtml(t)} <span class="dc">${c}</span>`).join(' · ');
+    return `<div class="dupe-row"><div class="dupe-cluster">${chips} → <b>${escapeHtml(cl.canonical)}</b></div><button class="btn-secondary dupe-merge" data-cluster="${i}">merge</button></div>`;
+  }).join('');
+});
+document.getElementById('dupe-results').addEventListener('click', e => {
+  const btn = e.target.closest('[data-cluster]'); if (!btn) return;
+  const cl = dupeClustersCache[+btn.dataset.cluster]; if (!cl) return;
+  const sources = cl.members.map(m => m[0]).filter(t => t !== cl.canonical);
+  const count = applyTagMerge(sources, cl.canonical);
+  save(); renderTagManager(); updateMergeBar(); renderAll();
+  document.getElementById('find-dupes-btn').click();   // refresh the cluster list
+  toast(`merged ${cl.members.length} tags into "${cl.canonical}" (${count} ${count === 1 ? 'entry' : 'entries'}).`);
 });
 document.getElementById('tag-mgr-btn').addEventListener('click', openTagManager);
 
