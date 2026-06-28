@@ -478,8 +478,8 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 @media (max-width: 1100px) { .ob-grid { grid-template-columns: 1fr; } .ob-panel.wide { grid-column: auto; } }
 .ob-h { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); margin-bottom: 16px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
 .ob-bar { display: flex; align-items: center; gap: 13px; padding: 5px 0; }
-.ob-bar[data-coll], .ob-bar[data-tag] { cursor: pointer; }
-.ob-bar[data-coll]:hover .ob-bar-label, .ob-bar[data-tag]:hover .ob-bar-label { color: var(--accent); }
+.ob-bar[data-coll], .ob-bar[data-tag], .ob-bar[data-decade], .ob-bar[data-creator] { cursor: pointer; }
+.ob-bar[data-coll]:hover .ob-bar-label, .ob-bar[data-tag]:hover .ob-bar-label, .ob-bar[data-decade]:hover .ob-bar-label, .ob-bar[data-creator]:hover .ob-bar-label { color: var(--accent); }
 .ob-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-dim); width: 150px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.12s; }
 .ob-bar-track { flex: 1; height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
 .ob-bar-fill { display: block; height: 100%; background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 65%, var(--accent2)), var(--gold)); border-radius: 5px; box-shadow: 0 0 8px -2px color-mix(in srgb, var(--gold) 60%, transparent); }
@@ -787,6 +787,8 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
 .help-cmds li::before { content: '›'; position: absolute; left: 0; color: var(--accent); }
 .help-cmds b { color: var(--ink); font-weight: 600; }
 .active-tag.rating-chip { background: var(--gold); }
+.active-tag.creator-chip { background: var(--c-dusty-fg); }
+.active-tag.decade-chip { background: var(--c-plum-fg); }
 </style>
 </head>
 <body>
@@ -1200,12 +1202,22 @@ const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, 
 7. Status defaults to 'queued' for things you're recommending.`;
 
 let state = load();
-let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0, mode: 'shelf' };
+let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0, creator: null, decade: null, mode: 'shelf' };
 // Tags filter as an AND-set (multi-select). Toggle membership in/out.
 function toggleViewTag(t) { view.tags = view.tags.includes(t) ? view.tags.filter(x => x !== t) : [...view.tags, t]; }
 // The pristine library state: Everything / All, no tags / rating / search (sort is a display pref, left alone).
-function isViewDefault() { return view.collection === 'all' && view.status === 'all' && !view.tags.length && !view.minRating && !view.search; }
-function resetView() { view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.search = ''; const s = document.getElementById('search'); if (s) s.value = ''; }
+function isViewDefault() { return view.collection === 'all' && view.status === 'all' && !view.tags.length && !view.minRating && !view.creator && view.decade == null && !view.search; }
+function resetView() { view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.creator = null; view.decade = null; view.search = ''; const s = document.getElementById('search'); if (s) s.value = ''; }
+function anyFilterActive() { return view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.creator || view.decade != null || !!view.search; }
+// Removable chips for every active filter — shared by Shelf and Diary meta lines.
+function filterChipsHtml() {
+  let h = '';
+  view.tags.forEach(t => h += `<span class="active-tag">${escapeHtml(t)}<button class="clear-tag" data-tag="${escapeAttr(t)}" type="button">×</button></span>`);
+  if (view.creator) h += `<span class="active-tag creator-chip">${escapeHtml(view.creator)}<button id="clear-creator" type="button">×</button></span>`;
+  if (view.decade != null) h += `<span class="active-tag decade-chip">${view.decade}s<button id="clear-decade" type="button">×</button></span>`;
+  if (view.minRating) h += `<span class="active-tag rating-chip">★ ${view.minRating}+<button id="clear-rating" type="button">×</button></span>`;
+  return h;
+}
 let editing = null;
 
 // ── Event model (FEAT-02 Phase A) ─────────────────────────────────────────────
@@ -1391,10 +1403,14 @@ function getFilteredItems() {
   if (view.status !== 'all')     items = items.filter(i => i.status === view.status);
   if (view.tags.length)          items = items.filter(i => view.tags.every(t => (i.tags || []).includes(t)));
   if (view.minRating)            items = items.filter(i => (i.rating || 0) >= view.minRating);
+  if (view.creator)              items = items.filter(i => i.creator === view.creator);
+  if (view.decade != null)       items = items.filter(i => i.year && Math.floor(i.year / 10) * 10 === view.decade);
   if (view.search) {
     const q = view.search.toLowerCase();
     items = items.filter(i =>
       i.title.toLowerCase().includes(q) ||
+      (i.creator || '').toLowerCase().includes(q) ||
+      String(i.year || '').includes(q) ||
       (i.notes || '').toLowerCase().includes(q) ||
       (i.claudeNote || '').toLowerCase().includes(q) ||
       (i.config || '').toLowerCase().includes(q) ||
@@ -1491,9 +1507,11 @@ function getDiaryEvents() {
   let items = state.items.slice();
   if (view.collection !== 'all') items = items.filter(i => i.collectionId === view.collection);
   if (view.tags.length)          items = items.filter(i => view.tags.every(t => (i.tags || []).includes(t)));
+  if (view.creator)              items = items.filter(i => i.creator === view.creator);
+  if (view.decade != null)       items = items.filter(i => i.year && Math.floor(i.year / 10) * 10 === view.decade);
   if (view.search) {
     const q = view.search.toLowerCase();
-    items = items.filter(i => i.title.toLowerCase().includes(q) || (i.notes || '').toLowerCase().includes(q) || (i.tags || []).some(t => t.toLowerCase().includes(q)));
+    items = items.filter(i => i.title.toLowerCase().includes(q) || (i.creator || '').toLowerCase().includes(q) || (i.tags || []).some(t => t.toLowerCase().includes(q)));
   }
   const evts = [];
   for (const it of items) for (const ev of (it.events || [])) {
@@ -1510,15 +1528,14 @@ function renderDiary() {
   document.getElementById('current-view').textContent = 'Diary';
   const evts = getDiaryEvents();
   let metaHtml = `<span>${evts.length} ${evts.length === 1 ? 'encounter' : 'encounters'}</span>`;
-  view.tags.forEach(t => metaHtml += `<span class="active-tag">${escapeHtml(t)}<button class="clear-tag" data-tag="${escapeAttr(t)}" type="button">×</button></span>`);
-  if (view.minRating) metaHtml += `<span class="active-tag rating-chip">★ ${view.minRating}+<button id="clear-rating" type="button">×</button></span>`;
+  metaHtml += filterChipsHtml();
   document.getElementById('view-meta').innerHTML = metaHtml;
 
   const tl = document.getElementById('diary-timeline');
   const empty = document.getElementById('empty-state');
   if (!evts.length) {
     tl.innerHTML = '';
-    const filtersActive = view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.search;
+    const filtersActive = anyFilterActive();
     document.getElementById('empty-heading').textContent = filtersActive ? 'no encounters match' : 'your diary is empty';
     document.getElementById('empty-sub').innerHTML = filtersActive
       ? 'No passes fit the current filter. <button type="button" id="empty-clear">clear filters</button>'
@@ -1528,7 +1545,7 @@ function renderDiary() {
   }
   empty.classList.remove('show');
 
-  const filtersActive = view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.search;
+  const filtersActive = anyFilterActive();
   const avgOf = arr => { const r = arr.filter(x => x.ev.rating > 0); return r.length ? (r.reduce((s, x) => s + x.ev.rating, 0) / r.length).toFixed(1) : null; };
   const rowHtml = ({ ev, item }) => {
     const verb = EVENT_VERB[ev.kind] || 'logged';
@@ -1649,14 +1666,14 @@ function renderObservatory() {
   for (const r of recs) if (r.year) { const d = Math.floor(r.year / 10) * 10; decCount[d] = (decCount[d] || 0) + 1; }
   const decs = Object.entries(decCount).sort((a, b) => a[0] - b[0]);
   const decMax = Math.max(1, ...decs.map(d => d[1]));
-  html += obsPanel('By decade', decs.length ? decs.map(([d, n]) => obsRankBar(d + 's', n, decMax, n)).join('') : `<div class="ob-hint">add release years (✦ enrich library) to chart decades</div>`);
+  html += obsPanel('By decade', decs.length ? decs.map(([d, n]) => obsRankBar(d + 's', n, decMax, n, ` data-decade="${d}"`)).join('') : `<div class="ob-hint">add release years (✦ enrich library) to chart decades</div>`);
 
   // Top creators
   const crCount = {};
   for (const r of recs) if (r.creator) crCount[r.creator] = (crCount[r.creator] || 0) + 1;
   const topCr = Object.entries(crCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const crMax = Math.max(1, ...topCr.map(c => c[1]));
-  html += obsPanel('Top creators', topCr.length ? topCr.map(([c, n]) => obsRankBar(escapeHtml(c), n, crMax, n)).join('') : `<div class="ob-hint">add creators (✦ enrich library) to chart creators</div>`);
+  html += obsPanel('Top creators', topCr.length ? topCr.map(([c, n]) => obsRankBar(escapeHtml(c), n, crMax, n, ` data-creator="${escapeAttr(c)}"`)).join('') : `<div class="ob-hint">add creators (✦ enrich library) to chart creators</div>`);
 
   // Encounters over time (by year, always event-based)
   const yc = {};
@@ -1675,8 +1692,7 @@ function renderShelf() {
   const items = getFilteredItems();
 
   let metaHtml = `<span>${items.length} ${items.length === 1 ? 'entry' : 'entries'}</span>`;
-  view.tags.forEach(t => metaHtml += `<span class="active-tag">${escapeHtml(t)}<button class="clear-tag" data-tag="${escapeAttr(t)}" type="button">×</button></span>`);
-  if (view.minRating) metaHtml += `<span class="active-tag rating-chip">★ ${view.minRating}+<button id="clear-rating" type="button">×</button></span>`;
+  metaHtml += filterChipsHtml();
   document.getElementById('view-meta').innerHTML = metaHtml;
 
   document.getElementById('current-view').textContent = view.collection === 'all'
@@ -1684,7 +1700,7 @@ function renderShelf() {
 
   if (items.length === 0) {
     grid.innerHTML = '';
-    const filtersActive = view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.search;
+    const filtersActive = anyFilterActive();
     const heading = document.getElementById('empty-heading');
     const sub = document.getElementById('empty-sub');
     if (filtersActive) {
@@ -2779,7 +2795,10 @@ async function fetchYearCreator(title, collName) {
     + 'year = the original release/publication year of the work. '
     + 'creator = the primary maker, as a canonical full name: director (film/TV), author (book), '
     + 'studio/developer (game), or artist/band (music/album). '
-    + 'If you are not reasonably sure, use null — do not guess.';
+    + 'CRITICAL: only fill a field if you can identify this exact work with HIGH confidence from your training. '
+    + 'If the title is obscure, generic, ambiguous, or recent enough that you may not know it (especially the last few years), '
+    + 'return null for that field. A confabulated, plausible-sounding name or year is far worse than null — '
+    + 'when in doubt, return null and let the human fill it in. Do not guess.';
   const txt = await callClaude({ system, userMessage: `Title: ${title}\nMedium: ${collName || 'unknown'}`, maxTokens: 80 });
   const m = txt.match(/\{[\s\S]*\}/); if (!m) return null;
   const d = JSON.parse(m[0]);
@@ -3132,10 +3151,14 @@ document.getElementById('observatory').addEventListener('click', e => {
   const c = e.target.closest('[data-coll]'); if (c) { view.collection = c.dataset.coll; view.status = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
   const t = e.target.closest('[data-tag]'); if (t) { view.tags = [t.dataset.tag]; view.collection = 'all'; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
   const r = e.target.closest('[data-rating]'); if (r) { view.minRating = parseFloat(r.dataset.rating); view.collection = 'all'; view.tags = []; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
+  const dc = e.target.closest('[data-decade]'); if (dc) { view.decade = parseInt(dc.dataset.decade, 10); view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
+  const cr = e.target.closest('[data-creator]'); if (cr) { view.creator = cr.dataset.creator; view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
 });
 document.getElementById('view-meta').addEventListener('click', e => {
   if (e.target.classList.contains('clear-tag')) { view.tags = view.tags.filter(t => t !== e.target.dataset.tag); renderAll(); }
   if (e.target.id === 'clear-rating') { view.minRating = 0; renderAll(); }
+  if (e.target.id === 'clear-creator') { view.creator = null; renderAll(); }
+  if (e.target.id === 'clear-decade') { view.decade = null; renderAll(); }
 });
 document.getElementById('empty-state').addEventListener('click', e => {
   if (e.target.id === 'empty-clear') {
@@ -3411,6 +3434,14 @@ function paletteActions() {
   state.collections.forEach(c => A.push({ kind: 'collection', key: 'col:' + c.id, title: c.name, sub: 'collection', icon: '▸', keywords: 'collection ' + c.name, run: () => { view.collection = c.id; view.status = 'all'; view.tags = []; renderAll(); } }));
   // Tags as first-class filter actions — type a tag, Enter filters by it.
   getAllTags().forEach(([t, n]) => A.push({ kind: 'tag', key: 'tag:' + t, title: t, sub: `tag · ${n} ${n === 1 ? 'entry' : 'entries'}`, icon: '#', keywords: 'tag ' + t, run: () => { view.tags = [t]; view.minRating = 0; renderAll(); } }));
+  // Creators & decades as first-class lookup → filtered Shelf.
+  const crCount = {}, decCount = {};
+  for (const it of state.items) {
+    if (it.creator) crCount[it.creator] = (crCount[it.creator] || 0) + 1;
+    if (it.year) { const d = Math.floor(it.year / 10) * 10; decCount[d] = (decCount[d] || 0) + 1; }
+  }
+  Object.entries(crCount).forEach(([c, n]) => A.push({ kind: 'creator', key: 'cr:' + c, title: c, sub: `creator · ${n} ${n === 1 ? 'work' : 'works'}`, icon: '◐', keywords: 'creator director author artist studio ' + c, run: () => { resetView(); view.creator = c; view.mode = 'shelf'; renderItems(); } }));
+  Object.entries(decCount).forEach(([d, n]) => A.push({ kind: 'decade', key: 'dec:' + d, title: d + 's', sub: `decade · ${n} ${n === 1 ? 'work' : 'works'}`, icon: '◷', keywords: `decade ${d}s ${String(d).slice(2)}s`, run: () => { resetView(); view.decade = +d; view.mode = 'shelf'; renderItems(); } }));
   state.items.forEach(it => {
     const coll = state.collections.find(c => c.id === it.collectionId);
     const stars = it.rating ? '★' + (Number.isInteger(it.rating) ? it.rating : it.rating.toFixed(1)) : '·';
@@ -3435,6 +3466,11 @@ function resolveFilterTerm(term) {
   if (coll) return { type: 'collection', value: coll.id, label: coll.name };
   const st = STATUSES.find(s => s === t) || STATUSES.find(s => s.startsWith(t));
   if (st) return { type: 'status', value: st, label: st };
+  const dm = t.match(/^((?:19|20)\d0)s?$/);   // "1970s" / "1970"
+  if (dm) return { type: 'decade', value: +dm[1], label: dm[1] + 's' };
+  const creators = [...new Set(state.items.map(i => i.creator).filter(Boolean))];
+  const cr = creators.find(c => c.toLowerCase() === t) || creators.find(c => c.toLowerCase().includes(t));
+  if (cr) return { type: 'creator', value: cr, label: cr };
   const tags = getAllTags().map(([tg]) => tg);
   const exact = tags.find(tg => tg.toLowerCase() === t) || tags.find(tg => tg.toLowerCase().startsWith(t));
   if (exact) return { type: 'tag', value: exact, label: exact };
@@ -3454,12 +3490,14 @@ function cmdkCompute(raw) {
     const good = resolved.filter(x => x.r), bad = resolved.filter(x => !x.r).map(x => x.term);
     if (good.length) {
       const apply = () => {
-        view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0;
+        view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.creator = null; view.decade = null;
         good.forEach(({ r }) => {
           if (r.type === 'tag') view.tags = [...new Set([...view.tags, r.value])];
           else if (r.type === 'collection') view.collection = r.value;
           else if (r.type === 'status') view.status = r.value;
           else if (r.type === 'rating') view.minRating = r.value;
+          else if (r.type === 'decade') view.decade = r.value;
+          else if (r.type === 'creator') view.creator = r.value;
         });
         renderAll();
       };
@@ -3486,7 +3524,7 @@ function cmdkCompute(raw) {
       let score = (m ? m.score : 0) + (k ? k.score * 0.4 : 0);
       if (a.kind === 'item') score += frecencyScore(a.id) * 0.8 + statusBoost(a.status);
       if (a.kind === 'command') score += 0.5;
-      if (a.kind === 'tag') score += 1;   // surface the "filter by tag" action above items that merely carry it
+      if (a.kind === 'tag' || a.kind === 'creator' || a.kind === 'decade') score += 1;   // surface filter actions above items that merely carry the value
       scored.push({ a, positions: m ? m.positions : [], score });
     }
     scored.sort((x, y) => y.score - x.score);
