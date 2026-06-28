@@ -461,31 +461,38 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .enrich-btn:disabled { opacity: 0.5; }
 .item-card .byline { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--ink-faint); margin-top: 6px; }
 /* The Observatory (FEAT-03) — clean gold-ramped stats */
-.ob-toolbar { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+.ob-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+.ob-unit-hint { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 14px; color: var(--ink-faint); }
 .ob-unit { display: flex; gap: 4px; }
 .ob-unit-btn { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); padding: 6px 13px; border: 1px solid var(--line); border-radius: 3px; transition: color 0.12s, background 0.12s, border-color 0.12s; }
 .ob-unit-btn:hover { color: var(--ink-dim); }
 .ob-unit-btn.active { color: var(--ink); background: var(--bg-elev); border-color: var(--c-gold-bd); }
-.ob-fingerprint { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 12px; margin-bottom: 34px; }
-.ob-stat { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 4px; padding: 17px 14px; text-align: center; }
-.ob-stat-n { font-family: 'Instrument Serif', serif; font-size: 30px; line-height: 1; color: var(--gold); }
-.ob-stat-l { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); margin-top: 9px; }
-.ob-panel { margin-bottom: 32px; }
-.ob-h { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.ob-fingerprint { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.ob-stat { position: relative; background: linear-gradient(165deg, var(--bg-elev), var(--paper)); border: 1px solid var(--line); border-radius: 6px; padding: 19px 14px; text-align: center; overflow: hidden; }
+.ob-stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: 0.7; }
+.ob-stat-n { font-family: 'Instrument Serif', serif; font-size: 32px; line-height: 1; color: var(--gold); }
+.ob-stat-l { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); margin-top: 10px; }
+.ob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.ob-panel { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 6px; padding: 20px 22px 22px; box-shadow: var(--lift); }
+.ob-panel.wide { grid-column: 1 / -1; }
+@media (max-width: 1100px) { .ob-grid { grid-template-columns: 1fr; } .ob-panel.wide { grid-column: auto; } }
+.ob-h { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); margin-bottom: 16px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
 .ob-bar { display: flex; align-items: center; gap: 13px; padding: 5px 0; }
 .ob-bar[data-coll], .ob-bar[data-tag] { cursor: pointer; }
 .ob-bar[data-coll]:hover .ob-bar-label, .ob-bar[data-tag]:hover .ob-bar-label { color: var(--accent); }
 .ob-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-dim); width: 150px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.12s; }
-.ob-bar-track { flex: 1; height: 9px; background: var(--bg-elev); border-radius: 5px; overflow: hidden; }
-.ob-bar-fill { display: block; height: 100%; background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 65%, var(--accent2)), var(--gold)); border-radius: 5px; }
-.ob-bar-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); width: 74px; text-align: right; flex-shrink: 0; }
-.ob-hist { display: flex; align-items: flex-end; gap: 8px; height: 150px; }
+.ob-bar-track { flex: 1; height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.ob-bar-fill { display: block; height: 100%; background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 65%, var(--accent2)), var(--gold)); border-radius: 5px; box-shadow: 0 0 8px -2px color-mix(in srgb, var(--gold) 60%, transparent); }
+.ob-bar-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); width: 74px; text-align: right; flex-shrink: 0; }
+.ob-hist { display: flex; align-items: flex-end; gap: 8px; height: 160px; }
 .ob-hbar { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
 .ob-hbar[data-rating] { cursor: pointer; }
+.ob-hbar-n { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); height: 14px; }
 .ob-hbar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-.ob-hbar-fill { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: filter 0.12s; }
+.ob-hbar-fill { width: 100%; border-radius: 4px 4px 0 0; min-height: 2px; transition: filter 0.12s; box-shadow: 0 0 12px -3px color-mix(in srgb, var(--gold) 55%, transparent); }
 .ob-hbar[data-rating]:hover .ob-hbar-fill { filter: brightness(1.25); }
-.ob-hbar-x { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--ink-faint); margin-top: 7px; }
+.ob-hbar[data-rating]:hover .ob-hbar-n { color: var(--gold); }
+.ob-hbar-x { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--ink-faint); margin-top: 8px; }
 .ob-hint { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 14px; color: var(--ink-faint); padding: 6px 0; }
 .ob-empty { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 18px; color: var(--ink-faint); padding: 50px; text-align: center; }
 .dz-year { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 42px 0 4px; }
@@ -1582,10 +1589,10 @@ function renderOnThisDay() {
 }
 
 // ── The Observatory (FEAT-03) — clean, gold-ramped stats over titles or encounters ──
-function obsPanel(title, body) { return `<section class="ob-panel"><h3 class="ob-h">${title}</h3>${body}</section>`; }
-function obsRankBar(label, count, max, sub, attr = '') {
-  const pct = Math.round(count / max * 100);
-  return `<div class="ob-bar"${attr}><span class="ob-bar-label">${label}</span><span class="ob-bar-track"><span class="ob-bar-fill" style="width:${pct}%"></span></span><span class="ob-bar-val">${sub}</span></div>`;
+function obsPanel(title, body, wide) { return `<section class="ob-panel${wide ? ' wide' : ''}"><h3 class="ob-h">${title}</h3>${body}</section>`; }
+function obsRankBar(label, count, max, sub, attr = '', fill = '') {
+  const pct = Math.max(2, Math.round(count / max * 100));
+  return `<div class="ob-bar"${attr}><span class="ob-bar-label">${label}</span><span class="ob-bar-track"><span class="ob-bar-fill" style="width:${pct}%${fill ? `;background:${fill}` : ''}"></span></span><span class="ob-bar-val">${sub}</span></div>`;
 }
 function obsGoldRamp(rating) { const t = (rating - 1) / 4; return `color-mix(in srgb, var(--gold) ${Math.round(34 + t * 66)}%, var(--ink-faint))`; }
 function renderObservatory() {
@@ -1614,19 +1621,21 @@ function renderObservatory() {
   const busiestLabel = busiest ? `${MONTH_NAMES[+busiest[0].slice(5, 7) - 1].slice(0, 3)} '${busiest[0].slice(2, 4)}` : '—';
   const stat = (n, l) => `<div class="ob-stat"><div class="ob-stat-n">${n}</div><div class="ob-stat-l">${l}</div></div>`;
 
-  let html = `<div class="ob-toolbar"><div class="ob-unit"><button class="ob-unit-btn${unit === 'titles' ? ' active' : ''}" data-unit="titles">by titles</button><button class="ob-unit-btn${unit === 'encounters' ? ' active' : ''}" data-unit="encounters">by encounters</button></div></div>`;
+  const unitHint = unit === 'titles' ? 'each work counted once' : 'every logged pass — rewatches included';
+  let html = `<div class="ob-toolbar"><span class="ob-unit-hint">${unitHint}</span><div class="ob-unit"><button class="ob-unit-btn${unit === 'titles' ? ' active' : ''}" data-unit="titles" title="each work counted once (its latest rating &amp; status)">by titles</button><button class="ob-unit-btn${unit === 'encounters' ? ' active' : ''}" data-unit="encounters" title="every logged pass counts — a rewatched film counts each time">by encounters</button></div></div>`;
   html += `<div class="ob-fingerprint">${stat(titles, 'titles')}${stat(encounters, 'encounters')}${stat('★' + mean, 'mean rating')}${stat(dropRate + '%', 'drop rate')}${stat(busiestLabel, 'busiest month')}</div>`;
 
   // Ratings histogram
   const buckets = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
   const hc = buckets.map(b => recs.filter(r => Math.round(r.rating * 2) / 2 === b).length);
   const hMax = Math.max(1, ...hc);
-  html += obsPanel('Ratings', `<div class="ob-hist">${buckets.map((b, i) => `<div class="ob-hbar" data-rating="${b}" title="${b}★ · ${hc[i]}"><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(hc[i] / hMax * 100)}%;background:${obsGoldRamp(b)}"></div></div><div class="ob-hbar-x">${b}</div></div>`).join('')}</div>`);
+  html += '<div class="ob-grid">';
+  html += obsPanel('Ratings', `<div class="ob-hist">${buckets.map((b, i) => `<div class="ob-hbar" data-rating="${b}" title="${b}★ · ${hc[i]}"><div class="ob-hbar-n">${hc[i] || ''}</div><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(hc[i] / hMax * 100)}%;background:${obsGoldRamp(b)}"></div></div><div class="ob-hbar-x">${b}</div></div>`).join('')}</div>`, true);
 
   // By medium
   const meds = state.collections.map(c => { const rs = recs.filter(r => r.collectionId === c.id); const rr = rs.filter(r => r.rating > 0); return { id: c.id, name: c.name, count: rs.length, avg: rr.length ? rr.reduce((s, r) => s + r.rating, 0) / rr.length : 0 }; }).filter(m => m.count > 0).sort((a, b) => b.count - a.count);
   const medMax = Math.max(1, ...meds.map(m => m.count));
-  html += obsPanel('By medium', meds.map(m => obsRankBar(escapeHtml(m.name), m.count, medMax, `${m.count}${m.avg ? ` · ★${m.avg.toFixed(1)}` : ''}`, ` data-coll="${escapeAttr(m.id)}"`)).join(''));
+  html += obsPanel('By medium', meds.map(m => obsRankBar(escapeHtml(m.name), m.count, medMax, `${m.count}${m.avg ? ` · ★${m.avg.toFixed(1)}` : ''}`, ` data-coll="${escapeAttr(m.id)}"`, collColor(m.id))).join(''));
 
   // Top tags
   const tagCount = {};
@@ -1654,8 +1663,8 @@ function renderObservatory() {
   for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued') continue; const y = (ev.date || '').slice(0, 4); if (y) yc[y] = (yc[y] || 0) + 1; }
   const years = Object.entries(yc).sort((a, b) => a[0] - b[0]);
   const yMax = Math.max(1, ...years.map(y => y[1]));
-  html += obsPanel('Encounters over time', `<div class="ob-hist">${years.map(([y, n]) => `<div class="ob-hbar" title="${y} · ${n}"><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(n / yMax * 100)}%;background:var(--gold)"></div></div><div class="ob-hbar-x">'${y.slice(2)}</div></div>`).join('')}</div>`);
-
+  html += obsPanel('Encounters over time', `<div class="ob-hist">${years.map(([y, n]) => `<div class="ob-hbar" title="${y} · ${n}"><div class="ob-hbar-n">${n}</div><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(n / yMax * 100)}%;background:linear-gradient(180deg, var(--gold), color-mix(in srgb, var(--gold) 60%, var(--accent2)))"></div></div><div class="ob-hbar-x">'${y.slice(2)}</div></div>`).join('')}</div>`, true);
+  html += '</div>';   // close .ob-grid
   el.innerHTML = html;
 }
 
