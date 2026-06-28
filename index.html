@@ -494,6 +494,17 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .ob-hbar[data-rating]:hover .ob-hbar-n { color: var(--gold); }
 .ob-hbar-x { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--ink-faint); margin-top: 8px; }
 .ob-hint { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 14px; color: var(--ink-faint); padding: 6px 0; }
+.rl-row { display: flex; align-items: center; gap: 14px; padding: 9px 4px; border-bottom: 1px solid var(--line-soft); cursor: pointer; }
+.rl-row:last-child { border-bottom: none; }
+.rl-row:hover .rl-title { color: var(--accent); }
+.rl-title { font-family: 'Instrument Serif', serif; font-size: 18px; color: var(--ink); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.12s; }
+.rl-passes { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); flex-shrink: 0; }
+.rl-arc { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--gold); width: 118px; text-align: right; flex-shrink: 0; }
+.rl-arc.rl-unrated { color: var(--ink-faint); }
+.rl-swing { font-family: 'JetBrains Mono', monospace; font-size: 11px; width: 64px; text-align: right; flex-shrink: 0; }
+.rl-swing.up { color: var(--c-sage-fg); }
+.rl-swing.down { color: var(--danger); }
+.rl-swing.flat { color: var(--ink-faint); }
 .ob-empty { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 18px; color: var(--ink-faint); padding: 50px; text-align: center; }
 .dz-year { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 42px 0 4px; }
 .dz-year:first-child { margin-top: 4px; }
@@ -1648,6 +1659,24 @@ function renderObservatory() {
   const hMax = Math.max(1, ...hc);
   html += '<div class="ob-grid">';
   html += obsPanel('Ratings', `<div class="ob-hist">${buckets.map((b, i) => `<div class="ob-hbar" data-rating="${b}" title="${b}★ · ${hc[i]}"><div class="ob-hbar-n">${hc[i] || ''}</div><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(hc[i] / hMax * 100)}%;background:${obsGoldRamp(b)}"></div></div><div class="ob-hbar-x">${b}</div></div>`).join('')}</div>`, true);
+
+  // Rewatch Lab — revisited titles ranked by passes, with first→latest rating swing.
+  const revisited = state.items.map(it => {
+    const evs = (it.events || []).filter(e => e.status !== 'queued');
+    if (evs.length < 2) return null;
+    const rs = evs.filter(e => e.rating > 0).slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const swing = rs.length > 1 ? +(rs[rs.length - 1].rating - rs[0].rating).toFixed(1) : null;
+    return { it, passes: evs.length, first: rs[0]?.rating ?? null, last: rs[rs.length - 1]?.rating ?? null, swing };
+  }).filter(Boolean).sort((a, b) => b.passes - a.passes || Math.abs(b.swing || 0) - Math.abs(a.swing || 0));
+  const rlBody = revisited.length ? revisited.map(r => {
+    const arc = (r.first != null && r.last != null) ? `<span class="rl-arc">★${r.first} → ★${r.last}</span>` : `<span class="rl-arc rl-unrated">unrated</span>`;
+    let swing = '';
+    if (r.swing > 0) swing = `<span class="rl-swing up">▲ +${r.swing}</span>`;
+    else if (r.swing < 0) swing = `<span class="rl-swing down">▼ ${r.swing}</span>`;
+    else if (r.swing === 0) swing = `<span class="rl-swing flat">held</span>`;
+    return `<div class="rl-row" data-id="${escapeAttr(r.it.id)}"><span class="rl-title">${escapeHtml(r.it.title)}</span><span class="rl-passes">×${r.passes}</span>${arc}${swing}</div>`;
+  }).join('') : `<div class="ob-hint">Log a title more than once — rewatches and their rating swings appear here.</div>`;
+  html += obsPanel('Rewatch Lab', rlBody, true);
 
   // By medium
   const meds = state.collections.map(c => { const rs = recs.filter(r => r.collectionId === c.id); const rr = rs.filter(r => r.rating > 0); return { id: c.id, name: c.name, count: rs.length, avg: rr.length ? rr.reduce((s, r) => s + r.rating, 0) / rr.length : 0 }; }).filter(m => m.count > 0).sort((a, b) => b.count - a.count);
@@ -3152,6 +3181,7 @@ document.getElementById('diary-timeline').addEventListener('click', e => {
 // Observatory: unit toggle + drill-down (a stat is a filter — bars jump to the filtered Shelf).
 document.getElementById('observatory').addEventListener('click', e => {
   const u = e.target.closest('[data-unit]'); if (u) { view.obsUnit = u.dataset.unit; renderObservatory(); return; }
+  const rl = e.target.closest('.rl-row'); if (rl) { const item = state.items.find(i => i.id === rl.dataset.id); if (item) openEntryModal(item); return; }
   const c = e.target.closest('[data-coll]'); if (c) { view.collection = c.dataset.coll; view.status = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
   const t = e.target.closest('[data-tag]'); if (t) { view.tags = [t.dataset.tag]; view.collection = 'all'; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
   const r = e.target.closest('[data-rating]'); if (r) { view.minRating = parseFloat(r.dataset.rating); view.collection = 'all'; view.tags = []; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
