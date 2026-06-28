@@ -623,6 +623,7 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .src-tag { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); }
 .src-tag.src-claude { color: var(--c-dusty-fg); }
 
+
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--paper-hi); border: 1px solid var(--accent-soft); color: var(--ink); padding: 10px 18px; font-size: 12px; border-radius: 2px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 1000; max-width: 80vw; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
 .toast.err { border-color: #c47878; }
@@ -1275,6 +1276,9 @@ const DEFAULT_COLLECTIONS = [
 const STATUSES = ['queued', 'active', 'done', 'dropped'];
 const STATUS_LABELS = { queued: 'Queued', active: 'In progress', done: 'Done', dropped: 'Dropped' };
 const TAG_COLORS = ['terracotta', 'gold', 'sage', 'dusty', 'plum', 'ochre', 'rust', 'ash'];
+// FEAT-05: curated starter moods (hybrid — literary core + coverage). Seed-and-extend: you can add your own.
+const MOOD_PALETTE = ['melancholy', 'tense', 'cozy', 'bleak', 'hopeful', 'uncanny', 'funny', 'luminous', 'cerebral', 'tender', 'adventurous', 'wistful'];
+const PACES = ['slow', 'medium', 'fast'];
 const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, follow these rules:
 
 1. Don't invent source/origin tags like 'recommended-by-claude' or 'from-friend'.
@@ -1339,6 +1343,20 @@ function migrate(s) {
   s.tagAssignments = s.tagAssignments || {};
   s.tagOrder = s.tagOrder || {};
   s.settings = s.settings || {};
+  // Seed the Mood + Pace groups + their vocab ONCE (respects later user edits via the flag).
+  // Mood & pace are AI-assigned TAGS (filled by enrich research), grouped so they render colored.
+  if (!s.settings.taxonomySeeded) {
+    const ensureGroup = (name, color) => {
+      let g = s.tagGroups.find(x => (x.name || '').toLowerCase() === name.toLowerCase());
+      if (!g) { g = { id: uid(), name, color }; s.tagGroups.push(g); }
+      return g.id;
+    };
+    const moodGid = ensureGroup('Mood', 'plum');
+    for (const m of MOOD_PALETTE) if (!s.tagAssignments[m]) s.tagAssignments[m] = moodGid;
+    const paceGid = ensureGroup('Pace', 'sage');
+    for (const p of PACES) if (!s.tagAssignments[p]) s.tagAssignments[p] = paceGid;
+    s.settings.taxonomySeeded = true;
+  }
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
   s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };
@@ -1807,6 +1825,13 @@ function renderObservatory() {
   const decs = Object.entries(decCount).sort((a, b) => a[0] - b[0]);
   const decMax = Math.max(1, ...decs.map(d => d[1]));
   html += obsPanel('By decade', decs.length ? decs.map(([d, n]) => obsRankBar(d + 's', n, decMax, n, ` data-decade="${d}"`)).join('') : `<div class="ob-hint">add release years (✦ enrich library) to chart decades</div>`);
+
+  // By pace — pace tags (AI-assigned), kept in ordinal order slow → medium → fast
+  const paceCount = {};
+  for (const r of recs) for (const p of PACES) if (r.tags.includes(p)) paceCount[p] = (paceCount[p] || 0) + 1;
+  const paceTotal = PACES.reduce((s, p) => s + (paceCount[p] || 0), 0);
+  const paceMax = Math.max(1, ...PACES.map(p => paceCount[p] || 0));
+  html += obsPanel('By pace', paceTotal ? PACES.map(p => obsRankBar(p, paceCount[p] || 0, paceMax, paceCount[p] || 0, ` data-tag="${p}"`)).join('') : `<div class="ob-hint">run ✦ enrich — Claude researches & tags pace</div>`);
 
   // Top creators
   const crCount = {};
@@ -2351,7 +2376,7 @@ entryForm.addEventListener('submit', e => {
   }
 });
 
-// ✦ fill — manual: ask Claude to fill the Year/Creator form fields (user reviews before saving).
+// ✦ fill — manual: research this title → fill Year/Creator fields + add mood/pace tag chips (user reviews before saving).
 document.getElementById('enrich-library-btn').addEventListener('click', enrichLibrary);
 document.getElementById('enrich-btn').addEventListener('click', async () => {
   const title = entryForm.title.value.trim();
@@ -2360,10 +2385,12 @@ document.getElementById('enrich-btn').addEventListener('click', async () => {
   const btn = document.getElementById('enrich-btn'); const label = btn.textContent; btn.disabled = true; btn.textContent = '✦ …';
   try {
     const coll = state.collections.find(c => c.id === entryForm.collectionId.value);
-    const r = await fetchYearCreator(title, coll?.name);
-    if (r && (r.year || r.creator)) {
+    const r = await fetchMeta(title, coll?.name);
+    if (r && (r.year || r.creator || r.mood.length || r.pace)) {
       if (r.year) entryForm.year.value = r.year;
       if (r.creator) entryForm.creator.value = r.creator;
+      for (const m of r.mood) if (!tagChipState.includes(m)) addTagChip(m);           // mood → tag chips
+      if (r.pace && !PACES.some(p => tagChipState.includes(p))) addTagChip(r.pace);    // one pace tag
       toast('✦ filled — edit if needed.');
     } else { toast('claude wasn’t sure — fill it in manually.', true); }
   } catch (e) { toast('enrich failed: ' + e.message, true); }
@@ -3128,52 +3155,70 @@ async function callClaude({ system, userMessage, maxTokens = 350, model }) {
 // Year/creator lookups run on Sonnet (more accurate, fewer confabulations) no matter
 // which model handles the conversational takes — isolates accuracy from the cost choice.
 const ENRICH_MODEL = 'claude-sonnet-4-6';
-// Ask Claude for the work's release year + creator as strict JSON. Title-level metadata
-// (stable across rewatches). Returns {year, creator} (either may be null) or null on failure.
-async function fetchYearCreator(title, collName) {
-  const system = 'Return ONLY a JSON object: {"year": number|null, "creator": string|null}. '
-    + 'year = the original release/publication year of the work. '
-    + 'creator = the primary maker, as a canonical full name: director (film/TV), author (book), '
-    + 'studio/developer (game), or artist/band (music/album). '
-    + 'CRITICAL: only fill a field if you can identify this exact work with HIGH confidence from your training. '
-    + 'If the title is obscure, generic, ambiguous, or recent enough that you may not know it (especially the last few years), '
-    + 'return null for that field. A confabulated, plausible-sounding name or year is far worse than null — '
-    + 'when in doubt, return null and let the human fill it in. Do not guess.';
-  // Accuracy-critical lookup → always use Sonnet, regardless of the chat-take model.
-  const txt = await callClaude({ system, userMessage: `Title: ${title}\nMedium: ${collName || 'unknown'}`, maxTokens: 80, model: ENRICH_MODEL });
+// Ask Claude to RESEARCH the work and return strict JSON: year + creator (facts) plus mood + pace
+// (interpretive, drawn from fixed vocab). Title-level. Returns {year,creator,mood[],pace} or null.
+async function fetchMeta(title, collName) {
+  const system = 'You research a known work of media and return ONLY a JSON object: '
+    + '{"year": number|null, "creator": string|null, "mood": string[], "pace": "slow"|"medium"|"fast"|null}. '
+    + 'year = original release/publication year. '
+    + 'creator = primary maker as a canonical full name: director (film/TV), author (book), studio/developer (game), artist/band (album). '
+    + `mood = 0-3 entries chosen ONLY from this exact list: [${MOOD_PALETTE.join(', ')}]. Pick the ones that genuinely fit the work's emotional register. Never invent a mood outside the list. `
+    + 'pace = how the work moves overall: "slow", "medium", or "fast"; null when not applicable (e.g. an album) or unsure. '
+    + 'CRITICAL: only fill a field if you identify this EXACT work with HIGH confidence from training. '
+    + 'Obscure / generic / ambiguous / very recent → null (and [] for mood). A confabulated value is far worse than null. Do not guess.';
+  // Accuracy-critical → always Sonnet, regardless of the chat-take model.
+  const txt = await callClaude({ system, userMessage: `Title: ${title}\nMedium: ${collName || 'unknown'}`, maxTokens: 140, model: ENRICH_MODEL });
   const m = txt.match(/\{[\s\S]*\}/); if (!m) return null;
   const d = JSON.parse(m[0]);
   return {
     year: Number.isInteger(d.year) && d.year > 0 ? d.year : null,
     creator: (typeof d.creator === 'string' && d.creator.trim()) ? d.creator.trim().slice(0, 120) : null,
+    mood: Array.isArray(d.mood) ? [...new Set(d.mood.map(x => String(x).trim().toLowerCase()).filter(x => MOOD_PALETTE.includes(x)))].slice(0, 3) : [],
+    pace: PACES.includes(d.pace) ? d.pace : null,
   };
 }
-// Auto-enrich a freshly-logged item, filling only the blanks. Silent; updates in place.
+// Apply researched metadata to an item, filling only blanks (never overwrites). Returns true if changed.
+// mood/pace land as TAGS (already group-assigned via the seed) so they render colored & filter like any tag.
+function applyMeta(it, r) {
+  if (!r) return false;
+  let changed = false;
+  if (!it.year && r.year) { it.year = r.year; changed = true; }
+  if (!it.creator && r.creator) { it.creator = r.creator; changed = true; }
+  const tags = new Set(it.tags || []);
+  for (const m of r.mood) if (!tags.has(m)) { tags.add(m); changed = true; }
+  if (r.pace && !PACES.some(p => tags.has(p))) { tags.add(r.pace); changed = true; }   // one pace tag, only if none yet
+  if (changed) it.tags = [...tags].slice(0, 30);
+  return changed;
+}
+// True when an item still has research to fetch (any of year / creator / mood / pace missing).
+function needsMeta(it) {
+  const tags = it.tags || [];
+  const hasMood = tags.some(t => MOOD_PALETTE.includes(t));
+  const hasPace = PACES.some(p => tags.includes(p));
+  return !it.year || !it.creator || !hasMood || !hasPace;
+}
+// Auto-enrich a freshly-logged item. Silent; updates in place.
 async function autoEnrich(itemId) {
   if (!isClaudeEnabled()) return;
-  const it = state.items.find(i => i.id === itemId); if (!it || (it.year && it.creator)) return;
+  const it = state.items.find(i => i.id === itemId); if (!it || !needsMeta(it)) return;
   try {
     const coll = state.collections.find(c => c.id === it.collectionId);
-    const r = await fetchYearCreator(it.title, coll?.name); if (!r) return;
+    const r = await fetchMeta(it.title, coll?.name); if (!r) return;
     const live = state.items.find(i => i.id === itemId); if (!live) return;
-    let changed = false;
-    if (!live.year && r.year) { live.year = r.year; changed = true; }
-    if (!live.creator && r.creator) { live.creator = r.creator; changed = true; }
-    if (changed) { save(); renderItems(); toast(`✦ ${[live.year, live.creator].filter(Boolean).join(' · ')}`); }
+    if (applyMeta(live, r)) { save(); renderItems(); toast(`✦ ${[live.year, live.creator].filter(Boolean).join(' · ') || 'tagged'}`); }
   } catch (e) { console.warn('autoEnrich', e); }
 }
-// One-pass backfill over every entry missing year or creator (the existing library).
+// One-pass backfill over every entry still missing year / creator / mood / pace.
 async function enrichLibrary() {
   if (!isClaudeEnabled()) { toast('add an API key in settings first.', true); openSettings(); return; }
-  const todo = state.items.filter(i => !i.year || !i.creator);
-  if (!todo.length) { toast('every entry already has year & creator.'); return; }
+  const todo = state.items.filter(needsMeta);
+  if (!todo.length) { toast('every entry is already enriched.'); return; }
   toast(`enriching ${todo.length} entr${todo.length === 1 ? 'y' : 'ies'}…`);
   let done = 0;
   for (const it of todo) {
     try {
       const coll = state.collections.find(c => c.id === it.collectionId);
-      const r = await fetchYearCreator(it.title, coll?.name);
-      if (r) { if (!it.year && r.year) it.year = r.year; if (!it.creator && r.creator) it.creator = r.creator; }
+      applyMeta(it, await fetchMeta(it.title, coll?.name));
     } catch (e) { /* skip this one */ }
     if (++done % 5 === 0) { save(); renderItems(); toast(`enriched ${done}/${todo.length}…`); }
   }
@@ -3233,7 +3278,15 @@ function buildClaudeMessage(entry, isNew) {
   lines.push(`- Collection: ${c?.name || '—'}`);
   lines.push(`- Status: ${entry.status}`);
   if (entry.rating) lines.push(`- Rating: ${entry.rating}/5`);
-  if (entry.tags?.length) lines.push(`- Tags: ${entry.tags.join(', ')}`);
+  // FEAT-05: pull mood + pace tags out as labeled signals; the rest stay generic Tags.
+  const moodGroupId = (state.tagGroups.find(g => (g.name || '').toLowerCase() === 'mood') || {}).id;
+  const paceGroupId = (state.tagGroups.find(g => (g.name || '').toLowerCase() === 'pace') || {}).id;
+  const moods = (entry.tags || []).filter(t => state.tagAssignments[t] === moodGroupId);
+  const paces = (entry.tags || []).filter(t => state.tagAssignments[t] === paceGroupId);
+  const otherTags = (entry.tags || []).filter(t => state.tagAssignments[t] !== moodGroupId && state.tagAssignments[t] !== paceGroupId);
+  if (otherTags.length) lines.push(`- Tags: ${otherTags.join(', ')}`);
+  if (moods.length) lines.push(`- Mood: ${moods.join(', ')}`);
+  if (paces.length) lines.push(`- Pace: ${paces.join(', ')}`);
   if (entry.notes) lines.push(`- Notes (freeform — could be a description, recommender blurb, or my own; don't assume I wrote it): ${entry.notes}`);
   if (entry.claudeNote) lines.push(`- Note for you (my voice, taste-signal): ${entry.claudeNote}`);
   if (entry.publicReview) lines.push(`- Public review (my voice, for sharing): ${entry.publicReview}`);

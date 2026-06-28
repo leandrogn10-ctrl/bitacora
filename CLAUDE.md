@@ -91,18 +91,29 @@ settings, **never logged or exported**.
   per-frame JS / huge DOM).
 
 ## Status — 2026-06-28
-- **Shipped & merged to `main`** (⚠️ **unpushed** — `main` is ahead of `origin/main`):
+- **Shipped & merged to `main` AND pushed to `origin/main`** (origin now current through FEAT-14):
   FEAT-01 (palette + rating/tag/creator/decade filters + `?` cheatsheet + Esc/Tab reset),
   FEAT-02 (event model A/B/C + cosmic Diary "La Línea Sagrada"),
-  FEAT-03 (Observatory + year/creator capture + Rewatch Lab).
-- **Shipped, on branch `feat/tag-chips-merge` (NOT merged — holds BOTH features, stacked):**
-  - **FEAT-09** — editor tag token-field + fuzzy typeahead + non-blocking `≈ canonical` reuse hint;
-    Settings dupe-scan + multi-select merge; one `applyTagMerge()` behind rename/cluster/multi-merge.
-  - **FEAT-14** — description **voice system**: additive `noteSource` (`''`/`me`/`claude`/`friend:Name`,
-    projected like year/creator); editor "who said it?" control; three-lane rendering (Claude=mono+dotted
-    dusty rail+✦, friend=serif quote + "— Name", you/legacy=plain serif) on cards + Diary + history;
-    takes restyled to the machine voice. **Serif is now reserved for the user's own words.** Takes stay
-    auto-on-save. Both verified in-browser; SW now `bitacora-v6`.
+  FEAT-03 (Observatory + year/creator capture + Rewatch Lab),
+  FEAT-09 (tag token-field + fuzzy typeahead + `≈ canonical` reuse hint; Settings dupe-scan +
+  multi-select merge; one `applyTagMerge()` behind rename/cluster/multi-merge),
+  FEAT-14 (description **voice system**: additive `noteSource` `''`/`me`/`claude`/`friend:Name`;
+  three-lane rendering — Claude=mono+dotted dusty rail+✦, friend=serif quote+"— Name", you/legacy=serif —
+  on cards/Diary/history; takes restyled to the machine voice; **serif reserved for the user's words**;
+  takes stay auto-on-save).
+- **Shipped, on branch `feat/mood-pace` (NOT merged):** **FEAT-05** — **Mood & Pace as AI-assigned
+  tags** (redesigned per Leandro: no manual editor UI; AI researches the work and tags it). Both are
+  plain **tags** in seeded groups (`migrate` via `settings.taxonomySeeded`: **Mood** `plum` = the curated
+  12; **Pace** `sage` = slow/medium/fast). `fetchYearCreator` → **`fetchMeta`** now returns
+  `{year, creator, mood[], pace}` in the SAME Sonnet call (no extra round-trip; mood only from the fixed
+  list, abstain-don't-guess). `applyMeta` fills blanks only (mood = add missing; pace = one tag if none);
+  `needsMeta` gates `autoEnrich` (new logs) + `enrichLibrary` (sweep now covers mood/pace too); the `✦
+  fill` button adds them as reviewable chips. Mood/pace render as colored tag pills; filter/merge via the
+  normal tag system. Observatory **"By pace"** panel reads the pace tags, kept ordinal (slow→med→fast),
+  drills via `data-tag`. `buildClaudeMessage` emits labeled `- Mood:` / `- Pace:`. **No scalar `pace`
+  field, no `view.pace`, no manual controls** (all removed). Verified in-browser (seeding, colored pills,
+  Observatory panel + drill, editor-clean); live enrich is logic-verified (needs an API key to fire).
+  SW now `bitacora-v8`.
 - **Enrich sweep — ✅ DONE / moot (verified 2026-06-28).** The real 46-item library (deployed origin
   `leandrogn10-ctrl.github.io/bitacora`) is already 100% enriched: **0** items missing `year`/`creator`,
   no blanks. `enrichLibrary()` filters to the missing-set, which is empty → no-op. It filled
@@ -110,6 +121,6 @@ settings, **never logged or exported**.
   strips the API key), so re-paste the key in Settings if you want `autoEnrich` on *new* logs there.
 - **Backlog = source of truth:** `~/Downloads/leandro-os/prototype/BITACORA-AUDIT.md` (§0 status banner,
   §2 features).
-- **Open:** push `main`→origin (incl. `feat/tag-chips-merge`) · FEAT-04 status vocab · FEAT-05 mood tags ·
-  FEAT-06 roulette · FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph ·
-  FEAT-12 Wrapped · "Ask the Observatory".
+- **Open:** merge `feat/mood-pace` → `main` + push · FEAT-04 status vocab · FEAT-06 roulette ·
+  FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
+  "Ask the Observatory".
