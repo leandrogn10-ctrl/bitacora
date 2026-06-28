@@ -600,6 +600,53 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--paper-hi); border-radius: 0; }
 ::-webkit-scrollbar-thumb:hover { background: var(--line); }
+
+/* ─────────────────────────── ⌘K command palette ─────────────────────────── */
+#cmdk-modal::backdrop { background: rgba(8,5,3,0.6); backdrop-filter: blur(3px); }
+#cmdk-modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; inset: 0; overflow: hidden; }
+.cmdk { width: min(560px, 94vw); margin: 12vh auto 0; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow), 0 0 40px -10px rgba(255,61,138,0.18); overflow: hidden; animation: cmdkIn 0.16s cubic-bezier(0.2,0.8,0.2,1); }
+@keyframes cmdkIn { from { opacity: 0; transform: translateY(-6px) scale(0.99); } to { opacity: 1; transform: none; } }
+.cmdk-head { display: flex; align-items: center; gap: 11px; padding: 15px 17px; border-bottom: 1px solid var(--line); }
+.cmdk-pre { color: var(--accent); font-size: 15px; flex-shrink: 0; }
+#cmdk-input { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 15px; color: var(--ink); caret-color: var(--accent2); }
+#cmdk-input::placeholder { color: var(--ink-faint); }
+.cmdk-results { max-height: 54vh; overflow-y: auto; padding: 6px; }
+.cmdk-section { font-size: 9px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-faint); padding: 8px 10px 5px; font-family: 'JetBrains Mono', monospace; }
+.cmdk-row { display: flex; align-items: center; gap: 12px; padding: 9px 11px; border-radius: 4px; cursor: pointer; }
+.cmdk-row.sel { background: color-mix(in srgb, var(--accent) 13%, transparent); box-shadow: inset 2px 0 0 var(--accent2); }
+.cmdk-ic { width: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cmdk-icon { color: var(--ink-faint); font-size: 13px; }
+.cmdk-icon.fb { color: var(--accent2); }
+.cmdk-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.cmdk-dot.st-queued { background: var(--ink-faint); }
+.cmdk-dot.st-active { background: var(--accent2); box-shadow: 0 0 7px var(--accent2); }
+.cmdk-dot.st-done { background: var(--gold); }
+.cmdk-dot.st-dropped { background: #6b5e4e; }
+.cmdk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cmdk-title { font-family: 'Instrument Serif', serif; font-size: 17px; line-height: 1.15; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmdk-title .hl { color: var(--accent); }
+.cmdk-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmdk-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); border: 1px solid var(--line); border-radius: 3px; padding: 1px 6px; flex-shrink: 0; }
+.cmdk-empty { padding: 26px; text-align: center; color: var(--ink-faint); font-family: 'Instrument Serif', serif; font-style: italic; font-size: 16px; }
+.cmdk-foot { display: flex; gap: 16px; padding: 10px 15px; border-top: 1px solid var(--line); font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); }
+.cmdk-foot b { color: var(--ink-dim); font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { .cmdk { animation: none; } }
+
+/* ── Help / cheatsheet ── */
+kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--paper-hi); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px; color: var(--ink); display: inline-block; line-height: 1.5; min-width: 18px; text-align: center; }
+.help-section { margin-bottom: 24px; }
+.help-section:last-child { margin-bottom: 0; }
+.help-section h3 { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); margin-bottom: 13px; }
+.help-dim { color: var(--ink-faint); }
+.help-grid { display: grid; grid-template-columns: max-content 1fr; gap: 11px 18px; align-items: baseline; }
+.help-grid > div { display: flex; gap: 4px; white-space: nowrap; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.help-grid > span { color: var(--ink-dim); font-size: 13.5px; line-height: 1.45; }
+.help-grid em { color: var(--gold); font-style: italic; }
+.help-cmds { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.help-cmds li { color: var(--ink-dim); font-size: 13.5px; padding-left: 15px; position: relative; line-height: 1.4; }
+.help-cmds li::before { content: '›'; position: absolute; left: 0; color: var(--accent); }
+.help-cmds b { color: var(--ink); font-weight: 600; }
+.active-tag.rating-chip { background: var(--gold); }
 </style>
 </head>
 <body>
@@ -777,6 +824,11 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
     <header><div><h2>Settings</h2><p>House rules, Claude integration, cloud sync.</p></div><button type="button" class="close" data-close="settings">×</button></header>
     <div class="modal-body">
       <div class="settings-section">
+        <h3>Guide</h3>
+        <div class="desc">A quick reference for every keyboard shortcut and palette command.</div>
+        <button class="btn-secondary" id="open-help-btn" type="button">⌨ Keyboard &amp; commands</button>
+      </div>
+      <div class="settings-section">
         <h3>Theme</h3>
         <div class="desc">Wine, gold &amp; magenta neon — the house style.</div>
         <div class="theme-toggle" style="grid-template-columns:1fr">
@@ -861,6 +913,48 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   </div>
 </dialog>
 
+<dialog id="help-modal">
+  <div class="modal">
+    <header><div><h2>Keyboard &amp; commands</h2><p>Everything Bitácora does from the keys.</p></div><button type="button" class="close" data-close="help">×</button></header>
+    <div class="modal-body">
+      <div class="help-section">
+        <h3>Shortcuts</h3>
+        <div class="help-grid">
+          <div><kbd>⌘</kbd><kbd>K</kbd></div><span>Open the command palette</span>
+          <div><kbd>/</kbd></div><span>Jump to search</span>
+          <div><kbd>N</kbd></div><span>New entry</span>
+          <div><kbd>?</kbd></div><span>Open this guide</span>
+          <div><kbd>Esc</kbd></div><span>Close any panel or filter</span>
+        </div>
+      </div>
+      <div class="help-section">
+        <h3>Inside the palette <span class="help-dim">(⌘K)</span></h3>
+        <div class="help-grid">
+          <div>type</div><span>Fuzzy-search titles, tags &amp; commands — best matches first</span>
+          <div><kbd>›</kbd></div><span>Show only commands</span>
+          <div><kbd>↑</kbd><kbd>↓</kbd></div><span>Move · <kbd>⏎</kbd> open · <kbd>⌘</kbd><kbd>⏎</kbd> ask Claude about it</span>
+          <div>a tag</div><span>Type a tag name, <kbd>⏎</kbd> filters the library by it</span>
+          <div><kbd>+</kbd></div><span>Combo filters: <em>june + books</em>, <em>june + pop</em>, <em>active + 4</em></span>
+          <div>no match</div><span>Falls back to <em>Log "…"</em> or <em>Ask Claude "…"</em></span>
+        </div>
+      </div>
+      <div class="help-section">
+        <h3>Commands you can run</h3>
+        <ul class="help-cmds">
+          <li><b>New entry</b> — start a log</li>
+          <li><b>Show queued / active / done / dropped</b> — filter by status</li>
+          <li><b>Show 3★ / 4★ / 4.5★ &amp; up</b> — filter by rating</li>
+          <li><b>Filter by any tag</b>, or combo several with <b>+</b></li>
+          <li><b>Clear filters</b> — back to Everything</li>
+          <li><b>Jump to a collection</b> — Films, TV, Games, Books…</li>
+          <li><b>Manage tags · Settings · Export / Import JSON · Sync now</b></li>
+        </ul>
+      </div>
+    </div>
+    <footer><span style="color:var(--ink-faint);font-size:11px">tip: press <kbd>?</kbd> anytime</span><button class="submit" data-close="help">got it</button></footer>
+  </div>
+</dialog>
+
 <dialog id="import-modal">
   <div class="modal">
     <header><div><h2>Import library</h2><p>Choose how to handle the file.</p></div><button type="button" class="close" data-close="import">×</button></header>
@@ -915,6 +1009,17 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
   <button class="tab" data-tab="settings"><span class="icon">⚙</span><span>Settings</span></button>
 </nav>
 
+<dialog id="cmdk-modal">
+  <div class="cmdk">
+    <div class="cmdk-head">
+      <span class="cmdk-pre">⌕</span>
+      <input id="cmdk-input" placeholder="search titles & commands, or type ›  for commands…" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="cmdk-results" id="cmdk-results"></div>
+    <div class="cmdk-foot"><span>↑↓ <b>move</b></span><span>⏎ <b>open</b></span><span>⌘⏎ <b>ask claude</b></span><span>esc <b>close</b></span></div>
+  </div>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -940,7 +1045,12 @@ const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, 
 7. Status defaults to 'queued' for things you're recommending.`;
 
 let state = load();
-let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tag: null };
+let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0 };
+// Tags filter as an AND-set (multi-select). Toggle membership in/out.
+function toggleViewTag(t) { view.tags = view.tags.includes(t) ? view.tags.filter(x => x !== t) : [...view.tags, t]; }
+// The pristine library state: Everything / All, no tags / rating / search (sort is a display pref, left alone).
+function isViewDefault() { return view.collection === 'all' && view.status === 'all' && !view.tags.length && !view.minRating && !view.search; }
+function resetView() { view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.search = ''; const s = document.getElementById('search'); if (s) s.value = ''; }
 let editing = null;
 
 function migrate(s) {
@@ -1073,7 +1183,8 @@ function getFilteredItems() {
   let items = state.items.slice();
   if (view.collection !== 'all') items = items.filter(i => i.collectionId === view.collection);
   if (view.status !== 'all')     items = items.filter(i => i.status === view.status);
-  if (view.tag)                  items = items.filter(i => (i.tags || []).includes(view.tag));
+  if (view.tags.length)          items = items.filter(i => view.tags.every(t => (i.tags || []).includes(t)));
+  if (view.minRating)            items = items.filter(i => (i.rating || 0) >= view.minRating);
   if (view.search) {
     const q = view.search.toLowerCase();
     items = items.filter(i =>
@@ -1139,7 +1250,7 @@ function renderSpotlight() {
   const wrap = document.getElementById('spotlight');
   const row = document.getElementById('spot-row');
   if (!wrap || !row) return;
-  const isDefault = view.collection === 'all' && view.status === 'all' && !view.tag && !view.search;
+  const isDefault = view.collection === 'all' && view.status === 'all' && !view.tags.length && !view.minRating && !view.search;
   const active = isDefault ? state.items.filter(i => i.status === 'active') : [];
   if (!active.length) { wrap.style.display = 'none'; row.innerHTML = ''; return; }
   wrap.style.display = '';
@@ -1157,7 +1268,8 @@ function renderItems() {
   const items = getFilteredItems();
 
   let metaHtml = `<span>${items.length} ${items.length === 1 ? 'entry' : 'entries'}</span>`;
-  if (view.tag) metaHtml += `<span class="active-tag">tag: ${escapeHtml(view.tag)}<button id="clear-tag" type="button">×</button></span>`;
+  view.tags.forEach(t => metaHtml += `<span class="active-tag">${escapeHtml(t)}<button class="clear-tag" data-tag="${escapeAttr(t)}" type="button">×</button></span>`);
+  if (view.minRating) metaHtml += `<span class="active-tag rating-chip">★ ${view.minRating}+<button id="clear-rating" type="button">×</button></span>`;
   document.getElementById('view-meta').innerHTML = metaHtml;
 
   document.getElementById('current-view').textContent = view.collection === 'all'
@@ -1165,7 +1277,7 @@ function renderItems() {
 
   if (items.length === 0) {
     grid.innerHTML = '';
-    const filtersActive = view.status !== 'all' || view.collection !== 'all' || !!view.tag || !!view.search;
+    const filtersActive = view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.search;
     const heading = document.getElementById('empty-heading');
     const sub = document.getElementById('empty-sub');
     if (filtersActive) {
@@ -1184,7 +1296,7 @@ function renderItems() {
     const collection = state.collections.find(c => c.id === it.collectionId);
     const collName = collection ? collection.name : '—';
     const stars = renderStars(it.rating || 0);
-    const tagsHtml = (it.tags && it.tags.length) ? `<div class="tags">${it.tags.slice(0, 6).map(t => tagPillHtml(t, t === view.tag)).join('')}</div>` : '';
+    const tagsHtml = (it.tags && it.tags.length) ? `<div class="tags">${it.tags.slice(0, 6).map(t => tagPillHtml(t, view.tags.includes(t))).join('')}</div>` : '';
     const notesPreview = it.notes ? `<div class="notes-preview">${escapeHtml(it.notes)}</div>` : '';
     const takeCount = (it.claudeReplies || []).length;
     const flagsHtml = [
@@ -1213,20 +1325,20 @@ function renderTagPicker() {
     return;
   }
   trigger.disabled = false;
-  label.textContent = view.tag ? view.tag : 'Filter by tag';
-  trigger.classList.toggle('active', !!view.tag);
+  label.textContent = view.tags.length ? (view.tags.length === 1 ? view.tags[0] : view.tags.length + ' tags') : 'Filter by tag';
+  trigger.classList.toggle('active', !!view.tags.length);
   let html = '';
-  if (view.tag) html += `<div class="clear-row"><button id="picker-clear-btn">× clear filter</button></div>`;
+  if (view.tags.length) html += `<div class="clear-row"><button id="picker-clear-btn">× clear ${view.tags.length === 1 ? 'filter' : 'all'}</button></div>`;
   for (const g of groups) {
     html += `<div class="group-section">
       <div class="group-header"><span class="swatch swatch-${g.color}"></span>${escapeHtml(g.name)}</div>
-      <div class="chips">${g.tags.map(([t]) => tagPillHtml(t, t === view.tag)).join('')}</div>
+      <div class="chips">${g.tags.map(([t]) => tagPillHtml(t, view.tags.includes(t))).join('')}</div>
     </div>`;
   }
   if (ungrouped.length) {
     html += `<div class="group-section">
       <div class="group-header">other</div>
-      <div class="chips">${ungrouped.map(([t]) => tagPillHtml(t, t === view.tag)).join('')}</div>
+      <div class="chips">${ungrouped.map(([t]) => tagPillHtml(t, view.tags.includes(t))).join('')}</div>
     </div>`;
   }
   popover.innerHTML = html;
@@ -2422,7 +2534,7 @@ document.getElementById('items-grid').addEventListener('click', e => {
   if (tagEl) {
     e.stopPropagation();
     const tagVal = tagEl.dataset.tag;
-    view.tag = view.tag === tagVal ? null : tagVal;
+    toggleViewTag(tagVal);
     renderAll();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -2437,12 +2549,12 @@ document.getElementById('spot-row').addEventListener('click', e => {
   if (item) openEntryModal(item);
 });
 document.getElementById('view-meta').addEventListener('click', e => {
-  if (e.target.id === 'clear-tag') { view.tag = null; renderAll(); }
+  if (e.target.classList.contains('clear-tag')) { view.tags = view.tags.filter(t => t !== e.target.dataset.tag); renderAll(); }
+  if (e.target.id === 'clear-rating') { view.minRating = 0; renderAll(); }
 });
 document.getElementById('empty-state').addEventListener('click', e => {
   if (e.target.id === 'empty-clear') {
-    view.status = 'all'; view.collection = 'all'; view.tag = null; view.search = '';
-    const s = document.getElementById('search'); if (s) s.value = '';
+    resetView();
     renderAll();
   }
 });
@@ -2458,11 +2570,11 @@ tagPickerTriggerEl.addEventListener('click', e => {
   tagPickerEl.classList.toggle('open', !open);
 });
 tagPickerPopoverEl.addEventListener('click', e => {
-  if (e.target.id === 'picker-clear-btn') { view.tag = null; renderAll(); tagPickerPopoverEl.classList.add('hidden'); tagPickerEl.classList.remove('open'); return; }
+  if (e.target.id === 'picker-clear-btn') { view.tags = []; renderAll(); tagPickerPopoverEl.classList.add('hidden'); tagPickerEl.classList.remove('open'); return; }
   const tagEl = e.target.closest('.tag');
   if (tagEl) {
     const tagVal = tagEl.dataset.tag;
-    view.tag = view.tag === tagVal ? null : tagVal;
+    toggleViewTag(tagVal);
     renderAll();
     tagPickerPopoverEl.classList.add('hidden');
     tagPickerEl.classList.remove('open');
@@ -2483,6 +2595,7 @@ document.querySelectorAll('[data-close]').forEach(b => {
     if (which === 'settings') settingsModal.close();
     if (which === 'import')  { pendingImport = null; importModal.close(); }
     if (which === 'share')   shareModal.close();
+    if (which === 'help')    helpModal.close();
     if (which === 'prompt')  { if (promptResolve) promptResolve(null); promptModal.close(); }
     // mobile: also clear sheet backdrop + sidebar-as-sheet
     document.querySelector('.sidebar')?.classList.remove('show-as-sheet');
@@ -2501,22 +2614,32 @@ document.querySelectorAll('[data-close]').forEach(b => {
 });
 document.addEventListener('keydown', e => {
   const inField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+  // ⌘K / Ctrl+K summons the palette from anywhere — even inside a field.
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); toggleCmdk(); return; }
   if (e.key === 'Escape') {
-    if (entryModal.open) closeEntryModal();
-    if (tagMgrModal.open) tagMgrModal.close();
-    if (settingsModal.open) settingsModal.close();
-    if (importModal.open) { pendingImport = null; importModal.close(); }
-    if (shareModal.open) shareModal.close();
-    if (promptModal.open) { if (promptResolve) promptResolve(null); promptModal.close(); }
-    const sb = document.querySelector('.sidebar'); if (sb?.classList.contains('show-as-sheet')) { sb.classList.remove('show-as-sheet'); document.getElementById('sheet-backdrop')?.classList.remove('show'); }
-    if (!tagPickerPopoverEl.classList.contains('hidden')) {
-      tagPickerPopoverEl.classList.add('hidden'); tagPickerEl.classList.remove('open');
-    }
-    if (view.tag) { view.tag = null; renderAll(); }
+    // First Esc dismisses any open overlay (and stops there); a subsequent Esc with
+    // nothing open resets the library to its default. So Esc-Esc → Everything / All.
+    let closed = false;
+    if (helpModal.open)     { helpModal.close(); closed = true; }
+    if (entryModal.open)    { closeEntryModal(); closed = true; }
+    if (tagMgrModal.open)   { tagMgrModal.close(); closed = true; }
+    if (settingsModal.open) { settingsModal.close(); closed = true; }
+    if (importModal.open)   { pendingImport = null; importModal.close(); closed = true; }
+    if (shareModal.open)    { shareModal.close(); closed = true; }
+    if (promptModal.open)   { if (promptResolve) promptResolve(null); promptModal.close(); closed = true; }
+    if (cmdkModal.open)     { closeCmdk(); closed = true; }
+    const sb = document.querySelector('.sidebar'); if (sb?.classList.contains('show-as-sheet')) { sb.classList.remove('show-as-sheet'); document.getElementById('sheet-backdrop')?.classList.remove('show'); closed = true; }
+    if (!tagPickerPopoverEl.classList.contains('hidden')) { tagPickerPopoverEl.classList.add('hidden'); tagPickerEl.classList.remove('open'); closed = true; }
+    if (closed) return;
+    if (!isViewDefault()) { resetView(); renderAll(); }
+    return;
   }
   if (inField) return;
+  // Tab (while browsing, not typing) snaps the library back to default — same as Esc-to-default.
+  if (e.key === 'Tab' && !isViewDefault()) { e.preventDefault(); resetView(); renderAll(); return; }
   if (e.key === '/') { e.preventDefault(); document.getElementById('search').focus(); }
   if (e.key === 'n') { e.preventDefault(); openEntryModal(null); }
+  if (e.key === '?') { e.preventDefault(); openHelp(); }
 });
 
 let toastTimer = null;
@@ -2616,6 +2739,226 @@ document.querySelectorAll('[data-theme-pick]').forEach(b => {
     m.addEventListener('close', () => { if (isMobile()) setActiveTab('library'); });
   }
 })();
+
+// ─────────────────────────── ⌘K command palette ──────────────
+// One keystroke to every noun (title / collection) and verb (log, rate, ask Claude,
+// filter, jump, export). Blended fuzzy + frecency; never dead-ends (always offers
+// "Log …" / "Ask Claude …"). Reads/writes existing state — no new schema.
+const cmdkModal = document.getElementById('cmdk-modal');
+const cmdkInput = document.getElementById('cmdk-input');
+const cmdkResults = document.getElementById('cmdk-results');
+let cmdkItems = [];   // flat rows currently shown (incl. fallbacks)
+let cmdkSel = 0;
+
+// Frecency (frequency × recency) lives in its own localStorage key — per-device usage
+// telemetry shouldn't churn the synced state or leak into exports.
+const FRECENCY_KEY = 'bitacora_palette_frecency';
+let _frecency = (() => { try { return JSON.parse(localStorage.getItem(FRECENCY_KEY)) || {}; } catch { return {}; } })();
+function bumpFrecency(id) {
+  const e = _frecency[id] || { n: 0, at: 0 };
+  e.n += 1; e.at = Date.now(); _frecency[id] = e;
+  try { localStorage.setItem(FRECENCY_KEY, JSON.stringify(_frecency)); } catch {}
+}
+function frecencyScore(id) {
+  const e = _frecency[id]; if (!e) return 0;
+  const ageDays = (Date.now() - e.at) / 86400000;
+  return e.n * Math.exp(-ageDays / 10);   // ~10-day half-life
+}
+function statusBoost(s) { return s === 'active' ? 2 : s === 'queued' ? 0.5 : s === 'dropped' ? -2 : 0; }
+
+// Subsequence fuzzy matcher: null if `query` isn't a subsequence of `text`, else a
+// score (consecutive-run + word-start bonuses) and the matched char indices to light up.
+function fuzzyMatch(query, text) {
+  const q = query.toLowerCase(), t = text.toLowerCase();
+  let qi = 0, score = 0, last = -2; const positions = [];
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) {
+      let bonus = 1;
+      if (ti === last + 1) bonus += 3;                          // consecutive run
+      if (ti === 0 || /[\s\-_/.]/.test(t[ti - 1])) bonus += 5;  // start of a word
+      score += bonus; positions.push(ti); last = ti; qi++;
+    }
+  }
+  if (qi < q.length) return null;
+  if (positions[0] === 0) score += 6;   // matches the very start of the string → strong prefix win
+  return { score: score - (t.length - q.length) * 0.05, positions };
+}
+function cmdkHl(text, positions) {
+  const set = new Set(positions); let out = '';
+  for (let i = 0; i < text.length; i++) out += set.has(i) ? `<span class="hl">${escapeHtml(text[i])}</span>` : escapeHtml(text[i]);
+  return out;
+}
+
+// Capture-without-leaving-flow: pre-fill the new-entry title from the query.
+function logFromQuery(q) { openEntryModal(null); entryForm.title.value = q; try { entryForm.title.setSelectionRange(q.length, q.length); } catch {} }
+async function askClaudeFreeform(q) {
+  if (!isClaudeEnabled()) { toast('add an api key in settings first.', true); openSettings(); return; }
+  showClaudePanel({ title: q, status: 'thinking', text: 'thinking…' });
+  try { const text = await callClaude({ system: buildClaudeSystem(), userMessage: q }); showClaudePanel({ title: q, status: 'done', text }); }
+  catch (e) { showClaudePanel({ title: q, status: 'error', text: 'claude error: ' + e.message }); }
+}
+function askClaudeAboutItem(it) {
+  if (!isClaudeEnabled()) { toast('add an api key in settings first.', true); openSettings(); return; }
+  respondOnLog(it, false);
+}
+
+// Build the full action pool fresh each keystroke (cheap at this library size).
+function paletteActions() {
+  const A = [];
+  const cmd = (key, title, sub, icon, keywords, run, hint) => A.push({ kind: 'command', key, title, sub, icon, keywords, run, hint });
+  cmd('new', 'New entry', 'create a log', '+', 'new add create entry log', () => openEntryModal(null), 'N');
+  cmd('tags', 'Manage tags', 'groups & colors', '#', 'tags groups colors manage', () => openTagManager());
+  cmd('settings', 'Settings', 'sync · api key · rules', '⚙', 'settings sync api key claude preferences rules', () => openSettings());
+  cmd('export', 'Export JSON', 'download backup', '↓', 'export download backup json save', () => document.getElementById('export-btn').click());
+  cmd('import', 'Import JSON', 'restore from file', '↑', 'import upload restore file', () => document.getElementById('import-btn').click());
+  cmd('clear', 'Clear filters', 'show everything', '○', 'clear reset filters all everything', () => { resetView(); renderAll(); });
+  [4.5, 4, 3].forEach(r => cmd('rate:' + r, `Show ${r}★ & up`, 'filter by rating', '★', `${r} star stars ${r}star ${r}stars rating best top highest filter`, () => { view.minRating = r; renderAll(); }));
+  cmd('help', 'Keyboard & commands', 'shortcuts & palette guide', '?', 'help guide keyboard shortcuts commands cheatsheet how', () => openHelp());
+  STATUSES.forEach(s => cmd('st:' + s, 'Show ' + s, 'filter by status', '◓', 'filter status ' + s, () => { view.status = s; renderAll(); }));
+  if (isSyncEnabled()) cmd('sync', 'Sync now', 'pull + push', '↻', 'sync cloud gist pull push refresh', () => { Promise.resolve(syncPull()).then(syncPush); toast('syncing…'); });
+  state.collections.forEach(c => A.push({ kind: 'collection', key: 'col:' + c.id, title: c.name, sub: 'collection', icon: '▸', keywords: 'collection ' + c.name, run: () => { view.collection = c.id; view.status = 'all'; view.tags = []; renderAll(); } }));
+  // Tags as first-class filter actions — type a tag, Enter filters by it.
+  getAllTags().forEach(([t, n]) => A.push({ kind: 'tag', key: 'tag:' + t, title: t, sub: `tag · ${n} ${n === 1 ? 'entry' : 'entries'}`, icon: '#', keywords: 'tag ' + t, run: () => { view.tags = [t]; view.minRating = 0; renderAll(); } }));
+  state.items.forEach(it => {
+    const coll = state.collections.find(c => c.id === it.collectionId);
+    const stars = it.rating ? '★' + (Number.isInteger(it.rating) ? it.rating : it.rating.toFixed(1)) : '·';
+    A.push({
+      kind: 'item', key: 'item:' + it.id, id: it.id, status: it.status, title: it.title,
+      sub: `${stars} · ${it.status} · ${coll?.name || '—'}`,
+      keywords: it.title + ' ' + (it.tags || []).join(' '),
+      run: () => openEntryModal(it),
+      secondary: () => askClaudeAboutItem(it),
+    });
+  });
+  return A;
+}
+
+// Resolve one combo term ("books", "june", "active", "4", "4.5★") to a filter target.
+function resolveFilterTerm(term) {
+  const t = term.toLowerCase().trim();
+  if (!t) return null;
+  const rm = t.match(/^([0-5](?:\.5)?)\s*\+?\s*(?:star|stars|★)?$/);
+  if (rm && /\d/.test(t)) return { type: 'rating', value: parseFloat(rm[1]), label: '★' + rm[1] + '+' };
+  const coll = state.collections.find(c => c.name.toLowerCase() === t) || state.collections.find(c => c.name.toLowerCase().startsWith(t));
+  if (coll) return { type: 'collection', value: coll.id, label: coll.name };
+  const st = STATUSES.find(s => s === t) || STATUSES.find(s => s.startsWith(t));
+  if (st) return { type: 'status', value: st, label: st };
+  const tags = getAllTags().map(([tg]) => tg);
+  const exact = tags.find(tg => tg.toLowerCase() === t) || tags.find(tg => tg.toLowerCase().startsWith(t));
+  if (exact) return { type: 'tag', value: exact, label: exact };
+  const fz = tags.map(tg => ({ tg, m: fuzzyMatch(t, tg) })).filter(x => x.m).sort((a, b) => b.m.score - a.m.score)[0];
+  if (fz) return { type: 'tag', value: fz.tg, label: fz.tg };
+  return null;
+}
+
+function cmdkCompute(raw) {
+  let query = raw.trim(), commandsOnly = false;
+  if (query.startsWith('›') || query.startsWith('>')) { commandsOnly = true; query = query.replace(/^[›>]\s*/, ''); }
+
+  // Combo filter: "june + books", "june + pop", "active + 4" → stack filters, Enter applies.
+  if (!commandsOnly && query.includes('+')) {
+    const terms = query.split('+').map(s => s.trim()).filter(Boolean);
+    const resolved = terms.map(term => ({ term, r: resolveFilterTerm(term) }));
+    const good = resolved.filter(x => x.r), bad = resolved.filter(x => !x.r).map(x => x.term);
+    if (good.length) {
+      const apply = () => {
+        view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0;
+        good.forEach(({ r }) => {
+          if (r.type === 'tag') view.tags = [...new Set([...view.tags, r.value])];
+          else if (r.type === 'collection') view.collection = r.value;
+          else if (r.type === 'status') view.status = r.value;
+          else if (r.type === 'rating') view.minRating = r.value;
+        });
+        renderAll();
+      };
+      const sub = 'apply combo' + (bad.length ? ` · ignoring “${bad.join(', ')}”` : '');
+      return { rows: [{ a: { kind: 'combo', icon: '⊕', title: 'Filter: ' + good.map(x => x.r.label).join(' + '), sub, run: apply }, positions: [] }], query, commandsOnly: false };
+    }
+  }
+
+  let pool = paletteActions();
+  if (commandsOnly) pool = pool.filter(a => a.kind === 'command');
+  let rows;
+  if (!query) {
+    if (commandsOnly) rows = pool.map(a => ({ a, positions: [] }));
+    else rows = pool.filter(a => a.kind === 'item')
+      .map(a => ({ a, fr: frecencyScore(a.id) }))
+      .sort((x, y) => y.fr - x.fr)
+      .slice(0, 6).map(x => ({ a: x.a, positions: [] }));
+  } else {
+    const scored = [];
+    for (const a of pool) {
+      const m = fuzzyMatch(query, a.title);
+      const k = !m && a.keywords ? fuzzyMatch(query, a.keywords) : null;
+      if (!m && !k) continue;
+      let score = (m ? m.score : 0) + (k ? k.score * 0.4 : 0);
+      if (a.kind === 'item') score += frecencyScore(a.id) * 0.8 + statusBoost(a.status);
+      if (a.kind === 'command') score += 0.5;
+      if (a.kind === 'tag') score += 1;   // surface the "filter by tag" action above items that merely carry it
+      scored.push({ a, positions: m ? m.positions : [], score });
+    }
+    scored.sort((x, y) => y.score - x.score);
+    rows = scored.slice(0, 8);
+  }
+  // Fallbacks — the palette never says "no results."
+  if (query && !commandsOnly) {
+    rows.push({ a: { kind: 'fallback', icon: '+', title: `Log “${query}”`, sub: 'create a new entry', run: () => logFromQuery(query) }, positions: [] });
+    rows.push({ a: { kind: 'fallback', icon: '✦', title: `Ask Claude “${query}”`, sub: 'library-aware', run: () => askClaudeFreeform(query) }, positions: [] });
+  }
+  return { rows, query, commandsOnly };
+}
+
+function cmdkRender(raw) {
+  const { rows, query, commandsOnly } = cmdkCompute(raw);
+  cmdkItems = rows;
+  if (cmdkSel >= rows.length) cmdkSel = rows.length - 1;
+  if (cmdkSel < 0) cmdkSel = 0;
+  if (!rows.length) { cmdkResults.innerHTML = `<div class="cmdk-empty">no matches</div>`; return; }
+  const label = !query ? (commandsOnly ? 'commands' : 'recent') : (commandsOnly ? 'commands' : 'results');
+  let html = `<div class="cmdk-section">${label}</div>`;
+  rows.forEach((r, i) => {
+    const a = r.a;
+    const ic = a.kind === 'item'
+      ? `<span class="cmdk-dot st-${a.status}"></span>`
+      : `<span class="cmdk-icon ${a.kind === 'fallback' ? 'fb' : ''}">${a.icon || '›'}</span>`;
+    const title = r.positions && r.positions.length ? cmdkHl(a.title, r.positions) : escapeHtml(a.title);
+    const hint = a.hint ? `<span class="cmdk-hint">${a.hint}</span>` : '';
+    html += `<div class="cmdk-row${i === cmdkSel ? ' sel' : ''}" data-i="${i}"><span class="cmdk-ic">${ic}</span><span class="cmdk-main"><span class="cmdk-title">${title}</span>${a.sub ? `<span class="cmdk-sub">${escapeHtml(a.sub)}</span>` : ''}</span>${hint}</div>`;
+  });
+  cmdkResults.innerHTML = html;
+  cmdkScrollSel();
+}
+function cmdkHighlight() { cmdkResults.querySelectorAll('.cmdk-row').forEach((el, i) => el.classList.toggle('sel', i === cmdkSel)); cmdkScrollSel(); }
+function cmdkScrollSel() { const el = cmdkResults.querySelector('.cmdk-row.sel'); if (el) el.scrollIntoView({ block: 'nearest' }); }
+function cmdkMove(d) { if (!cmdkItems.length) return; cmdkSel = (cmdkSel + d + cmdkItems.length) % cmdkItems.length; cmdkHighlight(); }
+function cmdkExec(i, secondary) {
+  const r = cmdkItems[i]; if (!r) return; const a = r.a;
+  if (a.kind === 'item') bumpFrecency(a.id);
+  closeCmdk();
+  if (secondary && a.secondary) a.secondary(); else a.run();
+}
+function openCmdk() { cmdkSel = 0; cmdkInput.value = ''; cmdkRender(''); cmdkModal.showModal(); setTimeout(() => cmdkInput.focus(), 20); }
+function closeCmdk() { if (cmdkModal.open) cmdkModal.close(); }
+function toggleCmdk() { cmdkModal.open ? closeCmdk() : openCmdk(); }
+
+cmdkInput.addEventListener('input', () => { cmdkSel = 0; cmdkRender(cmdkInput.value); });
+cmdkInput.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); cmdkMove(1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); cmdkMove(-1); }
+  else if (e.key === 'Enter') { e.preventDefault(); cmdkExec(cmdkSel, e.metaKey || e.ctrlKey); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeCmdk(); }
+});
+cmdkResults.addEventListener('mousemove', e => { const row = e.target.closest('.cmdk-row'); if (row) { const i = +row.dataset.i; if (i !== cmdkSel) { cmdkSel = i; cmdkHighlight(); } } });
+cmdkResults.addEventListener('click', e => { const row = e.target.closest('.cmdk-row'); if (row) cmdkExec(+row.dataset.i, e.metaKey || e.ctrlKey); });
+cmdkModal.addEventListener('click', e => { if (e.target === cmdkModal) closeCmdk(); });
+cmdkModal.addEventListener('cancel', e => { e.preventDefault(); closeCmdk(); });
+
+// Help / cheatsheet modal
+const helpModal = document.getElementById('help-modal');
+function openHelp() { if (cmdkModal.open) closeCmdk(); helpModal.showModal(); }
+document.getElementById('open-help-btn').addEventListener('click', openHelp);
+helpModal.addEventListener('cancel', e => { e.preventDefault(); helpModal.close(); });
+helpModal.addEventListener('click', e => { if (e.target === helpModal) helpModal.close(); });
 
 renderAll();
 if (isSyncEnabled()) { setSyncPipState('on'); syncPull(); }
