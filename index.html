@@ -418,6 +418,21 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .claude-takes-section h4 { font-family: 'Instrument Serif', serif; font-size: 18px; font-style: italic; color: var(--c-dusty-fg); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
 .claude-takes-section h4 button { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; }
 .claude-takes-section h4 button:hover { color: #c47878; }
+/* Diary / per-encounter history (FEAT-02 Phase B) */
+.event-history-section { padding: 16px 26px 4px; border-top: 1px solid var(--line-soft); margin-top: 4px; }
+.event-history-section h4 { font-family: 'Instrument Serif', serif; font-size: 18px; font-style: italic; color: var(--gold); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: baseline; }
+.event-history-section h4 button { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 9px; border: 1px solid var(--c-gold-bd); border-radius: 2px; transition: background 0.12s; }
+.event-history-section h4 button:hover { background: var(--c-gold-bg); }
+.eh-row { display: flex; align-items: center; gap: 12px; padding: 7px 6px; border-bottom: 1px solid var(--line-soft); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.eh-row:last-child { border-bottom: none; }
+.eh-row.current { background: color-mix(in srgb, var(--accent) 9%, transparent); border-radius: 3px; }
+.eh-date { color: var(--ink-dim); min-width: 86px; }
+.eh-verb { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; font-size: 9.5px; min-width: 60px; }
+.eh-rating { color: var(--gold); min-width: 34px; }
+.eh-note { color: var(--ink-faint); font-style: italic; font-family: 'Instrument Serif', serif; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.eh-status { color: var(--ink-faint); text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.08em; margin-left: auto; }
+.eh-del { color: var(--ink-faint); font-size: 14px; padding: 0 4px; line-height: 1; }
+.eh-del:hover { color: var(--danger); }
 .claude-take { padding: 10px 12px; background: var(--paper); border-left: 2px solid var(--c-dusty-fg); border-radius: 2px; margin-bottom: 8px; font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
 .claude-take .meta { display: block; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; font-family: 'JetBrains Mono', monospace; }
 
@@ -757,6 +772,10 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <label class="span-2">Note for Claude <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--c-dusty-fg)">— ✦ for taste-learning</span><textarea name="claudeNote" class="claude-field" rows="2" placeholder="why this rating, what to recommend more/less of…"></textarea></label>
           <label class="span-2">Public review <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— for Letterboxd / Goodreads</span><textarea name="publicReview" rows="3" placeholder="what you'd post publicly…"></textarea></label>
           <label class="span-2">Setup / config<textarea name="config" class="config-field" rows="4" placeholder="for games: platform, sensitivity, keybinds, mods…"></textarea></label>
+        </div>
+        <div id="event-history-section" class="event-history-section" style="display:none">
+          <h4>Diary <button type="button" id="relog-btn" title="log another encounter — rewatch / replay / reread">↺ log again</button></h4>
+          <div id="event-history-list"></div>
         </div>
         <div id="claude-takes-section" class="claude-takes-section" style="display:none">
           <h4>✦ Claude's takes on this <button type="button" id="clear-takes-btn" title="wipe Claude's history for this entry">× clear history</button></h4>
@@ -1412,8 +1431,10 @@ function renderAll() {
 const entryModal = document.getElementById('entry-modal');
 const entryForm = document.getElementById('entry-form');
 
+let relogging = false;   // true while the editor is capturing a NEW pass (rewatch) vs editing the latest
 function openEntryModal(item) {
   editing = item ? item.id : null;
+  relogging = false;
   document.getElementById('modal-title').textContent = item ? 'Edit entry' : 'New entry';
   entryForm.reset();
   populateFormCollections();
@@ -1433,11 +1454,12 @@ function openEntryModal(item) {
     entryForm.status.value = 'queued';
     document.getElementById('delete-entry').classList.add('hidden');
   }
+  renderEventHistory(item);
   renderClaudeTakes(item);
   entryModal.showModal();
   setTimeout(() => entryForm.title.focus(), 50);
 }
-function closeEntryModal() { entryModal.close(); editing = null; }
+function closeEntryModal() { entryModal.close(); editing = null; relogging = false; }
 function setRating(n, userInitiated = false) {
   n = clampRating(n);
   entryForm.rating.value = n;
@@ -1465,6 +1487,62 @@ function renderStars(rating) {
   html += '</span>';
   return html;
 }
+const EVENT_VERB = { watch: 'watched', read: 'read', play: 'played', listen: 'listened', log: 'logged' };
+// The diary: every encounter with this title, most-recent first. The "current" row is the
+// latest event — the one the form edits and the one the flat projection mirrors.
+function renderEventHistory(item) {
+  const section = document.getElementById('event-history-section');
+  const list = document.getElementById('event-history-list');
+  if (!item) { section.style.display = 'none'; return; }   // brand-new entry: nothing to re-log yet
+  section.style.display = 'block';
+  const events = item.events || [];
+  const latest = latestEvent(item);
+  const multi = events.length > 1;
+  list.innerHTML = [...events].reverse().map(ev => {
+    const verb = EVENT_VERB[ev.kind] || 'logged';
+    const stars = ev.rating ? '★' + ev.rating : '·';
+    const note = ev.notes ? `<span class="eh-note">${escapeHtml(ev.notes)}</span>` : '<span class="eh-note"></span>';
+    const del = multi ? `<button type="button" class="eh-del" data-ev="${escapeAttr(ev.id)}" title="remove this pass">×</button>` : '';
+    return `<div class="eh-row${ev === latest ? ' current' : ''}"><span class="eh-date">${escapeHtml(ev.date || '—')}</span><span class="eh-verb">${verb}</span><span class="eh-rating">${stars}</span>${note}<span class="eh-status">${escapeHtml(ev.status || '')}</span>${del}</div>`;
+  }).join('');
+}
+// "Log again" arms the editor to capture a NEW encounter: keep title/collection/tags, clear the
+// per-pass fields. Nothing is written until Save (so a cancelled re-log leaves no orphan event).
+document.getElementById('relog-btn').addEventListener('click', () => {
+  if (!editing) return;
+  relogging = true;
+  document.getElementById('modal-title').textContent = 'New pass';
+  setRating(0);
+  entryForm.status.value = 'done';
+  entryForm.notes.value = '';
+  entryForm.claudeNote.value = '';
+  entryForm.publicReview.value = '';
+  toast('logging a new pass — set rating & notes, then save.');
+  setTimeout(() => entryForm.notes.focus(), 30);
+});
+// Remove one past encounter (never the last). Non-destructive-with-confirm; the title stays.
+document.getElementById('event-history-list').addEventListener('click', e => {
+  const del = e.target.closest('.eh-del'); if (!del || !editing) return;
+  const item = state.items.find(i => i.id === editing);
+  if (!item || (item.events || []).length <= 1) return;
+  if (!confirm('Remove this pass? Its rating, note and Claude takes for that encounter are deleted. The title stays.')) return;
+  item.events = item.events.filter(ev => ev.id !== del.dataset.ev);
+  item.updatedAt = Date.now();
+  projectItem(item);
+  save();
+  // Re-sync the form to the (possibly new) latest event and refresh both lists.
+  relogging = false;
+  document.getElementById('modal-title').textContent = 'Edit entry';
+  setRating(item.rating || 0);
+  entryForm.status.value = item.status;
+  entryForm.notes.value = item.notes || '';
+  entryForm.claudeNote.value = item.claudeNote || '';
+  entryForm.publicReview.value = item.publicReview || '';
+  renderEventHistory(item);
+  renderClaudeTakes(item);
+  renderItems();
+  toast('pass removed.');
+});
 function renderClaudeTakes(item) {
   const section = document.getElementById('claude-takes-section');
   const list = document.getElementById('claude-takes-list');
@@ -1566,6 +1644,7 @@ entryForm.addEventListener('submit', e => {
   const now = Date.now();
   let savedItem, prevSnap = null;
   const isNew = !editing;
+  const isRelog = relogging;   // capture before closeEntryModal() resets it
   if (editing) {
     const live = state.items.find(i => i.id === editing);
     if (live) {
@@ -1573,12 +1652,19 @@ entryForm.addEventListener('submit', e => {
       prevSnap = { rating: live.rating, status: live.status, notes: live.notes, claudeNote: live.claudeNote, publicReview: live.publicReview };
       // Title-level fields live on the item itself.
       live.title = data.title; live.collectionId = data.collectionId; live.tags = data.tags; live.config = data.config; live.updatedAt = now;
-      // Per-encounter fields write to the latest event (Phase A: one event per title).
-      let ev = latestEvent(live);
-      if (!ev) { ev = { id: uid(), date: today(), kind: kindFor(data.collectionId), claudeReplies: [] }; live.events = [ev]; }
-      const wasDone = ev.status === 'done';
-      ev.rating = data.rating; ev.status = data.status; ev.notes = data.notes; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
-      if (data.status === 'done' && !wasDone) ev.date = today();   // stamp the finish date when entering "done"
+      if (isRelog) {
+        // Append a brand-new encounter (rewatch / replay / reread) — the title's other passes stay.
+        live.events.push({ id: uid(), date: today(), kind: kindFor(data.collectionId),
+          rating: data.rating, status: data.status, notes: data.notes, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] });
+        toast('logged again.');
+      } else {
+        // Per-encounter fields write to the latest event (Phase A: one event per title).
+        let ev = latestEvent(live);
+        if (!ev) { ev = { id: uid(), date: today(), kind: kindFor(data.collectionId), claudeReplies: [] }; live.events = [ev]; }
+        const wasDone = ev.status === 'done';
+        ev.rating = data.rating; ev.status = data.status; ev.notes = data.notes; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
+        if (data.status === 'done' && !wasDone) ev.date = today();   // stamp the finish date when entering "done"
+      }
       projectItem(live);
       savedItem = live;
     }
@@ -1597,7 +1683,7 @@ entryForm.addEventListener('submit', e => {
   closeEntryModal();
   renderAll();
   if (savedItem) {
-    if (isClaudeEnabled() && state.settings.claude.respondOnLog && shouldTriggerClaude(prevSnap, savedItem, isNew)) {
+    if (isClaudeEnabled() && state.settings.claude.respondOnLog && shouldTriggerClaude(prevSnap, savedItem, isNew || isRelog)) {
       respondOnLog(savedItem, isNew);
     } else if (state.settings.claude.respondOnLog && !isClaudeEnabled()) {
       // synced-on, but no API key on this device — gentle nudge
