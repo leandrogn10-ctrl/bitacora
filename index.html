@@ -433,6 +433,27 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .eh-status { color: var(--ink-faint); text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.08em; margin-left: auto; }
 .eh-del { color: var(--ink-faint); font-size: 14px; padding: 0 4px; line-height: 1; }
 .eh-del:hover { color: var(--danger); }
+/* Diary timeline (FEAT-02 Phase C) — Shelf/Diary tabs + chronological event list */
+.view-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.view-tab { font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.03em; color: var(--ink-faint); padding: 7px 16px; border-radius: 3px; border: 1px solid transparent; transition: color 0.12s, background 0.12s, border-color 0.12s; }
+.view-tab:hover { color: var(--ink-dim); }
+.view-tab.active { color: var(--ink); background: var(--bg-elev); border-color: var(--line); }
+.diary-timeline { display: flex; flex-direction: column; }
+.dz-divider { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 28px 0 10px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+.dz-divider:first-child { margin-top: 2px; }
+.dz-month { font-family: 'Instrument Serif', serif; font-size: 22px; font-style: italic; color: var(--ink); }
+.dz-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); white-space: nowrap; }
+.dz-meta .dz-avg { color: var(--gold); }
+.dz-row { display: flex; gap: 16px; padding: 13px 4px; border-bottom: 1px solid var(--line-soft); cursor: pointer; transition: background 0.12s; }
+.dz-row:hover { background: var(--bg-elev); }
+.dz-day { font-family: 'JetBrains Mono', monospace; font-size: 20px; color: var(--ink-faint); min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.dz-body { flex: 1; min-width: 0; }
+.dz-line { display: flex; align-items: baseline; gap: 10px; }
+.dz-verb { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); flex-shrink: 0; }
+.dz-title { font-family: 'Instrument Serif', serif; font-size: 20px; line-height: 1.1; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dz-stars { margin-left: auto; flex-shrink: 0; }
+.dz-note { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 15px; color: var(--ink-dim); margin-top: 3px; }
+.dz-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin-top: 4px; }
 .claude-take { padding: 10px 12px; background: var(--paper); border-left: 2px solid var(--c-dusty-fg); border-radius: 2px; margin-bottom: 8px; font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
 .claude-take .meta { display: block; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; font-family: 'JetBrains Mono', monospace; }
 
@@ -709,6 +730,10 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
   </aside>
 
   <main class="content">
+    <div class="view-tabs" id="view-tabs">
+      <button class="view-tab active" data-mode="shelf" title="your library (s)">▦ Shelf</button>
+      <button class="view-tab" data-mode="diary" title="your chronicle of encounters (d)">❦ Diary</button>
+    </div>
     <div class="content-header">
       <h2 id="current-view">Everything</h2>
       <div class="view-meta" id="view-meta">0 entries</div>
@@ -734,6 +759,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
       <div class="spot-row" id="spot-row"></div>
     </section>
     <div id="items-grid" class="items-grid"></div>
+    <div id="diary-timeline" class="diary-timeline" style="display:none"></div>
     <div id="empty-state" class="empty-state">
       <div class="ornament">❦</div>
       <h3 id="empty-heading">nothing here yet</h3>
@@ -942,6 +968,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <div><kbd>⌘</kbd><kbd>K</kbd></div><span>Open the command palette</span>
           <div><kbd>/</kbd></div><span>Jump to search</span>
           <div><kbd>N</kbd></div><span>New entry</span>
+          <div><kbd>D</kbd> <kbd>S</kbd></div><span>Switch to Diary / Shelf</span>
           <div><kbd>?</kbd></div><span>Open this guide</span>
           <div><kbd>Esc</kbd></div><span>Close any panel or filter</span>
         </div>
@@ -1064,7 +1091,7 @@ const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, 
 7. Status defaults to 'queued' for things you're recommending.`;
 
 let state = load();
-let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0 };
+let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0, mode: 'shelf' };
 // Tags filter as an AND-set (multi-select). Toggle membership in/out.
 function toggleViewTag(t) { view.tags = view.tags.includes(t) ? view.tags.filter(x => x !== t) : [...view.tags, t]; }
 // The pristine library state: Everything / All, no tags / rating / search (sort is a display pref, left alone).
@@ -1331,7 +1358,89 @@ function renderSpotlight() {
       <div class="sub">${escapeHtml(c ? c.name : '—')}</div></div>`;
   }).join('');
 }
+// Mode dispatcher: every renderItems() caller (renderAll + all the edit handlers) becomes
+// Shelf/Diary-aware, and the chrome (tabs, sort bar, containers) toggles in one place.
 function renderItems() {
+  const diary = view.mode === 'diary';
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === view.mode));
+  document.querySelector('.sort-bar').style.display = diary ? 'none' : '';   // diary is inherently chronological
+  document.getElementById('items-grid').style.display = diary ? 'none' : '';
+  document.getElementById('diary-timeline').style.display = diary ? '' : 'none';
+  if (diary) renderDiary(); else renderShelf();
+}
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+// Diary events: title-level filters (collection/tags/search) narrow the titles, then we expand to
+// their encounters and drop queued (unstarted backlog isn't a chronicle entry). status/minRating
+// filter the EVENTS, not the titles. Newest first.
+function getDiaryEvents() {
+  let items = state.items.slice();
+  if (view.collection !== 'all') items = items.filter(i => i.collectionId === view.collection);
+  if (view.tags.length)          items = items.filter(i => view.tags.every(t => (i.tags || []).includes(t)));
+  if (view.search) {
+    const q = view.search.toLowerCase();
+    items = items.filter(i => i.title.toLowerCase().includes(q) || (i.notes || '').toLowerCase().includes(q) || (i.tags || []).some(t => t.toLowerCase().includes(q)));
+  }
+  const evts = [];
+  for (const it of items) for (const ev of (it.events || [])) {
+    if (ev.status === 'queued') continue;
+    if (view.status !== 'all' && ev.status !== view.status) continue;
+    if (view.minRating && (ev.rating || 0) < view.minRating) continue;
+    evts.push({ ev, item: it });
+  }
+  evts.sort((a, b) => (a.ev.date < b.ev.date ? 1 : a.ev.date > b.ev.date ? -1 : 0));
+  return evts;
+}
+function renderDiary() {
+  renderSpotlight();
+  document.getElementById('current-view').textContent = 'Diary';
+  const evts = getDiaryEvents();
+  let metaHtml = `<span>${evts.length} ${evts.length === 1 ? 'encounter' : 'encounters'}</span>`;
+  view.tags.forEach(t => metaHtml += `<span class="active-tag">${escapeHtml(t)}<button class="clear-tag" data-tag="${escapeAttr(t)}" type="button">×</button></span>`);
+  if (view.minRating) metaHtml += `<span class="active-tag rating-chip">★ ${view.minRating}+<button id="clear-rating" type="button">×</button></span>`;
+  document.getElementById('view-meta').innerHTML = metaHtml;
+
+  const tl = document.getElementById('diary-timeline');
+  const empty = document.getElementById('empty-state');
+  if (!evts.length) {
+    tl.innerHTML = '';
+    const filtersActive = view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.search;
+    document.getElementById('empty-heading').textContent = filtersActive ? 'no encounters match' : 'your diary is empty';
+    document.getElementById('empty-sub').innerHTML = filtersActive
+      ? 'No passes fit the current filter. <button type="button" id="empty-clear">clear filters</button>'
+      : 'Start or finish something — your logged encounters appear here as a chronicle.';
+    empty.classList.add('show');
+    return;
+  }
+  empty.classList.remove('show');
+
+  let html = '', curMonth = null, bucket = [];
+  const flush = () => {
+    if (!bucket.length) return;
+    const rated = bucket.filter(x => x.ev.rating > 0);
+    const avg = rated.length ? (rated.reduce((s, x) => s + x.ev.rating, 0) / rated.length).toFixed(1) : null;
+    const [y, m] = curMonth.split('-');
+    html += `<div class="dz-divider"><span class="dz-month">${MONTH_NAMES[+m - 1] || ''} ${y}</span><span class="dz-meta">${bucket.length} ${bucket.length === 1 ? 'encounter' : 'encounters'}${avg ? ` · <span class="dz-avg">★${avg}</span>` : ''}</span></div>`;
+    html += bucket.map(({ ev, item }) => {
+      const verb = EVENT_VERB[ev.kind] || 'logged';
+      const day = (ev.date || '').slice(8, 10);
+      const stars = ev.rating ? renderStars(ev.rating) : '';
+      const note = ev.notes ? `<div class="dz-note">${escapeHtml(ev.notes)}</div>` : '';
+      const coll = state.collections.find(c => c.id === item.collectionId);
+      return `<div class="dz-row" data-id="${escapeAttr(item.id)}"><div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(item.title)}</span><span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
+    }).join('');
+    bucket = [];
+  };
+  for (const e of evts) {
+    const ym = (e.ev.date || '').slice(0, 7);
+    if (ym !== curMonth) { flush(); curMonth = ym; }
+    bucket.push(e);
+  }
+  flush();
+  tl.innerHTML = html;
+}
+
+function renderShelf() {
   renderSpotlight();
   const grid = document.getElementById('items-grid');
   const empty = document.getElementById('empty-state');
@@ -2704,6 +2813,15 @@ document.getElementById('spot-row').addEventListener('click', e => {
   const item = state.items.find(i => i.id === card.dataset.id);
   if (item) openEntryModal(item);
 });
+function setViewMode(mode) { if (view.mode === mode) return; view.mode = mode; renderItems(); }
+document.getElementById('view-tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.view-tab'); if (tab) setViewMode(tab.dataset.mode);
+});
+document.getElementById('diary-timeline').addEventListener('click', e => {
+  const row = e.target.closest('.dz-row'); if (!row) return;
+  const item = state.items.find(i => i.id === row.dataset.id);
+  if (item) openEntryModal(item);
+});
 document.getElementById('view-meta').addEventListener('click', e => {
   if (e.target.classList.contains('clear-tag')) { view.tags = view.tags.filter(t => t !== e.target.dataset.tag); renderAll(); }
   if (e.target.id === 'clear-rating') { view.minRating = 0; renderAll(); }
@@ -2796,6 +2914,8 @@ document.addEventListener('keydown', e => {
   if (e.key === '/') { e.preventDefault(); document.getElementById('search').focus(); }
   if (e.key === 'n') { e.preventDefault(); openEntryModal(null); }
   if (e.key === '?') { e.preventDefault(); openHelp(); }
+  if (e.key === 'd') { e.preventDefault(); setViewMode('diary'); }
+  if (e.key === 's') { e.preventDefault(); setViewMode('shelf'); }
 });
 
 let toastTimer = null;
@@ -2970,6 +3090,8 @@ function paletteActions() {
   cmd('clear', 'Clear filters', 'show everything', '○', 'clear reset filters all everything', () => { resetView(); renderAll(); });
   [4.5, 4, 3].forEach(r => cmd('rate:' + r, `Show ${r}★ & up`, 'filter by rating', '★', `${r} star stars ${r}star ${r}stars rating best top highest filter`, () => { view.minRating = r; renderAll(); }));
   cmd('help', 'Keyboard & commands', 'shortcuts & palette guide', '?', 'help guide keyboard shortcuts commands cheatsheet how', () => openHelp());
+  cmd('diary', 'Diary', 'chronological timeline of encounters', '❦', 'diary timeline chronological history chronicle view', () => setViewMode('diary'), 'D');
+  cmd('shelf', 'Shelf', 'the library grid', '▦', 'shelf grid library view shelves cards', () => setViewMode('shelf'), 'S');
   STATUSES.forEach(s => cmd('st:' + s, 'Show ' + s, 'filter by status', '◓', 'filter status ' + s, () => { view.status = s; renderAll(); }));
   if (isSyncEnabled()) cmd('sync', 'Sync now', 'pull + push', '↻', 'sync cloud gist pull push refresh', () => { Promise.resolve(syncPull()).then(syncPush); toast('syncing…'); });
   state.collections.forEach(c => A.push({ kind: 'collection', key: 'col:' + c.id, title: c.name, sub: 'collection', icon: '▸', keywords: 'collection ' + c.name, run: () => { view.collection = c.id; view.status = 'all'; view.tags = []; renderAll(); } }));
