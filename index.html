@@ -454,6 +454,12 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .dz-stars { margin-left: auto; flex-shrink: 0; }
 .dz-note { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 15px; color: var(--ink-dim); margin-top: 3px; }
 .dz-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin-top: 4px; }
+.dz-yeartag { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-faint); font-style: normal; }
+/* Year + creator capture */
+.enrich-btn { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-dusty-fg); border: 1px solid var(--c-dusty-bd); border-radius: 2px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; transition: background 0.12s; }
+.enrich-btn:hover { background: var(--c-dusty-bg); }
+.enrich-btn:disabled { opacity: 0.5; }
+.item-card .byline { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--ink-faint); margin-top: 6px; }
 .dz-year { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 42px 0 4px; }
 .dz-year:first-child { margin-top: 4px; }
 .dz-yearnum { font-family: 'Instrument Serif', serif; font-size: 40px; line-height: 1; color: var(--ink); letter-spacing: -0.01em; }
@@ -857,6 +863,8 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
             <input type="hidden" name="rating" value="0">
           </label>
           <label>Tags<input type="text" name="tags" placeholder="comma, separated" autocomplete="off"></label>
+          <label>Year<input type="number" name="year" placeholder="release year" autocomplete="off" min="0" max="2100" step="1"></label>
+          <label>Creator <button type="button" id="enrich-btn" class="enrich-btn" title="ask Claude to fill year & creator">✦ fill</button><input type="text" name="creator" placeholder="director / author / studio" autocomplete="off"></label>
           <label class="span-2">Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— private</span><textarea name="notes" rows="3" placeholder="thoughts, quotes, who recommended it…"></textarea></label>
           <label class="span-2">Note for Claude <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--c-dusty-fg)">— ✦ for taste-learning</span><textarea name="claudeNote" class="claude-field" rows="2" placeholder="why this rating, what to recommend more/less of…"></textarea></label>
           <label class="span-2">Public review <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— for Letterboxd / Goodreads</span><textarea name="publicReview" rows="3" placeholder="what you'd post publicly…"></textarea></label>
@@ -973,6 +981,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <label class="span-2"><div class="toggle-row"><input type="checkbox" id="claude-respond-toggle"><span>Respond when I save an entry</span></div></label>
         </div>
         <div class="sync-status" id="claude-status">disabled</div>
+        <div style="margin-top:12px"><button class="btn-secondary" id="enrich-library-btn" type="button">✦ Enrich library — fill missing year &amp; creator</button></div>
       </div>
       <div class="settings-section">
         <h3>Auto-push code to GitHub Pages</h3>
@@ -1488,7 +1497,8 @@ function renderDiary() {
     const coll = state.collections.find(c => c.id === item.collectionId);
     const nodeSize = (5 + (ev.rating || 0) * 1.5).toFixed(1);   // ember (5px) → supergiant (12.5px)
     const node = `<span class="dz-node${ev.status === 'active' ? ' dz-node-live' : ''}" style="--ns:${nodeSize}px;--nc:${collColor(item.collectionId)}"></span>`;
-    return `<div class="dz-row" data-id="${escapeAttr(item.id)}">${node}<div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(item.title)}</span><span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
+    const yr = item.year ? ` <span class="dz-yeartag">(${item.year})</span>` : '';
+    return `<div class="dz-row" data-id="${escapeAttr(item.id)}">${node}<div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(item.title)}${yr}</span><span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
   };
 
   // "On this day" leads the chronicle (only when unfiltered, like the spotlight).
@@ -1574,6 +1584,7 @@ function renderShelf() {
     const stars = renderStars(it.rating || 0);
     const tagsHtml = (it.tags && it.tags.length) ? `<div class="tags">${it.tags.slice(0, 6).map(t => tagPillHtml(t, view.tags.includes(t))).join('')}</div>` : '';
     const notesPreview = it.notes ? `<div class="notes-preview">${escapeHtml(it.notes)}</div>` : '';
+    const byline = (it.year || it.creator) ? `<div class="byline">${[it.year, it.creator].filter(Boolean).map(x => escapeHtml(String(x))).join(' · ')}</div>` : '';
     const takeCount = (it.claudeReplies || []).length;
     const flagsHtml = [
       it.config && it.config.trim() ? `<div class="has-config">setup logged</div>` : '',
@@ -1583,7 +1594,7 @@ function renderShelf() {
     return `<article class="item-card" data-id="${it.id}" style="--mc:${collColor(it.collectionId)}">
       <div class="row1"><div class="title">${escapeHtml(it.title)}</div><div class="rating" title="${it.rating || 0}/5">${stars}</div></div>
       <div class="meta"><span class="status-pill status-${it.status}">${STATUS_LABELS[it.status]}</span><span>${escapeHtml(collName)}</span></div>
-      ${notesPreview}${flagsHtml}${tagsHtml}
+      ${byline}${notesPreview}${flagsHtml}${tagsHtml}
     </article>`;
   }).join('');
 }
@@ -1650,6 +1661,8 @@ function openEntryModal(item) {
     entryForm.collectionId.value = item.collectionId;
     entryForm.status.value = item.status;
     entryForm.tags.value = (item.tags || []).join(', ');
+    entryForm.year.value = item.year || '';
+    entryForm.creator.value = item.creator || '';
     entryForm.notes.value = item.notes || '';
     entryForm.claudeNote.value = item.claudeNote || '';
     entryForm.publicReview.value = item.publicReview || '';
@@ -1844,6 +1857,8 @@ entryForm.addEventListener('submit', e => {
     status: fd.get('status'),
     rating: clampRating(fd.get('rating')),
     tags,
+    year: (() => { const y = parseInt(fd.get('year'), 10); return Number.isInteger(y) && y > 0 ? y : null; })(),
+    creator: (fd.get('creator') || '').trim().slice(0, 120) || null,
     notes: fd.get('notes').trim(),
     claudeNote: fd.get('claudeNote').trim(),
     publicReview: fd.get('publicReview').trim(),
@@ -1860,7 +1875,7 @@ entryForm.addEventListener('submit', e => {
       // Snapshot the pre-edit projection so shouldTriggerClaude can detect a real change.
       prevSnap = { rating: live.rating, status: live.status, notes: live.notes, claudeNote: live.claudeNote, publicReview: live.publicReview };
       // Title-level fields live on the item itself.
-      live.title = data.title; live.collectionId = data.collectionId; live.tags = data.tags; live.config = data.config; live.updatedAt = now;
+      live.title = data.title; live.collectionId = data.collectionId; live.tags = data.tags; live.config = data.config; live.year = data.year; live.creator = data.creator; live.updatedAt = now;
       if (isRelog) {
         // Append a brand-new encounter (rewatch / replay / reread) — the title's other passes stay.
         live.events.push({ id: uid(), date: today(), kind: kindFor(data.collectionId),
@@ -1880,7 +1895,7 @@ entryForm.addEventListener('submit', e => {
   } else {
     savedItem = {
       id: uid(), title: data.title, collectionId: data.collectionId, tags: data.tags, config: data.config,
-      createdAt: today(), updatedAt: now,
+      year: data.year, creator: data.creator, createdAt: today(), updatedAt: now,
       events: [{ id: uid(), date: today(), kind: kindFor(data.collectionId), rating: data.rating, status: data.status,
                  notes: data.notes, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] }],
     };
@@ -1898,7 +1913,28 @@ entryForm.addEventListener('submit', e => {
       // synced-on, but no API key on this device — gentle nudge
       setTimeout(() => toast('claude responses are on, but no API key on this device — open ⚙ settings.', false), 600);
     }
+    // New title with blanks → quietly let Claude fill year + creator.
+    if (isNew && isClaudeEnabled() && (!savedItem.year || !savedItem.creator)) autoEnrich(savedItem.id);
   }
+});
+
+// ✦ fill — manual: ask Claude to fill the Year/Creator form fields (user reviews before saving).
+document.getElementById('enrich-library-btn').addEventListener('click', enrichLibrary);
+document.getElementById('enrich-btn').addEventListener('click', async () => {
+  const title = entryForm.title.value.trim();
+  if (!title) { toast('add a title first.', true); return; }
+  if (!isClaudeEnabled()) { toast('add an API key in settings first.', true); openSettings(); return; }
+  const btn = document.getElementById('enrich-btn'); const label = btn.textContent; btn.disabled = true; btn.textContent = '✦ …';
+  try {
+    const coll = state.collections.find(c => c.id === entryForm.collectionId.value);
+    const r = await fetchYearCreator(title, coll?.name);
+    if (r && (r.year || r.creator)) {
+      if (r.year) entryForm.year.value = r.year;
+      if (r.creator) entryForm.creator.value = r.creator;
+      toast('✦ filled — edit if needed.');
+    } else { toast('claude wasn’t sure — fill it in manually.', true); }
+  } catch (e) { toast('enrich failed: ' + e.message, true); }
+  finally { btn.disabled = false; btn.textContent = label; }
 });
 
 // ─────────────────────────── share modal (Letterboxd/Goodreads) ──
@@ -2615,6 +2651,54 @@ async function callClaude({ system, userMessage, maxTokens = 350 }) {
   const data = await res.json();
   return data.content?.[0]?.text || '(empty response)';
 }
+// Ask Claude for the work's release year + creator as strict JSON. Title-level metadata
+// (stable across rewatches). Returns {year, creator} (either may be null) or null on failure.
+async function fetchYearCreator(title, collName) {
+  const system = 'Return ONLY a JSON object: {"year": number|null, "creator": string|null}. '
+    + 'year = the original release/publication year of the work. '
+    + 'creator = the primary director (film/TV), author (book), or studio/developer (game), as a canonical full name. '
+    + 'If you are not reasonably sure, use null — do not guess.';
+  const txt = await callClaude({ system, userMessage: `Title: ${title}\nMedium: ${collName || 'unknown'}`, maxTokens: 80 });
+  const m = txt.match(/\{[\s\S]*\}/); if (!m) return null;
+  const d = JSON.parse(m[0]);
+  return {
+    year: Number.isInteger(d.year) && d.year > 0 ? d.year : null,
+    creator: (typeof d.creator === 'string' && d.creator.trim()) ? d.creator.trim().slice(0, 120) : null,
+  };
+}
+// Auto-enrich a freshly-logged item, filling only the blanks. Silent; updates in place.
+async function autoEnrich(itemId) {
+  if (!isClaudeEnabled()) return;
+  const it = state.items.find(i => i.id === itemId); if (!it || (it.year && it.creator)) return;
+  try {
+    const coll = state.collections.find(c => c.id === it.collectionId);
+    const r = await fetchYearCreator(it.title, coll?.name); if (!r) return;
+    const live = state.items.find(i => i.id === itemId); if (!live) return;
+    let changed = false;
+    if (!live.year && r.year) { live.year = r.year; changed = true; }
+    if (!live.creator && r.creator) { live.creator = r.creator; changed = true; }
+    if (changed) { save(); renderItems(); toast(`✦ ${[live.year, live.creator].filter(Boolean).join(' · ')}`); }
+  } catch (e) { console.warn('autoEnrich', e); }
+}
+// One-pass backfill over every entry missing year or creator (the existing library).
+async function enrichLibrary() {
+  if (!isClaudeEnabled()) { toast('add an API key in settings first.', true); openSettings(); return; }
+  const todo = state.items.filter(i => !i.year || !i.creator);
+  if (!todo.length) { toast('every entry already has year & creator.'); return; }
+  toast(`enriching ${todo.length} entr${todo.length === 1 ? 'y' : 'ies'}…`);
+  let done = 0;
+  for (const it of todo) {
+    try {
+      const coll = state.collections.find(c => c.id === it.collectionId);
+      const r = await fetchYearCreator(it.title, coll?.name);
+      if (r) { if (!it.year && r.year) it.year = r.year; if (!it.creator && r.creator) it.creator = r.creator; }
+    } catch (e) { /* skip this one */ }
+    if (++done % 5 === 0) { save(); renderItems(); toast(`enriched ${done}/${todo.length}…`); }
+  }
+  save(); renderItems();
+  toast(`done — enriched ${todo.length} entr${todo.length === 1 ? 'y' : 'ies'}.`);
+}
+
 // Skip Claude on housekeeping edits (status-only or tag-only changes) — only fire on substantive logging.
 function shouldTriggerClaude(prev, next, isNew) {
   if (isNew) return true;
@@ -2652,7 +2736,8 @@ function buildClaudeSystem(excludeId = null) {
       const c = state.collections.find(c => c.id === it.collectionId);
       const stars = it.rating ? '★'.repeat(Math.floor(it.rating)) + (it.rating % 1 >= 0.5 ? '½' : '') : '·';
       const note = it.claudeNote ? ` — taste-note: ${it.claudeNote}` : '';
-      lines.push(`- ${it.title} (${c?.name || '—'}) ${stars} · ${it.status}${note}`);
+      const meta = [it.year, it.creator].filter(Boolean).join(', ');
+      lines.push(`- ${it.title}${meta ? ` [${meta}]` : ''} (${c?.name || '—'}) ${stars} · ${it.status}${note}`);
     }
   }
   return lines.join('\n');
@@ -3189,6 +3274,7 @@ function paletteActions() {
   cmd('help', 'Keyboard & commands', 'shortcuts & palette guide', '?', 'help guide keyboard shortcuts commands cheatsheet how', () => openHelp());
   cmd('diary', 'Diary', 'chronological timeline of encounters', '❦', 'diary timeline chronological history chronicle view', () => setViewMode('diary'), 'D');
   cmd('shelf', 'Shelf', 'the library grid', '▦', 'shelf grid library view shelves cards', () => setViewMode('shelf'), 'S');
+  if (isClaudeEnabled()) cmd('enrich', 'Enrich library', 'fill missing year & creator via Claude', '✦', 'enrich library year creator director author studio fill metadata claude backfill', () => enrichLibrary());
   STATUSES.forEach(s => cmd('st:' + s, 'Show ' + s, 'filter by status', '◓', 'filter status ' + s, () => { view.status = s; renderAll(); }));
   if (isSyncEnabled()) cmd('sync', 'Sync now', 'pull + push', '↻', 'sync cloud gist pull push refresh', () => { Promise.resolve(syncPull()).then(syncPush); toast('syncing…'); });
   state.collections.forEach(c => A.push({ kind: 'collection', key: 'col:' + c.id, title: c.name, sub: 'collection', icon: '▸', keywords: 'collection ' + c.name, run: () => { view.collection = c.id; view.status = 'all'; view.tags = []; renderAll(); } }));
