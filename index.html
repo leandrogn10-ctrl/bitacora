@@ -2777,7 +2777,8 @@ async function callClaude({ system, userMessage, maxTokens = 350 }) {
 async function fetchYearCreator(title, collName) {
   const system = 'Return ONLY a JSON object: {"year": number|null, "creator": string|null}. '
     + 'year = the original release/publication year of the work. '
-    + 'creator = the primary director (film/TV), author (book), or studio/developer (game), as a canonical full name. '
+    + 'creator = the primary maker, as a canonical full name: director (film/TV), author (book), '
+    + 'studio/developer (game), or artist/band (music/album). '
     + 'If you are not reasonably sure, use null — do not guess.';
   const txt = await callClaude({ system, userMessage: `Title: ${title}\nMedium: ${collName || 'unknown'}`, maxTokens: 80 });
   const m = txt.match(/\{[\s\S]*\}/); if (!m) return null;
