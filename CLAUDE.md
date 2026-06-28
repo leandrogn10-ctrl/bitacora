@@ -95,9 +95,16 @@ settings, **never logged or exported**.
   FEAT-01 (palette + rating/tag/creator/decade filters + `?` cheatsheet + Esc/Tab reset),
   FEAT-02 (event model A/B/C + cosmic Diary "La Línea Sagrada"),
   FEAT-03 (Observatory + year/creator capture + Rewatch Lab).
+- **Shipped, on branch (NOT merged):** FEAT-09 (`feat/tag-chips-merge`) — editor tag token-field +
+  fuzzy typeahead + non-blocking `≈ canonical` reuse hint; Settings dupe-scan + multi-select merge; one
+  `applyTagMerge()` behind rename/cluster-merge/multi-merge. Verified in-browser. SW bumped v4→v5.
+- **Enrich sweep — ✅ DONE / moot (verified 2026-06-28).** The real 46-item library (deployed origin
+  `leandrogn10-ctrl.github.io/bitacora`) is already 100% enriched: **0** items missing `year`/`creator`,
+  no blanks. `enrichLibrary()` filters to the missing-set, which is empty → no-op. It filled
+  incrementally via `autoEnrich` on each log. NOTE: synced devices start keyless (`cleanStateForSync`
+  strips the API key), so re-paste the key in Settings if you want `autoEnrich` on *new* logs there.
 - **Backlog = source of truth:** `~/Downloads/leandro-os/prototype/BITACORA-AUDIT.md` (§0 status banner,
   §2 features).
-- **Open:** push `main`→origin · run the **enrich sweep** on the real ~46-item library (Sonnet-backed) ·
-  FEAT-04 status vocab · FEAT-05 mood tags · FEAT-06 roulette · FEAT-07 heatmap · FEAT-08 auto-ingestion ·
-  FEAT-09 tag-chips-proper · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped · FEAT-14 AI-take
-  voice · "Ask the Observatory".
+- **Open:** push `main`→origin (FEAT-09 branch + this) · FEAT-04 status vocab · FEAT-05 mood tags ·
+  FEAT-06 roulette · FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph ·
+  FEAT-12 Wrapped · FEAT-14 AI-take voice · "Ask the Observatory".
