@@ -454,6 +454,17 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .dz-stars { margin-left: auto; flex-shrink: 0; }
 .dz-note { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 15px; color: var(--ink-dim); margin-top: 3px; }
 .dz-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin-top: 4px; }
+.dz-year { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 42px 0 4px; }
+.dz-year:first-child { margin-top: 4px; }
+.dz-yearnum { font-family: 'Instrument Serif', serif; font-size: 40px; line-height: 1; color: var(--ink); letter-spacing: -0.01em; }
+.dz-yearmeta { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-faint); white-space: nowrap; }
+.dz-onthisday { border: 1px solid var(--c-rust-bd); background: color-mix(in srgb, var(--accent2) 7%, transparent); border-radius: 4px; padding: 13px 17px; margin-bottom: 22px; }
+.otd-head { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent2); margin-bottom: 9px; }
+.otd-row { display: flex; align-items: baseline; gap: 12px; padding: 5px 0; cursor: pointer; }
+.otd-row:hover .otd-title { color: var(--accent); }
+.otd-title { font-family: 'Instrument Serif', serif; font-size: 17px; color: var(--ink); transition: color 0.12s; }
+.otd-when { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); }
+.otd-stars { margin-left: auto; }
 .claude-take { padding: 10px 12px; background: var(--paper); border-left: 2px solid var(--c-dusty-fg); border-radius: 2px; margin-bottom: 8px; font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
 .claude-take .meta { display: block; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; font-family: 'JetBrains Mono', monospace; }
 
@@ -1414,30 +1425,61 @@ function renderDiary() {
   }
   empty.classList.remove('show');
 
-  let html = '', curMonth = null, bucket = [];
-  const flush = () => {
-    if (!bucket.length) return;
-    const rated = bucket.filter(x => x.ev.rating > 0);
-    const avg = rated.length ? (rated.reduce((s, x) => s + x.ev.rating, 0) / rated.length).toFixed(1) : null;
-    const [y, m] = curMonth.split('-');
-    html += `<div class="dz-divider"><span class="dz-month">${MONTH_NAMES[+m - 1] || ''} ${y}</span><span class="dz-meta">${bucket.length} ${bucket.length === 1 ? 'encounter' : 'encounters'}${avg ? ` · <span class="dz-avg">★${avg}</span>` : ''}</span></div>`;
-    html += bucket.map(({ ev, item }) => {
-      const verb = EVENT_VERB[ev.kind] || 'logged';
-      const day = (ev.date || '').slice(8, 10);
-      const stars = ev.rating ? renderStars(ev.rating) : '';
-      const note = ev.notes ? `<div class="dz-note">${escapeHtml(ev.notes)}</div>` : '';
-      const coll = state.collections.find(c => c.id === item.collectionId);
-      return `<div class="dz-row" data-id="${escapeAttr(item.id)}"><div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(item.title)}</span><span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
-    }).join('');
-    bucket = [];
+  const filtersActive = view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.search;
+  const avgOf = arr => { const r = arr.filter(x => x.ev.rating > 0); return r.length ? (r.reduce((s, x) => s + x.ev.rating, 0) / r.length).toFixed(1) : null; };
+  const rowHtml = ({ ev, item }) => {
+    const verb = EVENT_VERB[ev.kind] || 'logged';
+    const day = (ev.date || '').slice(8, 10);
+    const stars = ev.rating ? renderStars(ev.rating) : '';
+    const note = ev.notes ? `<div class="dz-note">${escapeHtml(ev.notes)}</div>` : '';
+    const coll = state.collections.find(c => c.id === item.collectionId);
+    return `<div class="dz-row" data-id="${escapeAttr(item.id)}"><div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(item.title)}</span><span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
+  };
+
+  // "On this day" leads the chronicle (only when unfiltered, like the spotlight).
+  let html = filtersActive ? '' : renderOnThisDay();
+
+  // Per-year totals for the chapter headers, then group sorted events: year chapter → month section.
+  const yearTotals = {};
+  for (const e of evts) (yearTotals[(e.ev.date || '').slice(0, 4)] ??= []).push(e);
+  let curYear = null, curMonth = null, monthBucket = [];
+  const flushMonth = () => {
+    if (!monthBucket.length) return;
+    const m = curMonth.split('-')[1];
+    const a = avgOf(monthBucket);
+    html += `<div class="dz-divider"><span class="dz-month">${MONTH_NAMES[+m - 1] || ''}</span><span class="dz-meta">${monthBucket.length} ${monthBucket.length === 1 ? 'encounter' : 'encounters'}${a ? ` · <span class="dz-avg">★${a}</span>` : ''}</span></div>`;
+    html += monthBucket.map(rowHtml).join('');
+    monthBucket = [];
   };
   for (const e of evts) {
-    const ym = (e.ev.date || '').slice(0, 7);
-    if (ym !== curMonth) { flush(); curMonth = ym; }
-    bucket.push(e);
+    const y = (e.ev.date || '').slice(0, 4), ym = (e.ev.date || '').slice(0, 7);
+    if (ym !== curMonth) { flushMonth(); curMonth = ym; }
+    if (y !== curYear) {
+      const ya = avgOf(yearTotals[y]), n = yearTotals[y].length;
+      html += `<div class="dz-year"><span class="dz-yearnum">${y}</span><span class="dz-yearmeta">${n} ${n === 1 ? 'encounter' : 'encounters'}${ya ? ` · ★${ya}` : ''}</span></div>`;
+      curYear = y;
+    }
+    monthBucket.push(e);
   }
-  flush();
+  flushMonth();
   tl.innerHTML = html;
+}
+// Past-year encounters that fall on today's month/day — a calm, ignorable callback (pull, not push).
+function renderOnThisDay() {
+  const td = today(), mmdd = td.slice(5), curY = td.slice(0, 4);
+  const hits = [];
+  for (const it of state.items) for (const ev of (it.events || [])) {
+    if (ev.status === 'queued') continue;
+    if ((ev.date || '').slice(5) === mmdd && (ev.date || '').slice(0, 4) !== curY) hits.push({ ev, item: it });
+  }
+  if (!hits.length) return '';
+  hits.sort((a, b) => a.ev.date < b.ev.date ? 1 : -1);
+  const rows = hits.map(({ ev, item }) => {
+    const yr = (ev.date || '').slice(0, 4), ago = +curY - +yr;
+    const stars = ev.rating ? renderStars(ev.rating) : '';
+    return `<div class="otd-row" data-id="${escapeAttr(item.id)}"><span class="otd-title">${escapeHtml(item.title)}</span><span class="otd-when">${yr} · ${ago}y ago</span><span class="otd-stars">${stars}</span></div>`;
+  }).join('');
+  return `<div class="dz-onthisday"><div class="otd-head">✦ On this day</div>${rows}</div>`;
 }
 
 function renderShelf() {
@@ -2818,7 +2860,7 @@ document.getElementById('view-tabs').addEventListener('click', e => {
   const tab = e.target.closest('.view-tab'); if (tab) setViewMode(tab.dataset.mode);
 });
 document.getElementById('diary-timeline').addEventListener('click', e => {
-  const row = e.target.closest('.dz-row'); if (!row) return;
+  const row = e.target.closest('[data-id]'); if (!row) return;   // dz-row or otd-row
   const item = state.items.find(i => i.id === row.dataset.id);
   if (item) openEntryModal(item);
 });
