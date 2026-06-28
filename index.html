@@ -600,8 +600,28 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 @media (prefers-reduced-motion: reduce) {
   .content.cosmic .diary-timeline::before, .content.cosmic .dz-node-live { animation: none; }
 }
-.claude-take { padding: 10px 12px; background: var(--paper); border-left: 2px solid var(--c-dusty-fg); border-radius: 2px; margin-bottom: 8px; font-size: 12px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
-.claude-take .meta { display: block; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; font-family: 'JetBrains Mono', monospace; }
+/* FEAT-14: Claude's takes = the machine voice — JetBrains Mono on a dotted dusty rail, never serif prose */
+.claude-take { padding: 10px 12px; background: var(--paper); border-left: 2px dotted var(--c-dusty-fg); border-radius: 2px; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.6; color: var(--ink-dim); white-space: pre-wrap; }
+.claude-take .meta { display: block; font-size: 10px; color: var(--c-dusty-fg); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+.claude-take .meta::before { content: '✦ '; }
+
+/* FEAT-14: description provenance — the "who said it" segmented control */
+.note-source { display: flex; align-items: center; gap: 6px; margin: 4px 0 6px; flex-wrap: wrap; }
+.note-source .ns-opt { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--ink-faint); background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 3px 9px; cursor: pointer; transition: color 0.12s, border-color 0.12s, background 0.12s; }
+.note-source .ns-opt:hover { color: var(--ink-dim); border-color: var(--accent-soft); }
+.note-source .ns-opt.active { color: var(--bg); background: var(--c-dusty-fg); border-color: var(--c-dusty-fg); }
+.note-source .ns-name { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 3px 8px; width: 120px; outline: none; }
+.note-source .ns-name:focus { border-color: var(--c-dusty-fg); }
+
+/* FEAT-14: description lanes by source. Serif (authored) is RESERVED for your words. */
+.item-card .desc { margin-top: 2px; }
+.item-card .desc-me, .item-card .desc-none { font-family: 'Instrument Serif', 'Times New Roman', serif; font-size: 15px; color: var(--ink-dim); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item-card .desc-friend { font-family: 'Instrument Serif', 'Times New Roman', serif; font-size: 15px; font-style: italic; color: var(--ink-dim); line-height: 1.4; padding-left: 9px; border-left: 2px solid var(--line); }
+.item-card .desc-claude { font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; color: var(--c-dusty-fg); padding-left: 9px; border-left: 2px dotted var(--c-dusty-fg); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.item-card .desc-by { display: block; font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); margin-top: 3px; }
+.item-card .desc-claude .desc-by { color: var(--c-dusty-fg); margin-top: 0; margin-bottom: 3px; }
+.src-tag { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); }
+.src-tag.src-claude { color: var(--c-dusty-fg); }
 
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--paper-hi); border: 1px solid var(--accent-soft); color: var(--ink); padding: 10px 18px; font-size: 12px; border-radius: 2px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 1000; max-width: 80vw; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
@@ -952,7 +972,16 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           </label>
           <label>Year<input type="number" name="year" placeholder="release year" autocomplete="off" min="0" max="2100" step="1"></label>
           <label>Creator <button type="button" id="enrich-btn" class="enrich-btn" title="ask Claude to fill year & creator">✦ fill</button><input type="text" name="creator" placeholder="director / author / studio" autocomplete="off"></label>
-          <label class="span-2">Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— private</span><textarea name="notes" rows="3" placeholder="thoughts, quotes, who recommended it…"></textarea></label>
+          <label class="span-2">Description <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— the rec / blurb / quote · who said it?</span>
+            <div class="note-source" id="note-source">
+              <button type="button" class="ns-opt" data-src="me">me</button>
+              <button type="button" class="ns-opt" data-src="claude">✦ Claude</button>
+              <button type="button" class="ns-opt" data-src="friend">friend</button>
+              <input type="text" id="note-source-name" class="ns-name" placeholder="who?" autocomplete="off" style="display:none">
+            </div>
+            <textarea name="notes" rows="3" placeholder="why it's here — Claude's pitch, a friend's blurb, a quote…"></textarea>
+            <input type="hidden" name="noteSource" id="note-source-hidden">
+          </label>
           <label class="span-2">Note for Claude <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--c-dusty-fg)">— ✦ for taste-learning</span><textarea name="claudeNote" class="claude-field" rows="2" placeholder="why this rating, what to recommend more/less of…"></textarea></label>
           <label class="span-2">Public review <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— for Letterboxd / Goodreads</span><textarea name="publicReview" rows="3" placeholder="what you'd post publicly…"></textarea></label>
           <label class="span-2">Setup / config<textarea name="config" class="config-field" rows="4" placeholder="for games: platform, sensitivity, keybinds, mods…"></textarea></label>
@@ -1297,6 +1326,7 @@ function projectItem(item) {
   item.rating = ev.rating || 0;
   item.status = ev.status || 'queued';
   item.notes = ev.notes || '';
+  item.noteSource = ev.noteSource || '';   // FEAT-14: who authored the description ('', 'me', 'claude', 'friend:Name')
   item.claudeNote = ev.claudeNote || '';
   item.publicReview = ev.publicReview || '';
   item.claudeReplies = Array.isArray(ev.claudeReplies) ? ev.claudeReplies : [];
@@ -1319,6 +1349,7 @@ function migrate(s) {
   for (const it of s.items) {
     if (typeof it.claudeNote === 'undefined') it.claudeNote = '';
     if (typeof it.publicReview === 'undefined') it.publicReview = '';
+    if (typeof it.noteSource === 'undefined') it.noteSource = '';   // FEAT-14: legacy notes are unattributed
     if (!Array.isArray(it.claudeReplies)) it.claudeReplies = [];
     // Drop dangling collection references so the entry still shows under "Everything"
     // (as "—") instead of being silently filtered into a collection that no longer exists.
@@ -1334,6 +1365,7 @@ function migrate(s) {
         rating: it.rating || 0,
         status: it.status || 'queued',
         notes: it.notes || '',
+        noteSource: it.noteSource || '',
         claudeNote: it.claudeNote || '',
         publicReview: it.publicReview || '',
         claudeReplies: Array.isArray(it.claudeReplies) ? it.claudeReplies : [],
@@ -1641,7 +1673,7 @@ function renderDiary() {
     const verb = EVENT_VERB[ev.kind] || 'logged';
     const day = (ev.date || '').slice(8, 10);
     const stars = ev.rating ? renderStars(ev.rating) : '';
-    const note = ev.notes ? `<div class="dz-note">${escapeHtml(ev.notes)}</div>` : '';
+    const note = ev.notes ? `<div class="dz-note">${sourceTag(ev.noteSource)}${escapeHtml(ev.notes)}</div>` : '';
     const coll = state.collections.find(c => c.id === item.collectionId);
     const nodeSize = (5 + (ev.rating || 0) * 1.5).toFixed(1);   // ember (5px) → supergiant (12.5px)
     const node = `<span class="dz-node${ev.status === 'active' ? ' dz-node-live' : ''}" style="--ns:${nodeSize}px;--nc:${collColor(item.collectionId)}"></span>`;
@@ -1828,7 +1860,7 @@ function renderShelf() {
     const collName = collection ? collection.name : '—';
     const stars = renderStars(it.rating || 0);
     const tagsHtml = (it.tags && it.tags.length) ? `<div class="tags">${it.tags.slice(0, 6).map(t => tagPillHtml(t, view.tags.includes(t))).join('')}</div>` : '';
-    const notesPreview = it.notes ? `<div class="notes-preview">${escapeHtml(it.notes)}</div>` : '';
+    const notesPreview = renderDescription(it.notes, it.noteSource);
     const byline = (it.year || it.creator) ? `<div class="byline">${[it.year, it.creator].filter(Boolean).map(x => escapeHtml(String(x))).join(' · ')}</div>` : '';
     const takeCount = (it.claudeReplies || []).length;
     const flagsHtml = [
@@ -1976,6 +2008,56 @@ tagFieldEl.addEventListener('click', e => {
   if (e.target === tagFieldEl || e.target.id === 'tag-chips') tagEntryEl.focus();
 });
 
+// --- FEAT-14: description provenance ("who said it") -----------------------
+// noteSource encoding: '' = unattributed (legacy) · 'me' · 'claude' · 'friend:Name' (name may be empty).
+function parseNoteSource(s) {
+  if (s === 'me') return { kind: 'me' };
+  if (s === 'claude') return { kind: 'claude' };
+  if (typeof s === 'string' && s.startsWith('friend:')) return { kind: 'friend', name: s.slice(7) };
+  return { kind: 'none' };
+}
+let noteSourceState = '';
+const noteSourceEl = document.getElementById('note-source');
+const noteSourceNameEl = document.getElementById('note-source-name');
+const noteSourceHiddenEl = document.getElementById('note-source-hidden');
+function syncNoteSourceHidden() { noteSourceHiddenEl.value = noteSourceState; }
+function setNoteSource(s) {
+  noteSourceState = s || '';
+  const p = parseNoteSource(noteSourceState);
+  noteSourceEl.querySelectorAll('.ns-opt').forEach(b => b.classList.toggle('active', b.dataset.src === p.kind));
+  if (p.kind === 'friend') { noteSourceNameEl.style.display = ''; noteSourceNameEl.value = p.name || ''; }
+  else { noteSourceNameEl.style.display = 'none'; noteSourceNameEl.value = ''; }
+  syncNoteSourceHidden();
+}
+noteSourceEl.addEventListener('click', e => {
+  const opt = e.target.closest('.ns-opt'); if (!opt) return;
+  const src = opt.dataset.src;
+  const cur = parseNoteSource(noteSourceState).kind;
+  if (src === 'friend') setNoteSource('friend:' + noteSourceNameEl.value.trim());
+  else if (cur === src) setNoteSource('');           // click the active lane again → unattributed
+  else setNoteSource(src);
+  if (src === 'friend') noteSourceNameEl.focus();
+});
+noteSourceNameEl.addEventListener('input', () => { noteSourceState = 'friend:' + noteSourceNameEl.value.trim(); syncNoteSourceHidden(); });
+
+// Render an entry's description in the lane its source dictates. Serif is reserved for the user's own words.
+function renderDescription(notes, source) {
+  if (!notes) return '';
+  const p = parseNoteSource(source);
+  const txt = escapeHtml(notes);
+  if (p.kind === 'claude') return `<div class="desc desc-claude"><span class="desc-by">Claude</span>${txt}</div>`;
+  if (p.kind === 'friend') { const who = p.name ? escapeHtml(p.name) : 'a friend'; return `<div class="desc desc-friend">${txt}<span class="desc-by">— ${who}</span></div>`; }
+  if (p.kind === 'me')     return `<div class="desc desc-me">${txt}</div>`;
+  return `<div class="desc desc-none">${txt}</div>`;   // legacy / unattributed
+}
+// Compact inline provenance marker (Diary + editor event-history, where the note is one line).
+function sourceTag(source) {
+  const p = parseNoteSource(source);
+  if (p.kind === 'claude') return `<span class="src-tag src-claude">✦ Claude</span> `;
+  if (p.kind === 'friend') return `<span class="src-tag">from ${p.name ? escapeHtml(p.name) : 'a friend'}</span> `;
+  return '';
+}
+
 function populateFormCollections() {
   const sel = document.getElementById('form-collection');
   sel.innerHTML = state.collections.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
@@ -2003,6 +2085,7 @@ function openEntryModal(item) {
   setRating(item ? item.rating || 0 : 0);
   setTagChips(item ? (item.tags || []) : []);
   tagEntryEl.value = ''; hideTagSuggest();
+  setNoteSource(item ? (item.noteSource || '') : '');
   if (item) {
     entryForm.title.value = item.title;
     entryForm.collectionId.value = item.collectionId;
@@ -2066,7 +2149,7 @@ function renderEventHistory(item) {
   list.innerHTML = [...events].reverse().map(ev => {
     const verb = EVENT_VERB[ev.kind] || 'logged';
     const stars = ev.rating ? '★' + ev.rating : '·';
-    const note = ev.notes ? `<span class="eh-note">${escapeHtml(ev.notes)}</span>` : '<span class="eh-note"></span>';
+    const note = ev.notes ? `<span class="eh-note">${sourceTag(ev.noteSource)}${escapeHtml(ev.notes)}</span>` : '<span class="eh-note"></span>';
     const del = multi ? `<button type="button" class="eh-del" data-ev="${escapeAttr(ev.id)}" title="remove this pass">×</button>` : '';
     return `<div class="eh-row${ev === latest ? ' current' : ''}"><span class="eh-date">${escapeHtml(ev.date || '—')}</span><span class="eh-verb">${verb}</span><span class="eh-rating">${stars}</span>${note}<span class="eh-status">${escapeHtml(ev.status || '')}</span>${del}</div>`;
   }).join('');
@@ -2080,6 +2163,7 @@ function armRelog() {
   setRating(0);
   entryForm.status.value = 'done';
   entryForm.notes.value = '';
+  setNoteSource('');
   entryForm.claudeNote.value = '';
   entryForm.publicReview.value = '';
   toast('logging a new pass — set rating & notes, then save.');
@@ -2104,6 +2188,7 @@ document.getElementById('event-history-list').addEventListener('click', e => {
   setRating(item.rating || 0);
   entryForm.status.value = item.status;
   entryForm.notes.value = item.notes || '';
+  setNoteSource(item.noteSource || '');
   entryForm.claudeNote.value = item.claudeNote || '';
   entryForm.publicReview.value = item.publicReview || '';
   renderEventHistory(item);
@@ -2207,6 +2292,7 @@ entryForm.addEventListener('submit', e => {
     year: (() => { const y = parseInt(fd.get('year'), 10); return Number.isInteger(y) && y > 0 ? y : null; })(),
     creator: (fd.get('creator') || '').trim().slice(0, 120) || null,
     notes: fd.get('notes').trim(),
+    noteSource: (fd.get('noteSource') || '').trim().slice(0, 80),
     claudeNote: fd.get('claudeNote').trim(),
     publicReview: fd.get('publicReview').trim(),
     config: fd.get('config'),
@@ -2226,14 +2312,14 @@ entryForm.addEventListener('submit', e => {
       if (isRelog) {
         // Append a brand-new encounter (rewatch / replay / reread) — the title's other passes stay.
         live.events.push({ id: uid(), date: today(), kind: kindFor(data.collectionId),
-          rating: data.rating, status: data.status, notes: data.notes, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] });
+          rating: data.rating, status: data.status, notes: data.notes, noteSource: data.noteSource, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] });
         toast('logged again.');
       } else {
         // Per-encounter fields write to the latest event (Phase A: one event per title).
         let ev = latestEvent(live);
         if (!ev) { ev = { id: uid(), date: today(), kind: kindFor(data.collectionId), claudeReplies: [] }; live.events = [ev]; }
         const wasDone = ev.status === 'done';
-        ev.rating = data.rating; ev.status = data.status; ev.notes = data.notes; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
+        ev.rating = data.rating; ev.status = data.status; ev.notes = data.notes; ev.noteSource = data.noteSource; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
         if (data.status === 'done' && !wasDone) ev.date = today();   // stamp the finish date when entering "done"
       }
       projectItem(live);
@@ -2244,7 +2330,7 @@ entryForm.addEventListener('submit', e => {
       id: uid(), title: data.title, collectionId: data.collectionId, tags: data.tags, config: data.config,
       year: data.year, creator: data.creator, createdAt: today(), updatedAt: now,
       events: [{ id: uid(), date: today(), kind: kindFor(data.collectionId), rating: data.rating, status: data.status,
-                 notes: data.notes, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] }],
+                 notes: data.notes, noteSource: data.noteSource, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] }],
     };
     projectItem(savedItem);
     state.items.push(savedItem);

@@ -1,5 +1,5 @@
 // Bitácora service worker — offline-first for the app shell, pass-through for APIs
-const CACHE_NAME = 'bitacora-v5';
+const CACHE_NAME = 'bitacora-v6';
 const APP_SHELL = ['./', './index.html'];
 
 self.addEventListener('install', e => {
