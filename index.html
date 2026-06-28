@@ -1053,6 +1053,35 @@ function isViewDefault() { return view.collection === 'all' && view.status === '
 function resetView() { view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.search = ''; const s = document.getElementById('search'); if (s) s.value = ''; }
 let editing = null;
 
+// ── Event model (FEAT-02 Phase A) ─────────────────────────────────────────────
+// Each title carries an append-only events[] (encounters: watch/read/play/listen).
+// The flat item fields (rating/status/completedAt/notes/claudeNote/publicReview/
+// claudeReplies) are a denormalized PROJECTION of the LATEST event, kept current by
+// projectItem(). So every existing render / sync / LeandroOS-integration path keeps
+// reading the exact shape it always has — events[] is purely additive.
+function kindFor(collectionId) {
+  const c = (collectionId || '').toLowerCase();
+  if (c.includes('film') || c.includes('tv') || c.includes('cine') || c.includes('serie') || c.includes('show')) return 'watch';
+  if (c.includes('book') || c.includes('libro') || c.includes('read')) return 'read';
+  if (c.includes('game') || c.includes('juego')) return 'play';
+  if (c.includes('music') || c.includes('album') || c.includes('disco') || c.includes('song')) return 'listen';
+  return 'log';
+}
+function latestEvent(item) { return item && item.events && item.events.length ? item.events[item.events.length - 1] : null; }
+// Stamp the flat (projected) fields onto the title from its latest event.
+function projectItem(item) {
+  const ev = latestEvent(item);
+  if (!ev) return item;
+  item.rating = ev.rating || 0;
+  item.status = ev.status || 'queued';
+  item.notes = ev.notes || '';
+  item.claudeNote = ev.claudeNote || '';
+  item.publicReview = ev.publicReview || '';
+  item.claudeReplies = Array.isArray(ev.claudeReplies) ? ev.claudeReplies : [];
+  item.completedAt = ev.status === 'done' ? (ev.date || null) : null;
+  return item;
+}
+
 function migrate(s) {
   s.tagGroups = s.tagGroups || [];
   s.tagAssignments = s.tagAssignments || {};
@@ -1072,6 +1101,23 @@ function migrate(s) {
     // Drop dangling collection references so the entry still shows under "Everything"
     // (as "—") instead of being silently filtered into a collection that no longer exists.
     if (it.collectionId && !collIds.has(it.collectionId)) it.collectionId = null;
+    // FEAT-02: back-fill the event log from the legacy flat fields (one event per title),
+    // then re-project so the flat fields stay a consistent mirror of the latest event.
+    // Guarded so a re-run or a half-synced gist can't double-migrate.
+    if (!Array.isArray(it.events) || !it.events.length) {
+      it.events = [{
+        id: uid(),
+        date: it.completedAt || it.createdAt || today(),
+        kind: kindFor(it.collectionId),
+        rating: it.rating || 0,
+        status: it.status || 'queued',
+        notes: it.notes || '',
+        claudeNote: it.claudeNote || '',
+        publicReview: it.publicReview || '',
+        claudeReplies: Array.isArray(it.claudeReplies) ? it.claudeReplies : [],
+      }];
+    }
+    projectItem(it);
   }
   return s;
 }
@@ -1103,10 +1149,13 @@ function persistState() {
     if (quota) {
       let trimmed = 0;
       for (const it of state.items) {
-        if (Array.isArray(it.claudeReplies) && it.claudeReplies.length > 1) {
-          trimmed += it.claudeReplies.length - 1;
-          it.claudeReplies = it.claudeReplies.slice(-1);
+        for (const ev of (it.events || [])) {
+          if (Array.isArray(ev.claudeReplies) && ev.claudeReplies.length > 1) {
+            trimmed += ev.claudeReplies.length - 1;
+            ev.claudeReplies = ev.claudeReplies.slice(-1);
+          }
         }
+        projectItem(it);
       }
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1129,8 +1178,10 @@ function save({ markModified = true, push = true } = {}) {
   if (push && !suppressSync && isSyncEnabled()) scheduleSyncPush();
 }
 
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-const today = () => new Date().toISOString().slice(0, 10);
+// Function declarations (hoisted) so migrate() — called during the top-level `load()`
+// before this point in source — can use them without hitting the const TDZ.
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function today() { return new Date().toISOString().slice(0, 10); }
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 const clampRating = (n) => { const r = Math.max(0, Math.min(5, parseFloat(n) || 0)); return Math.round(r * 2) / 2; };
 
@@ -1432,7 +1483,9 @@ document.getElementById('clear-takes-btn').addEventListener('click', () => {
   if (!confirm("Wipe Claude's history for this entry?")) return;
   const item = state.items.find(i => i.id === editing);
   if (!item) return;
-  item.claudeReplies = [];
+  const ev = latestEvent(item);
+  if (ev) ev.claudeReplies = [];
+  projectItem(item);
   save();
   renderClaudeTakes(item);
   renderItems();
@@ -1511,23 +1564,32 @@ entryForm.addEventListener('submit', e => {
   };
   if (!data.title) return;
   const now = Date.now();
-  let savedItem, prevItem = null;
+  let savedItem, prevSnap = null;
   const isNew = !editing;
   if (editing) {
-    const idx = state.items.findIndex(i => i.id === editing);
-    if (idx >= 0) {
-      prevItem = state.items[idx];
-      savedItem = { ...prevItem, ...data,
-        // Stamp completedAt when entering "done", keep it while it stays done,
-        // and clear it when the entry leaves "done".
-        completedAt: data.status === 'done'
-          ? (prevItem.status === 'done' ? prevItem.completedAt : today())
-          : null,
-        updatedAt: now };
-      state.items[idx] = savedItem;
+    const live = state.items.find(i => i.id === editing);
+    if (live) {
+      // Snapshot the pre-edit projection so shouldTriggerClaude can detect a real change.
+      prevSnap = { rating: live.rating, status: live.status, notes: live.notes, claudeNote: live.claudeNote, publicReview: live.publicReview };
+      // Title-level fields live on the item itself.
+      live.title = data.title; live.collectionId = data.collectionId; live.tags = data.tags; live.config = data.config; live.updatedAt = now;
+      // Per-encounter fields write to the latest event (Phase A: one event per title).
+      let ev = latestEvent(live);
+      if (!ev) { ev = { id: uid(), date: today(), kind: kindFor(data.collectionId), claudeReplies: [] }; live.events = [ev]; }
+      const wasDone = ev.status === 'done';
+      ev.rating = data.rating; ev.status = data.status; ev.notes = data.notes; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
+      if (data.status === 'done' && !wasDone) ev.date = today();   // stamp the finish date when entering "done"
+      projectItem(live);
+      savedItem = live;
     }
   } else {
-    savedItem = { id: uid(), ...data, claudeReplies: [], createdAt: today(), completedAt: data.status === 'done' ? today() : null, updatedAt: now };
+    savedItem = {
+      id: uid(), title: data.title, collectionId: data.collectionId, tags: data.tags, config: data.config,
+      createdAt: today(), updatedAt: now,
+      events: [{ id: uid(), date: today(), kind: kindFor(data.collectionId), rating: data.rating, status: data.status,
+                 notes: data.notes, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] }],
+    };
+    projectItem(savedItem);
     state.items.push(savedItem);
     toast('logged.');
   }
@@ -1535,7 +1597,7 @@ entryForm.addEventListener('submit', e => {
   closeEntryModal();
   renderAll();
   if (savedItem) {
-    if (isClaudeEnabled() && state.settings.claude.respondOnLog && shouldTriggerClaude(prevItem, savedItem, isNew)) {
+    if (isClaudeEnabled() && state.settings.claude.respondOnLog && shouldTriggerClaude(prevSnap, savedItem, isNew)) {
       respondOnLog(savedItem, isNew);
     } else if (state.settings.claude.respondOnLog && !isClaudeEnabled()) {
       // synced-on, but no API key on this device — gentle nudge
@@ -1581,9 +1643,10 @@ document.getElementById('share-go').addEventListener('click', async () => {
   if (shareItemId) {
     const item = state.items.find(i => i.id === shareItemId);
     if (item) {
-      item.publicReview = text;
-      if (mirror) item.claudeNote = text;
+      const ev = latestEvent(item);
+      if (ev) { ev.publicReview = text; if (mirror) ev.claudeNote = text; }
       item.updatedAt = Date.now();
+      projectItem(item);
       save();
       renderItems();
     }
@@ -2333,8 +2396,12 @@ async function respondOnLog(entry, isNew) {
     showClaudePanel({ title: entry.title, status: 'done', text });
     const liveItem = state.items.find(i => i.id === entryId);
     if (liveItem) {
-      if (!Array.isArray(liveItem.claudeReplies)) liveItem.claudeReplies = [];
-      liveItem.claudeReplies.push({ at: Date.now(), model: state.settings.claude.model, text });
+      const ev = latestEvent(liveItem);
+      if (ev) {
+        if (!Array.isArray(ev.claudeReplies)) ev.claudeReplies = [];
+        ev.claudeReplies.push({ at: Date.now(), model: state.settings.claude.model, text });
+        projectItem(liveItem);
+      }
       save();
       renderItems();
     }
