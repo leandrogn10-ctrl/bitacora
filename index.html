@@ -460,6 +460,34 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .enrich-btn:hover { background: var(--c-dusty-bg); }
 .enrich-btn:disabled { opacity: 0.5; }
 .item-card .byline { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--ink-faint); margin-top: 6px; }
+/* The Observatory (FEAT-03) — clean gold-ramped stats */
+.ob-toolbar { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+.ob-unit { display: flex; gap: 4px; }
+.ob-unit-btn { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); padding: 6px 13px; border: 1px solid var(--line); border-radius: 3px; transition: color 0.12s, background 0.12s, border-color 0.12s; }
+.ob-unit-btn:hover { color: var(--ink-dim); }
+.ob-unit-btn.active { color: var(--ink); background: var(--bg-elev); border-color: var(--c-gold-bd); }
+.ob-fingerprint { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 12px; margin-bottom: 34px; }
+.ob-stat { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 4px; padding: 17px 14px; text-align: center; }
+.ob-stat-n { font-family: 'Instrument Serif', serif; font-size: 30px; line-height: 1; color: var(--gold); }
+.ob-stat-l { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); margin-top: 9px; }
+.ob-panel { margin-bottom: 32px; }
+.ob-h { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.ob-bar { display: flex; align-items: center; gap: 13px; padding: 5px 0; }
+.ob-bar[data-coll], .ob-bar[data-tag] { cursor: pointer; }
+.ob-bar[data-coll]:hover .ob-bar-label, .ob-bar[data-tag]:hover .ob-bar-label { color: var(--accent); }
+.ob-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-dim); width: 150px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.12s; }
+.ob-bar-track { flex: 1; height: 9px; background: var(--bg-elev); border-radius: 5px; overflow: hidden; }
+.ob-bar-fill { display: block; height: 100%; background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 65%, var(--accent2)), var(--gold)); border-radius: 5px; }
+.ob-bar-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); width: 74px; text-align: right; flex-shrink: 0; }
+.ob-hist { display: flex; align-items: flex-end; gap: 8px; height: 150px; }
+.ob-hbar { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.ob-hbar[data-rating] { cursor: pointer; }
+.ob-hbar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.ob-hbar-fill { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: filter 0.12s; }
+.ob-hbar[data-rating]:hover .ob-hbar-fill { filter: brightness(1.25); }
+.ob-hbar-x { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--ink-faint); margin-top: 7px; }
+.ob-hint { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 14px; color: var(--ink-faint); padding: 6px 0; }
+.ob-empty { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 18px; color: var(--ink-faint); padding: 50px; text-align: center; }
 .dz-year { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 42px 0 4px; }
 .dz-year:first-child { margin-top: 4px; }
 .dz-yearnum { font-family: 'Instrument Serif', serif; font-size: 40px; line-height: 1; color: var(--ink); letter-spacing: -0.01em; }
@@ -802,6 +830,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
     <div class="view-tabs" id="view-tabs">
       <button class="view-tab active" data-mode="shelf" title="your library (s)">▦ Shelf</button>
       <button class="view-tab" data-mode="diary" title="your chronicle of encounters (d)">❦ Diary</button>
+      <button class="view-tab" data-mode="observatory" title="patterns in your taste (o)">◴ Observatory</button>
     </div>
     <div class="content-header">
       <h2 id="current-view">Everything</h2>
@@ -829,6 +858,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
     </section>
     <div id="items-grid" class="items-grid"></div>
     <div id="diary-timeline" class="diary-timeline" style="display:none"></div>
+    <div id="observatory" class="observatory" style="display:none"></div>
     <div id="empty-state" class="empty-state">
       <div class="ornament">❦</div>
       <h3 id="empty-heading">nothing here yet</h3>
@@ -1040,7 +1070,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <div><kbd>⌘</kbd><kbd>K</kbd></div><span>Open the command palette</span>
           <div><kbd>/</kbd></div><span>Jump to search</span>
           <div><kbd>N</kbd></div><span>New entry</span>
-          <div><kbd>D</kbd> <kbd>S</kbd></div><span>Switch to Diary / Shelf</span>
+          <div><kbd>S</kbd> <kbd>D</kbd> <kbd>O</kbd></div><span>Shelf / Diary / Observatory</span>
           <div><kbd>?</kbd></div><span>Open this guide</span>
           <div><kbd>Esc</kbd></div><span>Close any panel or filter</span>
         </div>
@@ -1433,13 +1463,17 @@ function renderSpotlight() {
 // Mode dispatcher: every renderItems() caller (renderAll + all the edit handlers) becomes
 // Shelf/Diary-aware, and the chrome (tabs, sort bar, containers) toggles in one place.
 function renderItems() {
-  const diary = view.mode === 'diary';
-  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === view.mode));
+  const mode = view.mode;
+  const diary = mode === 'diary', obs = mode === 'observatory', shelf = mode === 'shelf';
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  document.querySelector('.filter-bar').style.display = obs ? 'none' : '';   // Observatory has no filters
   document.querySelector('.sort-bar').style.display = diary ? 'none' : '';   // diary is inherently chronological
-  document.getElementById('items-grid').style.display = diary ? 'none' : '';
+  document.getElementById('items-grid').style.display = shelf ? '' : 'none';
   document.getElementById('diary-timeline').style.display = diary ? '' : 'none';
+  document.getElementById('observatory').style.display = obs ? '' : 'none';
   document.querySelector('.content').classList.toggle('cosmic', diary);
-  if (diary) renderDiary(); else renderShelf();
+  if (obs) document.getElementById('spotlight').style.display = 'none';
+  if (obs) renderObservatory(); else if (diary) renderDiary(); else renderShelf();
 }
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1545,6 +1579,84 @@ function renderOnThisDay() {
     return `<div class="otd-row" data-id="${escapeAttr(item.id)}"><span class="otd-title">${escapeHtml(item.title)}</span><span class="otd-when">${yr} · ${ago}y ago</span><span class="otd-stars">${stars}</span></div>`;
   }).join('');
   return `<div class="dz-onthisday"><div class="otd-head">✦ On this day</div>${rows}</div>`;
+}
+
+// ── The Observatory (FEAT-03) — clean, gold-ramped stats over titles or encounters ──
+function obsPanel(title, body) { return `<section class="ob-panel"><h3 class="ob-h">${title}</h3>${body}</section>`; }
+function obsRankBar(label, count, max, sub, attr = '') {
+  const pct = Math.round(count / max * 100);
+  return `<div class="ob-bar"${attr}><span class="ob-bar-label">${label}</span><span class="ob-bar-track"><span class="ob-bar-fill" style="width:${pct}%"></span></span><span class="ob-bar-val">${sub}</span></div>`;
+}
+function obsGoldRamp(rating) { const t = (rating - 1) / 4; return `color-mix(in srgb, var(--gold) ${Math.round(34 + t * 66)}%, var(--ink-faint))`; }
+function renderObservatory() {
+  document.getElementById('current-view').textContent = 'Observatory';
+  document.getElementById('view-meta').innerHTML = '';
+  const el = document.getElementById('observatory');
+  if (!state.items.length) { el.innerHTML = `<div class="ob-empty">Log a few things — the Observatory needs a sky to read.</div>`; return; }
+  const unit = view.obsUnit || 'titles';
+  // One record per title (latest/projected values), or one per non-queued encounter.
+  const recs = [];
+  if (unit === 'titles') {
+    for (const it of state.items) recs.push({ rating: it.rating || 0, status: it.status, collectionId: it.collectionId, tags: it.tags || [], year: it.year, creator: it.creator });
+  } else {
+    for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued') continue; recs.push({ rating: ev.rating || 0, status: ev.status, collectionId: it.collectionId, tags: it.tags || [], year: it.year, creator: it.creator }); }
+  }
+
+  // Fingerprint
+  const titles = state.items.length;
+  const encounters = state.items.reduce((s, it) => s + (it.events || []).filter(e => e.status !== 'queued').length, 0);
+  const rated = recs.filter(r => r.rating > 0);
+  const mean = rated.length ? (rated.reduce((s, r) => s + r.rating, 0) / rated.length).toFixed(2) : '—';
+  const dropRate = titles ? Math.round(state.items.filter(i => i.status === 'dropped').length / titles * 100) : 0;
+  const monthCount = {};
+  for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued') continue; const ym = (ev.date || '').slice(0, 7); if (ym) monthCount[ym] = (monthCount[ym] || 0) + 1; }
+  const busiest = Object.entries(monthCount).sort((a, b) => b[1] - a[1])[0];
+  const busiestLabel = busiest ? `${MONTH_NAMES[+busiest[0].slice(5, 7) - 1].slice(0, 3)} '${busiest[0].slice(2, 4)}` : '—';
+  const stat = (n, l) => `<div class="ob-stat"><div class="ob-stat-n">${n}</div><div class="ob-stat-l">${l}</div></div>`;
+
+  let html = `<div class="ob-toolbar"><div class="ob-unit"><button class="ob-unit-btn${unit === 'titles' ? ' active' : ''}" data-unit="titles">by titles</button><button class="ob-unit-btn${unit === 'encounters' ? ' active' : ''}" data-unit="encounters">by encounters</button></div></div>`;
+  html += `<div class="ob-fingerprint">${stat(titles, 'titles')}${stat(encounters, 'encounters')}${stat('★' + mean, 'mean rating')}${stat(dropRate + '%', 'drop rate')}${stat(busiestLabel, 'busiest month')}</div>`;
+
+  // Ratings histogram
+  const buckets = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+  const hc = buckets.map(b => recs.filter(r => Math.round(r.rating * 2) / 2 === b).length);
+  const hMax = Math.max(1, ...hc);
+  html += obsPanel('Ratings', `<div class="ob-hist">${buckets.map((b, i) => `<div class="ob-hbar" data-rating="${b}" title="${b}★ · ${hc[i]}"><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(hc[i] / hMax * 100)}%;background:${obsGoldRamp(b)}"></div></div><div class="ob-hbar-x">${b}</div></div>`).join('')}</div>`);
+
+  // By medium
+  const meds = state.collections.map(c => { const rs = recs.filter(r => r.collectionId === c.id); const rr = rs.filter(r => r.rating > 0); return { id: c.id, name: c.name, count: rs.length, avg: rr.length ? rr.reduce((s, r) => s + r.rating, 0) / rr.length : 0 }; }).filter(m => m.count > 0).sort((a, b) => b.count - a.count);
+  const medMax = Math.max(1, ...meds.map(m => m.count));
+  html += obsPanel('By medium', meds.map(m => obsRankBar(escapeHtml(m.name), m.count, medMax, `${m.count}${m.avg ? ` · ★${m.avg.toFixed(1)}` : ''}`, ` data-coll="${escapeAttr(m.id)}"`)).join(''));
+
+  // Top tags
+  const tagCount = {};
+  for (const r of recs) for (const t of r.tags) tagCount[t] = (tagCount[t] || 0) + 1;
+  const topTags = Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const tagMax = Math.max(1, ...topTags.map(t => t[1]));
+  html += obsPanel('Top tags', topTags.length ? topTags.map(([t, n]) => obsRankBar(escapeHtml(t), n, tagMax, n, ` data-tag="${escapeAttr(t)}"`)).join('') : `<div class="ob-hint">no tags yet</div>`);
+
+  // By decade
+  const decCount = {};
+  for (const r of recs) if (r.year) { const d = Math.floor(r.year / 10) * 10; decCount[d] = (decCount[d] || 0) + 1; }
+  const decs = Object.entries(decCount).sort((a, b) => a[0] - b[0]);
+  const decMax = Math.max(1, ...decs.map(d => d[1]));
+  html += obsPanel('By decade', decs.length ? decs.map(([d, n]) => obsRankBar(d + 's', n, decMax, n)).join('') : `<div class="ob-hint">add release years (✦ enrich library) to chart decades</div>`);
+
+  // Top creators
+  const crCount = {};
+  for (const r of recs) if (r.creator) crCount[r.creator] = (crCount[r.creator] || 0) + 1;
+  const topCr = Object.entries(crCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const crMax = Math.max(1, ...topCr.map(c => c[1]));
+  html += obsPanel('Top creators', topCr.length ? topCr.map(([c, n]) => obsRankBar(escapeHtml(c), n, crMax, n)).join('') : `<div class="ob-hint">add creators (✦ enrich library) to chart creators</div>`);
+
+  // Encounters over time (by year, always event-based)
+  const yc = {};
+  for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued') continue; const y = (ev.date || '').slice(0, 4); if (y) yc[y] = (yc[y] || 0) + 1; }
+  const years = Object.entries(yc).sort((a, b) => a[0] - b[0]);
+  const yMax = Math.max(1, ...years.map(y => y[1]));
+  html += obsPanel('Encounters over time', `<div class="ob-hist">${years.map(([y, n]) => `<div class="ob-hbar" title="${y} · ${n}"><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(n / yMax * 100)}%;background:var(--gold)"></div></div><div class="ob-hbar-x">'${y.slice(2)}</div></div>`).join('')}</div>`);
+
+  el.innerHTML = html;
 }
 
 function renderShelf() {
@@ -3004,6 +3116,13 @@ document.getElementById('diary-timeline').addEventListener('click', e => {
   const item = state.items.find(i => i.id === row.dataset.id);
   if (item) openEntryModal(item);
 });
+// Observatory: unit toggle + drill-down (a stat is a filter — bars jump to the filtered Shelf).
+document.getElementById('observatory').addEventListener('click', e => {
+  const u = e.target.closest('[data-unit]'); if (u) { view.obsUnit = u.dataset.unit; renderObservatory(); return; }
+  const c = e.target.closest('[data-coll]'); if (c) { view.collection = c.dataset.coll; view.status = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
+  const t = e.target.closest('[data-tag]'); if (t) { view.tags = [t.dataset.tag]; view.collection = 'all'; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
+  const r = e.target.closest('[data-rating]'); if (r) { view.minRating = parseFloat(r.dataset.rating); view.collection = 'all'; view.tags = []; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
+});
 document.getElementById('view-meta').addEventListener('click', e => {
   if (e.target.classList.contains('clear-tag')) { view.tags = view.tags.filter(t => t !== e.target.dataset.tag); renderAll(); }
   if (e.target.id === 'clear-rating') { view.minRating = 0; renderAll(); }
@@ -3098,6 +3217,7 @@ document.addEventListener('keydown', e => {
   if (e.key === '?') { e.preventDefault(); openHelp(); }
   if (e.key === 'd') { e.preventDefault(); setViewMode('diary'); }
   if (e.key === 's') { e.preventDefault(); setViewMode('shelf'); }
+  if (e.key === 'o') { e.preventDefault(); setViewMode('observatory'); }
 });
 
 let toastTimer = null;
@@ -3274,6 +3394,7 @@ function paletteActions() {
   cmd('help', 'Keyboard & commands', 'shortcuts & palette guide', '?', 'help guide keyboard shortcuts commands cheatsheet how', () => openHelp());
   cmd('diary', 'Diary', 'chronological timeline of encounters', '❦', 'diary timeline chronological history chronicle view', () => setViewMode('diary'), 'D');
   cmd('shelf', 'Shelf', 'the library grid', '▦', 'shelf grid library view shelves cards', () => setViewMode('shelf'), 'S');
+  cmd('observatory', 'Observatory', 'stats & patterns in your taste', '◴', 'observatory stats statistics dashboard patterns charts ratings decade creator', () => setViewMode('observatory'), 'O');
   if (isClaudeEnabled()) cmd('enrich', 'Enrich library', 'fill missing year & creator via Claude', '✦', 'enrich library year creator director author studio fill metadata claude backfill', () => enrichLibrary());
   STATUSES.forEach(s => cmd('st:' + s, 'Show ' + s, 'filter by status', '◓', 'filter status ' + s, () => { view.status = s; renderAll(); }));
   if (isSyncEnabled()) cmd('sync', 'Sync now', 'pull + push', '↻', 'sync cloud gist pull push refresh', () => { Promise.resolve(syncPull()).then(syncPush); toast('syncing…'); });
