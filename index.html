@@ -951,7 +951,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
         <div class="help-grid">
           <div>type</div><span>Fuzzy-search titles, tags &amp; commands — best matches first</span>
           <div><kbd>›</kbd></div><span>Show only commands</span>
-          <div><kbd>↑</kbd><kbd>↓</kbd></div><span>Move · <kbd>⏎</kbd> open · <kbd>⌘</kbd><kbd>⏎</kbd> ask Claude about it</span>
+          <div><kbd>↑</kbd><kbd>↓</kbd></div><span>Move · <kbd>⏎</kbd> open · <kbd>⌘</kbd><kbd>⏎</kbd> log again (rewatch/replay)</span>
           <div>a tag</div><span>Type a tag name, <kbd>⏎</kbd> filters the library by it</span>
           <div><kbd>+</kbd></div><span>Combo filters: <em>june + books</em>, <em>june + pop</em>, <em>active + 4</em></span>
           <div>no match</div><span>Falls back to <em>Log "…"</em> or <em>Ask Claude "…"</em></span>
@@ -1035,7 +1035,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
       <input id="cmdk-input" placeholder="search titles & commands, or type ›  for commands…" autocomplete="off" spellcheck="false">
     </div>
     <div class="cmdk-results" id="cmdk-results"></div>
-    <div class="cmdk-foot"><span>↑↓ <b>move</b></span><span>⏎ <b>open</b></span><span>⌘⏎ <b>ask claude</b></span><span>esc <b>close</b></span></div>
+    <div class="cmdk-foot"><span>↑↓ <b>move</b></span><span>⏎ <b>open</b></span><span>⌘⏎ <b>log again</b></span><span>esc <b>close</b></span></div>
   </div>
 </dialog>
 
@@ -1508,7 +1508,7 @@ function renderEventHistory(item) {
 }
 // "Log again" arms the editor to capture a NEW encounter: keep title/collection/tags, clear the
 // per-pass fields. Nothing is written until Save (so a cancelled re-log leaves no orphan event).
-document.getElementById('relog-btn').addEventListener('click', () => {
+function armRelog() {
   if (!editing) return;
   relogging = true;
   document.getElementById('modal-title').textContent = 'New pass';
@@ -1518,8 +1518,11 @@ document.getElementById('relog-btn').addEventListener('click', () => {
   entryForm.claudeNote.value = '';
   entryForm.publicReview.value = '';
   toast('logging a new pass — set rating & notes, then save.');
-  setTimeout(() => entryForm.notes.focus(), 30);
-});
+  setTimeout(() => entryForm.notes.focus(), 60);   // after openEntryModal's title-focus (50ms)
+}
+document.getElementById('relog-btn').addEventListener('click', armRelog);
+// Open an item's editor already armed for a new pass (the ⌘K ⌘⏎ rewatch shortcut).
+function relogItem(item) { openEntryModal(item); armRelog(); }
 // Remove one past encounter (never the last). Non-destructive-with-confirm; the title stays.
 document.getElementById('event-history-list').addEventListener('click', e => {
   const del = e.target.closest('.eh-del'); if (!del || !editing) return;
@@ -2980,7 +2983,7 @@ function paletteActions() {
       sub: `${stars} · ${it.status} · ${coll?.name || '—'}`,
       keywords: it.title + ' ' + (it.tags || []).join(' '),
       run: () => openEntryModal(it),
-      secondary: () => askClaudeAboutItem(it),
+      secondary: () => relogItem(it),
     });
   });
   return A;
