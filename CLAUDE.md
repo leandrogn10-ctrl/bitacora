@@ -90,8 +90,8 @@ settings, **never logged or exported**.
 - Hardware: **MacBook Pro M2 Pro / 16 GB** (room for SVG/CSS-anim/moderate WebGL; avoid runaway
   per-frame JS / huge DOM).
 
-## Status — 2026-06-28
-- **Shipped & merged to `main` AND pushed to `origin/main`** (origin now current through FEAT-14):
+## Status — 2026-06-30
+- **Shipped & merged to `main` AND pushed to `origin/main`** (origin now current through FEAT-05):
   FEAT-01 (palette + rating/tag/creator/decade filters + `?` cheatsheet + Esc/Tab reset),
   FEAT-02 (event model A/B/C + cosmic Diary "La Línea Sagrada"),
   FEAT-03 (Observatory + year/creator capture + Rewatch Lab),
@@ -100,20 +100,25 @@ settings, **never logged or exported**.
   FEAT-14 (description **voice system**: additive `noteSource` `''`/`me`/`claude`/`friend:Name`;
   three-lane rendering — Claude=mono+dotted dusty rail+✦, friend=serif quote+"— Name", you/legacy=serif —
   on cards/Diary/history; takes restyled to the machine voice; **serif reserved for the user's words**;
-  takes stay auto-on-save).
-- **Shipped, on branch `feat/mood-pace` (NOT merged):** **FEAT-05** — **Mood & Pace as AI-assigned
-  tags** (redesigned per Leandro: no manual editor UI; AI researches the work and tags it). Both are
-  plain **tags** in seeded groups (`migrate` via `settings.taxonomySeeded`: **Mood** `plum` = the curated
-  12; **Pace** `sage` = slow/medium/fast). `fetchYearCreator` → **`fetchMeta`** now returns
-  `{year, creator, mood[], pace}` in the SAME Sonnet call (no extra round-trip; mood only from the fixed
-  list, abstain-don't-guess). `applyMeta` fills blanks only (mood = add missing; pace = one tag if none);
-  `needsMeta` gates `autoEnrich` (new logs) + `enrichLibrary` (sweep now covers mood/pace too); the `✦
-  fill` button adds them as reviewable chips. Mood/pace render as colored tag pills; filter/merge via the
-  normal tag system. Observatory **"By pace"** panel reads the pace tags, kept ordinal (slow→med→fast),
-  drills via `data-tag`. `buildClaudeMessage` emits labeled `- Mood:` / `- Pace:`. **No scalar `pace`
-  field, no `view.pace`, no manual controls** (all removed). Verified in-browser (seeding, colored pills,
-  Observatory panel + drill, editor-clean); live enrich is logic-verified (needs an API key to fire).
-  SW now `bitacora-v8`.
+  takes stay auto-on-save),
+  FEAT-05 (**Mood & Pace as AI-assigned tags** — no manual UI; AI researches the work and tags it.
+  Both are plain **tags** in seeded groups via `settings.taxonomySeeded`: **Mood** `plum` = curated 12;
+  **Pace** `sage` = slow/medium/fast. `fetchYearCreator` → **`fetchMeta`** returns
+  `{year, creator, mood[], pace}` in ONE Sonnet call; `applyMeta` fills blanks only; `needsMeta` gates
+  `autoEnrich` + `enrichLibrary`; `✦ fill` adds reviewable chips. Observatory **"By pace"** panel reads
+  pace tags ordinal slow→med→fast, `data-tag` drill. `buildClaudeMessage` emits `- Mood:` / `- Pace:`.
+  No scalar `pace` field / `view.pace` / manual controls. SW `bitacora-v8`).
+- **Shipped, on branch `feat/status-paused` (NOT merged):** **FEAT-04** — **`paused` status** (one
+  addition, not the audit's 5). The real gap: started-but-set-aside (TV/games you stepped away from)
+  forced a lie — `active` (untrue) or `dropped` (too final, poisons drop-rate). Added `'paused'` to
+  `STATUSES` (between active/done), the sidebar nav + `count-paused`, the entry `<select>`,
+  `STATUS_LABELS`, `.cmdk-dot.st-paused` + `.status-paused` pill (cool slate `#6f7e8c`/`#9fb0bd` — reads
+  "frozen" against the warm palette), `statusBoost` (1, between active's 2 and queued's 0.5). Paused
+  shows in the Diary (it's a real encounter, not backlog) and is NOT counted as a drop or a completion
+  (no `completedAt`); the queued→done auto-flip leaves it alone. The audit's "exclusive status / multi
+  tags" half was already true (status is a scalar, tags an array); POL-31's `done`/`finished` drift is a
+  cross-surface LeandroOS concern, not fixable from inside `index.html` → out of scope. Verified
+  in-browser (sidebar count, slate pill, filter, select). SW now `bitacora-v9`.
 - **Enrich sweep — ✅ DONE / moot (verified 2026-06-28).** The real 46-item library (deployed origin
   `leandrogn10-ctrl.github.io/bitacora`) is already 100% enriched: **0** items missing `year`/`creator`,
   no blanks. `enrichLibrary()` filters to the missing-set, which is empty → no-op. It filled
@@ -121,6 +126,6 @@ settings, **never logged or exported**.
   strips the API key), so re-paste the key in Settings if you want `autoEnrich` on *new* logs there.
 - **Backlog = source of truth:** `~/Downloads/leandro-os/prototype/BITACORA-AUDIT.md` (§0 status banner,
   §2 features).
-- **Open:** merge `feat/mood-pace` → `main` + push · FEAT-04 status vocab · FEAT-06 roulette ·
+- **Open:** merge `feat/status-paused` → `main` + push · FEAT-06 roulette ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".

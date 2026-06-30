@@ -226,6 +226,7 @@ a:hover { color: var(--accent-soft); }
 .item-card .status-pill { padding: 2px 8px; border-radius: 2px; font-weight: 600; font-size: 9.5px; }
 .status-queued { background: color-mix(in srgb, var(--ink-faint) 18%, transparent); color: var(--ink-faint); }
 .status-active { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); box-shadow: 0 0 12px -3px color-mix(in srgb, var(--accent) 80%, transparent); }
+.status-paused { background: color-mix(in srgb, #6f7e8c 20%, transparent); color: #9fb0bd; }
 .status-done { background: color-mix(in srgb, var(--mc) 16%, transparent); color: var(--mc); }
 .status-dropped { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
 .item-card .notes-preview { font-family: 'Instrument Serif', 'Times New Roman', serif; font-size: 15px; color: var(--ink-dim); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -823,6 +824,7 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .cmdk-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 .cmdk-dot.st-queued { background: var(--ink-faint); }
 .cmdk-dot.st-active { background: var(--accent2); box-shadow: 0 0 7px var(--accent2); }
+.cmdk-dot.st-paused { background: #6f7e8c; }
 .cmdk-dot.st-done { background: var(--gold); }
 .cmdk-dot.st-dropped { background: #6b5e4e; }
 .cmdk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -885,6 +887,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
         <li data-status="all" class="active"><span>All</span><span class="count" id="count-all">0</span></li>
         <li data-status="queued"><span>Queued</span><span class="count" id="count-queued">0</span></li>
         <li data-status="active"><span>In progress</span><span class="count" id="count-active">0</span></li>
+        <li data-status="paused"><span>Paused</span><span class="count" id="count-paused">0</span></li>
         <li data-status="done"><span>Done</span><span class="count" id="count-done">0</span></li>
         <li data-status="dropped"><span>Dropped</span><span class="count" id="count-dropped">0</span></li>
       </ul>
@@ -950,6 +953,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <label>Status
             <select name="status">
               <option value="queued">Queued</option><option value="active">In progress</option>
+              <option value="paused">Paused</option>
               <option value="done">Done</option><option value="dropped">Dropped</option>
             </select>
           </label>
@@ -1273,8 +1277,8 @@ const DEFAULT_COLLECTIONS = [
   { id: 'films', name: 'Films' }, { id: 'tv', name: 'TV' },
   { id: 'games', name: 'Games' }, { id: 'books', name: 'Books' },
 ];
-const STATUSES = ['queued', 'active', 'done', 'dropped'];
-const STATUS_LABELS = { queued: 'Queued', active: 'In progress', done: 'Done', dropped: 'Dropped' };
+const STATUSES = ['queued', 'active', 'paused', 'done', 'dropped'];
+const STATUS_LABELS = { queued: 'Queued', active: 'In progress', paused: 'Paused', done: 'Done', dropped: 'Dropped' };
 const TAG_COLORS = ['terracotta', 'gold', 'sage', 'dusty', 'plum', 'ochre', 'rust', 'ash'];
 // FEAT-05: curated starter moods (hybrid — literary core + coverage). Seed-and-extend: you can add your own.
 const MOOD_PALETTE = ['melancholy', 'tense', 'cozy', 'bleak', 'hopeful', 'uncanny', 'funny', 'luminous', 'cerebral', 'tender', 'adventurous', 'wistful'];
@@ -3770,7 +3774,7 @@ function frecencyScore(id) {
   const ageDays = (Date.now() - e.at) / 86400000;
   return e.n * Math.exp(-ageDays / 10);   // ~10-day half-life
 }
-function statusBoost(s) { return s === 'active' ? 2 : s === 'queued' ? 0.5 : s === 'dropped' ? -2 : 0; }
+function statusBoost(s) { return s === 'active' ? 2 : s === 'paused' ? 1 : s === 'queued' ? 0.5 : s === 'dropped' ? -2 : 0; }
 
 // Subsequence fuzzy matcher: null if `query` isn't a subsequence of `text`, else a
 // score (consecutive-run + word-start bonuses) and the matched char indices to light up.
