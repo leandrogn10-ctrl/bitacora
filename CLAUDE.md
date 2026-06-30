@@ -119,6 +119,36 @@ settings, **never logged or exported**.
   tags" half was already true (status is a scalar, tags an array); POL-31's `done`/`finished` drift is a
   cross-surface LeandroOS concern, not fixable from inside `index.html` → out of scope. Verified
   in-browser (sidebar count, slate pill, filter, select). SW now `bitacora-v9`.
+- **Shipped, on branch `feat/roulette` (stacked on `feat/status-paused`, NOT merged):** **FEAT-06** —
+  **Backlog Roulette** (the now-playing spotlight half was already shipped). Principle: *"spin the room
+  you're standing in"* — the pool IS the current filtered Shelf (`roulettePool()` = `getFilteredItems()`,
+  narrowed to the live backlog `queued/active/paused` only when `isViewDefault()`, never done/dropped).
+  So filtering to In-Progress = "what do I continue?", to a `june` tag = "what to watch in June" (months
+  are just tags — no planner built), to Queued = "what's next".
+  **REDESIGNED per Leandro (the inline 'Up Next' card felt disruptive & meek):** trigger is now a
+  **filter-bar launcher** `#roul-launch` (`❉ Spin · N`) sitting beside Filter-by-tag — it **wears the
+  live pool count** (`renderRouletteBtn()` in the `renderItems` dispatcher), ticks as you filter, hides
+  when pool<2 or in Observatory. Now-Playing reclaimed full width (the `#live-deck` wrapper is gone).
+  The act is a **full-screen Cabaret** — a `<dialog id="roul-modal">` (native focus-trap + `::backdrop`
+  wine vignette/blur) with a gold spotlight cone and **chasing/pulsing bulb marquees** (`buildBulbs()`).
+  **SIX acts deal at random each spin** (`ROUL_ACTS = [actMarquee, actTablero, actCroupier,
+  actSearchlight, actCifrado, actTelon]`, `rnd(ROUL_ACTS)` in `openRoulette`) — all riffle to the SAME
+  lit landing (`reelLand`): **Marquee** (vertical slot-reel → lit band), **Tablero** (split-flap board,
+  per-cell `flapClack`), **Croupier** (3D card-deal, `c3shuffle` then the chosen `.c3-inner` flips),
+  **Searchlight** (a spotlight hops the dim cast, quadratic decel, rests on the winner), **Cifrado**
+  (glyph-scramble resolves left→right), **Telón** (velvet curtain parts). `prefers-reduced-motion` →
+  `actInstant` (skips the performance). Timer bookkeeping (`roulWait`/`roulLoop`/`roulClearTimers`) +
+  a `reelLand` `!stage.open` guard so a mid-act dismiss can't strand or double-fire; transition acts
+  (marquee/croupier/telón) have a **backstop `roulWait`** in case `transitionend` is missed (was: Telón
+  stranded because `transform` won't transition from `none` — fixed with an explicit base `translateX(0)`
+  + backstop). On land: winner glows gold, result fades in with `medium · year · creator · status`, up to
+  3 **mood pills**, **adaptive CTA** — queued→**Start it** (flips event→active via `latestEvent`+
+  `projectItem`+`save`), active/paused→**Continue** (now **goes home**: `resetView()`+shelf+scroll-top,
+  where the item sits in Now-Playing — was `openEntryModal`). *Spin again* re-rolls; Esc/backdrop/dismiss
+  close (wired first in the Esc cascade so it doesn't also reset the view). NO ⌘K command (per Leandro).
+  Verified in-browser (launcher + live count, all six acts render+land, random dispatch hits all 6,
+  Telón fix, both CTAs, Continue→home, Start-it persists, Esc closes w/o view-reset, <2 & Observatory
+  hide). SW now `bitacora-v12`.
 - **Enrich sweep — ✅ DONE / moot (verified 2026-06-28).** The real 46-item library (deployed origin
   `leandrogn10-ctrl.github.io/bitacora`) is already 100% enriched: **0** items missing `year`/`creator`,
   no blanks. `enrichLibrary()` filters to the missing-set, which is empty → no-op. It filled
@@ -126,6 +156,6 @@ settings, **never logged or exported**.
   strips the API key), so re-paste the key in Settings if you want `autoEnrich` on *new* logs there.
 - **Backlog = source of truth:** `~/Downloads/leandro-os/prototype/BITACORA-AUDIT.md` (§0 status banner,
   §2 features).
-- **Open:** merge `feat/status-paused` → `main` + push · FEAT-06 roulette ·
+- **Open:** merge `feat/roulette` (brings FEAT-04 + FEAT-06, stacked) → `main` + push ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".

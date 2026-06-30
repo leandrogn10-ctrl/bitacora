@@ -205,6 +205,92 @@ a:hover { color: var(--accent-soft); }
 @media (max-width: 1120px) { .items-grid { column-count: 2; } }
 @media (min-width: 1500px) { .items-grid { column-count: 4; } }
 .spotlight { margin-bottom: 26px; }
+/* FEAT-06 Roulette — filter-bar launcher (wears the live pool count) */
+.filter-right { display: flex; align-items: center; gap: 12px; }
+.roul-launch { display: inline-flex; align-items: center; gap: 7px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 13px; border-radius: 4px; cursor: pointer; color: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent2) 42%, transparent); background: color-mix(in srgb, var(--accent2) 12%, transparent); transition: background 0.18s, transform 0.15s, box-shadow 0.2s; }
+.roul-launch:hover { background: color-mix(in srgb, var(--accent2) 24%, transparent); box-shadow: 0 0 18px -5px var(--accent2); transform: translateY(-1px); }
+.roul-launch .roul-glyph { color: var(--accent2); font-size: 12px; display: inline-block; }
+.roul-launch:hover .roul-glyph { animation: roulGlyphSpin 0.7s ease; }
+.roul-launch .roul-count { color: var(--gold); font-weight: 600; }
+@keyframes roulGlyphSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+/* The Cabaret stage — full-screen marquee reveal */
+.roul-stage { border: none; padding: 0; margin: 0; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; background: transparent; overflow: hidden; }
+.roul-stage[open] { display: flex; align-items: center; justify-content: center; }
+.roul-stage::backdrop { background: radial-gradient(120% 90% at 50% 16%, rgba(70,12,38,0.60), rgba(8,3,6,0.95) 70%); backdrop-filter: blur(3px); }
+.roul-cone { position: absolute; top: -4%; left: 50%; transform: translateX(-50%); width: 56%; height: 74%; background: linear-gradient(to bottom, color-mix(in srgb, var(--gold) 24%, transparent), transparent 70%); clip-path: polygon(43% 0, 57% 0, 100% 100%, 0 100%); filter: blur(9px); pointer-events: none; opacity: 0; transition: opacity 0.5s; }
+.roul-stage.spinning .roul-cone, .roul-stage.landed .roul-cone { opacity: 0.9; }
+.roul-frame { position: relative; z-index: 1; width: min(620px, 88vw); display: flex; flex-direction: column; }
+.roul-marquee { display: flex; justify-content: center; gap: 14px; padding: 10px 0; }
+.roul-bulb { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in srgb, var(--gold) 24%, #2a1a14); }
+.roul-stage.spinning .roul-bulb { animation: bulbChase 0.85s linear infinite; animation-delay: var(--d); }
+.roul-stage.landed .roul-bulb { background: var(--gold); box-shadow: 0 0 10px var(--gold), 0 0 18px color-mix(in srgb, var(--gold) 55%, transparent); animation: bulbPulse 1.5s ease-in-out infinite; }
+@keyframes bulbChase { 0%, 100% { background: color-mix(in srgb, var(--gold) 22%, #2a1a14); box-shadow: none; } 45% { background: var(--gold); box-shadow: 0 0 11px var(--gold); } }
+@keyframes bulbPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.roul-window { position: relative; height: 228px; overflow: hidden; border-top: 1px solid color-mix(in srgb, var(--gold) 26%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--gold) 26%, transparent); }
+.roul-band { position: absolute; top: 76px; left: 0; right: 0; height: 76px; z-index: 2; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--gold) 13%, transparent), transparent); border-top: 1px solid color-mix(in srgb, var(--gold) 42%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--gold) 42%, transparent); }
+.roul-strip { will-change: transform; }
+.roul-stage.spinning .roul-strip { filter: blur(0.5px); }
+.roul-item { height: 76px; display: flex; align-items: center; justify-content: center; font-family: 'Instrument Serif', serif; font-size: 30px; line-height: 1.05; text-align: center; padding: 0 22px; color: color-mix(in srgb, var(--ink) 52%, transparent); }
+/* shared lit-winner glow + the reduced-motion still */
+.roul-stage.landed .roul-win, .roul-stage.landed .roul-win .flap-cell, .roul-stage.landed .roul-win .cph { color: var(--gold); text-shadow: 0 0 24px color-mix(in srgb, var(--gold) 55%, transparent); }
+.roul-stage.landed .flap-cell { border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+.roul-still { height: 100%; display: flex; align-items: center; justify-content: center; }
+.roul-still .roul-win, .roul-win { font-family: 'Instrument Serif', serif; font-size: 34px; line-height: 1.05; text-align: center; color: color-mix(in srgb, var(--ink) 80%, transparent); }
+/* ACT 2 · El Tablero — split-flap board */
+.flap { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; align-items: center; height: 100%; padding: 0 14px; }
+.flap-cell { width: 30px; height: 48px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 23px; color: color-mix(in srgb, var(--ink) 82%, transparent); background: linear-gradient(#1c0f18, #100810); border: 1px solid color-mix(in srgb, var(--gold) 16%, transparent); border-radius: 3px; position: relative; box-shadow: inset 0 1px 2px rgba(0,0,0,0.5); }
+.flap-cell::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0,0,0,0.6); }
+.flap-cell.sp { background: none; border: none; box-shadow: none; width: 12px; }
+.flap-cell.sp::after { display: none; }
+.roul-stage.spinning .flap-cell:not(.lock):not(.sp) { animation: flapClack 0.13s linear infinite; }
+.flap-cell.lock { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
+@keyframes flapClack { 0% { transform: rotateX(0); } 50% { transform: rotateX(-58deg); } 100% { transform: rotateX(0); } }
+/* ACT 3 · The Croupier — 3D card deal */
+.cards3d { height: 100%; display: flex; align-items: center; justify-content: center; gap: 0; perspective: 1100px; }
+.card3d { width: 104px; height: 150px; margin: 0 -14px; transform: translateY(calc(var(--ci) * 0px)) rotate(calc(var(--ci) * 6deg)); position: relative; z-index: calc(3 - (var(--ci) * var(--ci))); }
+.roul-stage.spinning .cards3d { animation: c3shuffle 1.05s cubic-bezier(0.4,0,0.3,1); }
+.c3-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.62s cubic-bezier(0.4,0,0.2,1); }
+.c3-inner.flip { transform: rotateY(180deg); }
+.c3-back, .c3-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 7px; border: 1px solid color-mix(in srgb, var(--gold) 32%, transparent); display: flex; align-items: center; justify-content: center; }
+.c3-back { background: repeating-linear-gradient(45deg, #2a1020, #2a1020 6px, #200b18 6px, #200b18 12px); box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--gold) 14%, transparent), var(--lift); }
+.c3-back::after { content: '❉'; color: color-mix(in srgb, var(--gold) 55%, transparent); font-size: 30px; }
+.c3-face { background: linear-gradient(155deg, var(--paper-hi), var(--paper)); transform: rotateY(180deg); padding: 10px; box-shadow: var(--lift), 0 0 26px -6px color-mix(in srgb, var(--gold) 55%, transparent); }
+.c3-face .roul-win { font-size: 19px; }
+@keyframes c3shuffle { 0% { transform: translateX(0); } 22% { transform: translateX(-26px) rotate(-3deg); } 55% { transform: translateX(22px) rotate(3deg); } 80% { transform: translateX(-8px); } 100% { transform: translateX(0); } }
+/* ACT 4 · The Searchlight — spotlight leaps across the dim cast */
+.sweep { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.sweep-item { font-family: 'Instrument Serif', serif; font-size: 21px; line-height: 1.2; color: color-mix(in srgb, var(--ink) 30%, transparent); transition: color 0.12s, text-shadow 0.12s, transform 0.12s; padding: 1px 0; }
+.sweep-item.lit { color: var(--gold); text-shadow: 0 0 20px color-mix(in srgb, var(--gold) 60%, transparent); transform: scale(1.06); }
+/* ACT 5 · El Cifrado — glyph scramble */
+.cipher { height: 100%; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; padding: 0 22px; font-family: 'Instrument Serif', serif; font-size: 32px; line-height: 1.05; }
+.cph { display: inline-block; min-width: 0.34em; text-align: center; color: var(--accent-soft); }
+.cph.done { color: color-mix(in srgb, var(--ink) 82%, transparent); }
+.cph.sp { min-width: 0.3em; }
+/* ACT 6 · El Telón — velvet curtain */
+.stage-back { height: 100%; display: flex; align-items: center; justify-content: center; padding: 0 24px; }
+.curtain { position: absolute; top: 0; bottom: 0; width: 50.5%; z-index: 3; background: repeating-linear-gradient(90deg, #2a0c1c 0, #3a1228 9px, #220915 18px, #3a1228 27px, #2a0c1c 36px); box-shadow: inset 0 0 40px rgba(0,0,0,0.6); transition: transform 0.95s cubic-bezier(0.65,0,0.2,1); }
+.curtain::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 14px; background: linear-gradient(var(--gold), color-mix(in srgb, var(--gold) 30%, transparent)); opacity: 0.5; }
+.curtain-l { left: 0; transform: translateX(0); transform-origin: left; }
+.curtain-r { right: 0; transform: translateX(0); transform-origin: right; }
+.curtain-l.open { transform: translateX(-101%); }
+.curtain-r.open { transform: translateX(101%); }
+.roul-result { min-height: 78px; padding-top: 18px; text-align: center; opacity: 0; transition: opacity 0.4s 0.12s; }
+.roul-stage.landed .roul-result { opacity: 1; }
+.roul-result .r-sub { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); }
+.roul-result .r-pills { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 11px 0 4px; }
+.roul-actions { display: flex; gap: 11px; justify-content: center; margin-top: 15px; }
+.roul-btn { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; padding: 8px 16px; border-radius: 3px; cursor: pointer; border: 1px solid color-mix(in srgb, var(--accent2) 45%, transparent); background: color-mix(in srgb, var(--accent2) 14%, transparent); color: var(--accent-soft); transition: background 0.18s, transform 0.15s; }
+.roul-btn:hover { background: color-mix(in srgb, var(--accent2) 26%, transparent); transform: translateY(-1px); }
+.roul-btn.go { border-color: color-mix(in srgb, var(--gold) 55%, transparent); background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold); }
+.roul-btn.go:hover { background: color-mix(in srgb, var(--gold) 28%, transparent); }
+.roul-btn.ghost { border-color: var(--line); background: transparent; color: var(--ink-faint); }
+.roul-dismiss { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: none; border: none; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); opacity: 0.6; }
+.roul-dismiss:hover { opacity: 1; color: var(--gold); }
+@media (prefers-reduced-motion: reduce) {
+  .roul-stage .roul-bulb, .roul-launch:hover .roul-glyph { animation: none; }
+  .roul-strip { transition: none !important; filter: none !important; }
+  .roul-stage::backdrop { backdrop-filter: none; }
+}
 .spot-head { font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; display: flex; align-items: center; gap: 9px; }
 .spot-head .live { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: pulse 2.6s ease-in-out infinite; }
 .spot-row { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -919,12 +1005,17 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
         <button data-sort="rating">rating</button>
         <button data-sort="status">status</button>
       </div>
-      <div class="tag-picker" id="tag-picker">
-        <button class="tag-picker-trigger" id="tag-picker-trigger">
-          <span id="tag-picker-label">Filter by tag</span>
-          <span class="caret">▾</span>
+      <div class="filter-right">
+        <button class="roul-launch" id="roul-launch" hidden title="Spin the current shelf">
+          <span class="roul-glyph">❉</span><span>Spin</span><span class="roul-count" id="roul-count"></span>
         </button>
-        <div class="tag-picker-popover hidden" id="tag-picker-popover"></div>
+        <div class="tag-picker" id="tag-picker">
+          <button class="tag-picker-trigger" id="tag-picker-trigger">
+            <span id="tag-picker-label">Filter by tag</span>
+            <span class="caret">▾</span>
+          </button>
+          <div class="tag-picker-popover hidden" id="tag-picker-popover"></div>
+        </div>
       </div>
     </div>
     <section class="spotlight" id="spotlight" style="display:none">
@@ -1254,6 +1345,17 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
   <button class="tab" data-tab="tags"><span class="icon">◐</span><span>Tags</span></button>
   <button class="tab" data-tab="settings"><span class="icon">⚙</span><span>Settings</span></button>
 </nav>
+
+<dialog id="roul-modal" class="roul-stage">
+  <div class="roul-cone"></div>
+  <div class="roul-frame">
+    <div class="roul-marquee" id="roul-bulbs-top"></div>
+    <div class="roul-window" id="roul-window"></div>
+    <div class="roul-marquee" id="roul-bulbs-bot"></div>
+    <div class="roul-result" id="roul-result"></div>
+  </div>
+  <button class="roul-dismiss" id="roul-dismiss" aria-label="close">esc to close</button>
+</dialog>
 
 <dialog id="cmdk-modal">
   <div class="cmdk">
@@ -1627,6 +1729,188 @@ function renderSpotlight() {
       <div class="sub">${escapeHtml(c ? c.name : '—')}</div></div>`;
   }).join('');
 }
+// FEAT-06 Backlog Roulette — "spin the room you're standing in." The pool IS the current filtered
+// Shelf; on a clean default view it narrows to the live backlog (queued/active/paused — never
+// done/dropped). Each spin deals ONE of six cabaret acts at random — Marquee / Tablero / Croupier /
+// Searchlight / Cifrado / Telón — all riffling under a gold cone & chasing bulbs to the SAME lit
+// landing (reelLand). prefers-reduced-motion → skip the performance, light the winner.
+const ROUL_ROW_H = 76;       // px per marquee reel row — must match CSS .roul-item / .roul-band
+const ROUL_REEL_LEN = 32;
+const ROUL_GLYPHS = '@#%&*+=§$?/\\<>~'.split('');   // what the decoder churns through
+let roulPick = null, roulTimers = [];
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+function roulettePool() {
+  const base = getFilteredItems();
+  return isViewDefault() ? base.filter(i => ['queued', 'active', 'paused'].includes(i.status)) : base;
+}
+// The filter-bar launcher wears the live pool count — it ticks as you filter, and hides when there's
+// nothing to decide (<2) or in Observatory.
+function renderRouletteBtn() {
+  const btn = document.getElementById('roul-launch'); if (!btn) return;
+  const n = view.mode === 'observatory' ? 0 : roulettePool().length;
+  if (n < 2) { btn.hidden = true; return; }
+  btn.hidden = false; document.getElementById('roul-count').textContent = '· ' + n;
+}
+// timer bookkeeping so a dismissal mid-act can never fire a stray landing
+function roulWait(fn, ms) { const id = setTimeout(fn, ms); roulTimers.push(id); return id; }
+function roulLoop(fn, ms) { const id = setInterval(fn, ms); roulTimers.push(id); return id; }
+function roulClearTimers() { roulTimers.forEach(id => { clearTimeout(id); clearInterval(id); }); roulTimers = []; }
+const roulWin = (title, extra = '') => `<div class="roul-win ${extra}">${escapeHtml(title)}</div>`;
+
+function openRoulette() {
+  const pool = roulettePool();
+  if (pool.length < 2) return;
+  roulClearTimers();
+  roulPick = rnd(pool);
+  const stage = document.getElementById('roul-modal');
+  buildBulbs();
+  document.getElementById('roul-result').innerHTML = '';
+  document.getElementById('roul-window').innerHTML = '';
+  stage.classList.remove('landed');
+  if (!stage.open) stage.showModal();
+  stage.classList.add('spinning');
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) actInstant(roulPick);
+  else rnd(ROUL_ACTS)(pool, roulPick);
+}
+function buildBulbs() {
+  const row = () => Array.from({ length: 13 }, (_, k) => `<span class="roul-bulb" style="--d:${(-k * 0.07).toFixed(2)}s"></span>`).join('');
+  document.getElementById('roul-bulbs-top').innerHTML = row();
+  document.getElementById('roul-bulbs-bot').innerHTML = row();
+}
+function reelLand(winner) {
+  const stage = document.getElementById('roul-modal');
+  if (!stage.open) return;                 // dismissed mid-act → never paint a landing
+  roulClearTimers();
+  stage.classList.remove('spinning'); stage.classList.add('landed');
+  const c = state.collections.find(x => x.id === winner.collectionId);
+  const bits = [c ? c.name : '—', winner.year || null, winner.creator || null, STATUS_LABELS[winner.status] || winner.status].filter(Boolean);
+  const moods = (winner.tags || []).filter(t => MOOD_PALETTE.includes(t)).slice(0, 3);
+  const pills = moods.length ? `<div class="r-pills">${moods.map(m => tagPillHtml(m)).join('')}</div>` : '';
+  const cta = winner.status === 'queued' ? 'Start it' : 'Continue';
+  document.getElementById('roul-result').innerHTML =
+    `<div class="r-sub">${bits.map(escapeHtml).join(' · ')}</div>${pills}
+     <div class="roul-actions"><button class="roul-btn go" data-roul="go">${cta}</button>
+       <button class="roul-btn ghost" data-roul="spin">Spin again</button></div>`;
+}
+function actInstant(winner) {   // reduced-motion: no performance, winner already under the light
+  document.getElementById('roul-window').innerHTML = `<div class="roul-still">${roulWin(winner.title)}</div>`;
+  reelLand(winner);
+}
+
+// ── ACT 1 · The Marquee — vertical slot-reel riffles to a lit center band ───────
+function actMarquee(pool, winner) {
+  const win = document.getElementById('roul-window');
+  const winIdx = ROUL_REEL_LEN - 2, rows = [];
+  for (let i = 0; i < winIdx; i++) rows.push(rnd(pool));
+  rows.push(winner, rnd(pool));
+  win.innerHTML = `<div class="roul-band"></div><div class="roul-strip" id="roul-strip">` +
+    rows.map((it, i) => `<div class="roul-item${i === winIdx ? ' roul-win' : ''}">${escapeHtml(it.title)}</div>`).join('') + `</div>`;
+  const strip = document.getElementById('roul-strip');
+  strip.style.transition = 'none'; strip.style.transform = 'translateY(0)';
+  void strip.offsetHeight;
+  strip.style.transition = 'transform 2.5s cubic-bezier(0.12, 0.62, 0.12, 1)';
+  strip.style.transform = `translateY(${-(winIdx - 1) * ROUL_ROW_H}px)`;
+  strip.addEventListener('transitionend', () => reelLand(winner), { once: true });
+  roulWait(() => reelLand(winner), 2700);   // backstop
+}
+
+// ── ACT 2 · El Tablero — split-flap board clatters letter-by-letter ─────────────
+function actTablero(pool, winner) {
+  const win = document.getElementById('roul-window');
+  const chars = winner.title.toUpperCase().split('');
+  win.innerHTML = `<div class="flap roul-win">` +
+    chars.map(ch => `<span class="flap-cell${ch === ' ' ? ' sp' : ''}" data-f="${escapeAttr(ch)}">&nbsp;</span>`).join('') + `</div>`;
+  const cells = [...win.querySelectorAll('.flap-cell')];
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  let locked = 0;
+  const tick = roulLoop(() => cells.forEach(c => { if (!c.classList.contains('lock') && !c.classList.contains('sp')) c.textContent = rnd(A); }), 55);
+  cells.forEach((c, i) => roulWait(() => {
+    c.textContent = c.dataset.f === ' ' ? ' ' : c.dataset.f; c.classList.add('lock');
+    if (++locked === cells.length) { clearInterval(tick); roulWait(() => reelLand(winner), 240); }
+  }, 360 + i * 80));
+}
+
+// ── ACT 3 · The Croupier — face-down cards shuffle, the chosen one flips up ──────
+function actCroupier(pool, winner) {
+  const win = document.getElementById('roul-window');
+  const others = pool.filter(i => i.id !== winner.id), N = Math.min(5, pool.length), mid = N >> 1, cards = [];
+  for (let i = 0; i < N; i++) cards.push(i === mid ? winner : (rnd(others) || winner));
+  win.innerHTML = `<div class="cards3d">` + cards.map((it, i) =>
+    `<div class="card3d${i === mid ? ' chosen' : ''}" style="--ci:${i - mid}"><div class="c3-inner"><div class="c3-back"></div><div class="c3-face">${i === mid ? roulWin(it.title) : ''}</div></div></div>`).join('') + `</div>`;
+  const chosen = win.querySelector('.card3d.chosen .c3-inner');
+  roulWait(() => chosen.classList.add('flip'), 1200);
+  chosen.addEventListener('transitionend', e => { if (e.propertyName === 'transform') reelLand(winner); }, { once: true });
+  roulWait(() => reelLand(winner), 2100);   // backstop
+}
+
+// ── ACT 4 · The Searchlight — a spotlight leaps name to name, rests on the winner ─
+function actSearchlight(pool, winner) {
+  const win = document.getElementById('roul-window');
+  const others = pool.filter(i => i.id !== winner.id), cast = [], N = Math.min(6, pool.length);
+  while (cast.length < N - 1 && others.length) { const o = rnd(others); if (!cast.includes(o)) cast.push(o); }
+  const winPos = Math.floor(Math.random() * (cast.length + 1));
+  cast.splice(winPos, 0, winner);
+  win.innerHTML = `<div class="sweep">` + cast.map((it, i) =>
+    `<div class="sweep-item${i === winPos ? ' roul-win' : ''}">${escapeHtml(it.title)}</div>`).join('') + `</div>`;
+  const items = [...win.querySelectorAll('.sweep-item')], order = [];
+  for (let s = 0; s < 14; s++) order.push(s % items.length);
+  order[order.length - 1] = winPos;
+  let k = 0;
+  const hop = () => {
+    items.forEach(el => el.classList.remove('lit'));
+    items[order[k]].classList.add('lit'); k++;
+    if (k >= order.length) { roulWait(() => reelLand(winner), 220); return; }
+    roulWait(hop, 60 + k * k);
+  };
+  hop();
+}
+
+// ── ACT 5 · El Cifrado — glyph-scramble resolves left-to-right out of the noise ──
+function actCifrado(pool, winner) {
+  const win = document.getElementById('roul-window');
+  const chars = winner.title.split('');
+  win.innerHTML = `<div class="cipher roul-win">` +
+    chars.map(ch => `<span class="cph${ch === ' ' ? ' sp' : ''}" data-f="${escapeAttr(ch)}">${ch === ' ' ? ' ' : rnd(ROUL_GLYPHS)}</span>`).join('') + `</div>`;
+  const cells = [...win.querySelectorAll('.cph')];
+  let done = 0;
+  const tick = roulLoop(() => cells.forEach(c => { if (!c.classList.contains('done') && !c.classList.contains('sp')) c.textContent = rnd(ROUL_GLYPHS); }), 45);
+  cells.forEach((c, i) => roulWait(() => {
+    c.textContent = c.dataset.f === ' ' ? ' ' : c.dataset.f; c.classList.add('done');
+    if (++done === cells.length) { clearInterval(tick); roulWait(() => reelLand(winner), 200); }
+  }, 240 + i * 65));
+}
+
+// ── ACT 6 · El Telón — drumroll, then the velvet curtain parts to the lit winner ─
+function actTelon(pool, winner) {
+  const win = document.getElementById('roul-window');
+  win.innerHTML = `<div class="stage-back">${roulWin(winner.title)}</div><div class="curtain curtain-l"></div><div class="curtain curtain-r"></div>`;
+  roulWait(() => { win.querySelector('.curtain-l').classList.add('open'); win.querySelector('.curtain-r').classList.add('open'); }, 950);
+  win.querySelector('.curtain-l').addEventListener('transitionend', () => reelLand(winner), { once: true });
+  roulWait(() => reelLand(winner), 2000);   // backstop: don't strand the act if transitionend is missed
+}
+
+const ROUL_ACTS = [actMarquee, actTablero, actCroupier, actSearchlight, actCifrado, actTelon];
+
+function closeRoulette() {
+  const stage = document.getElementById('roul-modal');
+  roulClearTimers();
+  if (stage.open) stage.close();
+  stage.classList.remove('spinning', 'landed');
+  roulPick = null;
+}
+function rouletteAct() {
+  if (!roulPick) return;
+  const item = state.items.find(i => i.id === roulPick.id);
+  closeRoulette();
+  if (!item) { renderAll(); return; }
+  if (item.status === 'queued') {
+    const ev = latestEvent(item);
+    if (ev) { ev.status = 'active'; item.updatedAt = Date.now(); projectItem(item); save(); }
+    renderAll(); toast('started — now playing.');
+  } else {
+    resetView(); view.mode = 'shelf'; renderAll(); window.scrollTo({ top: 0 });   // "Continue" → home, where it's in Now-Playing
+  }
+}
 // Mode dispatcher: every renderItems() caller (renderAll + all the edit handlers) becomes
 // Shelf/Diary-aware, and the chrome (tabs, sort bar, containers) toggles in one place.
 function renderItems() {
@@ -1640,6 +1924,7 @@ function renderItems() {
   document.getElementById('observatory').style.display = obs ? '' : 'none';
   document.querySelector('.content').classList.toggle('cosmic', diary);
   if (obs) document.getElementById('spotlight').style.display = 'none';
+  renderRouletteBtn();
   if (obs) renderObservatory(); else if (diary) renderDiary(); else renderShelf();
 }
 
@@ -3534,6 +3819,15 @@ document.getElementById('spot-row').addEventListener('click', e => {
   const item = state.items.find(i => i.id === card.dataset.id);
   if (item) openEntryModal(item);
 });
+document.getElementById('roul-launch').addEventListener('click', openRoulette);
+document.getElementById('roul-dismiss').addEventListener('click', closeRoulette);
+document.getElementById('roul-result').addEventListener('click', e => {
+  const btn = e.target.closest('[data-roul]'); if (!btn) return;
+  if (btn.dataset.roul === 'spin') openRoulette();      // re-roll within the same filtered pool
+  else if (btn.dataset.roul === 'go') rouletteAct();
+});
+// Click the darkened wings (the dialog backdrop area, outside the frame) to dismiss.
+document.getElementById('roul-modal').addEventListener('click', e => { if (e.target.id === 'roul-modal') closeRoulette(); });
 function setViewMode(mode) { if (view.mode === mode) return; view.mode = mode; renderItems(); }
 document.getElementById('view-tabs').addEventListener('click', e => {
   const tab = e.target.closest('.view-tab'); if (tab) setViewMode(tab.dataset.mode);
@@ -3627,6 +3921,7 @@ document.addEventListener('keydown', e => {
     // First Esc dismisses any open overlay (and stops there); a subsequent Esc with
     // nothing open resets the library to its default. So Esc-Esc → Everything / All.
     let closed = false;
+    if (document.getElementById('roul-modal').open) { closeRoulette(); closed = true; }
     if (helpModal.open)     { helpModal.close(); closed = true; }
     if (entryModal.open)    { closeEntryModal(); closed = true; }
     if (tagMgrModal.open)   { tagMgrModal.close(); closed = true; }
