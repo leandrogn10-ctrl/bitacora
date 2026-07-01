@@ -2654,14 +2654,21 @@ entryForm.addEventListener('submit', e => {
   closeEntryModal();
   renderAll();
   if (savedItem) {
-    if (isClaudeEnabled() && state.settings.claude.respondOnLog && shouldTriggerClaude(prevSnap, savedItem, isNew || isRelog)) {
-      respondOnLog(savedItem, isNew);
-    } else if (state.settings.claude.respondOnLog && !isClaudeEnabled()) {
+    if (isClaudeEnabled()) {
+      const wantsTake = state.settings.claude.respondOnLog && shouldTriggerClaude(prevSnap, savedItem, isNew || isRelog);
+      (async () => {
+        // Enrich FIRST (year/creator/mood/pace) so the take — and the card — see the
+        // metadata. needsMeta gate: mood/pace still fill when year+creator were typed.
+        if ((isNew || isRelog) && needsMeta(savedItem)) {
+          if (wantsTake) showClaudePanel({ title: savedItem.title, status: 'thinking', text: 'identifying the work…' });
+          await autoEnrich(savedItem.id);
+        }
+        if (wantsTake) respondOnLog(savedItem, isNew);
+      })();
+    } else if (state.settings.claude.respondOnLog) {
       // synced-on, but no API key on this device — gentle nudge
       setTimeout(() => toast('claude responses are on, but no API key on this device — open ⚙ settings.', false), 600);
     }
-    // New title with blanks → quietly let Claude fill year + creator.
-    if (isNew && isClaudeEnabled() && (!savedItem.year || !savedItem.creator)) autoEnrich(savedItem.id);
   }
 });
 
@@ -2674,7 +2681,11 @@ document.getElementById('enrich-btn').addEventListener('click', async () => {
   const btn = document.getElementById('enrich-btn'); const label = btn.textContent; btn.disabled = true; btn.textContent = '✦ …';
   try {
     const coll = state.collections.find(c => c.id === entryForm.collectionId.value);
-    const r = await fetchMeta(title, coll?.name);
+    const r = await fetchMeta(title, coll?.name, {
+      creator: entryForm.creator.value.trim() || null,
+      year: parseInt(entryForm.year.value, 10) || null,
+      onSearch: () => { btn.textContent = '✦ searching…'; },
+    });
     if (r && (r.year || r.creator || r.mood.length || r.pace)) {
       if (r.year) entryForm.year.value = r.year;
       if (r.creator) entryForm.creator.value = r.creator;
@@ -3426,11 +3437,13 @@ document.getElementById('sync-disable-btn').addEventListener('click', () => {
 });
 
 function isClaudeEnabled() { return !!(state.settings.claude.enabled && state.settings.claude.apiKey); }
-async function callClaude({ system, userMessage, maxTokens = 350, model }) {
+async function callClaude({ system, userMessage, maxTokens = 350, model, tools }) {
+  const body = { model: model || state.settings.claude.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: userMessage }] };
+  if (tools) body.tools = tools;
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': state.settings.claude.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: model || state.settings.claude.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: userMessage }] }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const txt = await res.text();
@@ -3439,32 +3452,70 @@ async function callClaude({ system, userMessage, maxTokens = 350, model }) {
     throw new Error(msg);
   }
   const data = await res.json();
-  return data.content?.[0]?.text || '(empty response)';
+  // With server tools (web search) the content array interleaves server_tool_use /
+  // web_search_tool_result blocks before the answer — the final text block is the answer.
+  const texts = (data.content || []).filter(b => b.type === 'text');
+  return texts.length ? texts[texts.length - 1].text : '(empty response)';
 }
 // Year/creator lookups run on Sonnet (more accurate, fewer confabulations) no matter
 // which model handles the conversational takes — isolates accuracy from the cost choice.
 const ENRICH_MODEL = 'claude-sonnet-4-6';
-// Ask Claude to RESEARCH the work and return strict JSON: year + creator (facts) plus mood + pace
-// (interpretive, drawn from fixed vocab). Title-level. Returns {year,creator,mood[],pace} or null.
-async function fetchMeta(title, collName) {
-  const system = 'You research a known work of media and return ONLY a JSON object: '
+// Anthropic server-side web search — declared per-request, executed on their end, so it works
+// from the direct-browser call. Only used in tier 2 (see fetchMeta); ~1¢/search.
+const ENRICH_SEARCH_TOOLS = [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }];
+// The JSON contract both tiers share.
+function enrichFieldSpec() {
+  return 'Return ONLY a JSON object as your final answer, nothing after it: '
     + '{"year": number|null, "creator": string|null, "mood": string[], "pace": "slow"|"medium"|"fast"|null}. '
-    + 'year = original release/publication year. '
+    + 'year = original release/publication year of the WORK (for a translated edition, the original — not the translation). '
     + 'creator = primary maker as a canonical full name: director (film/TV), author (book), studio/developer (game), artist/band (album). '
     + `mood = 0-3 entries chosen ONLY from this exact list: [${MOOD_PALETTE.join(', ')}]. Pick the ones that genuinely fit the work's emotional register. Never invent a mood outside the list. `
-    + 'pace = how the work moves overall: "slow", "medium", or "fast"; null when not applicable (e.g. an album) or unsure. '
-    + 'CRITICAL: only fill a field if you identify this EXACT work with HIGH confidence from training. '
-    + 'Obscure / generic / ambiguous / very recent → null (and [] for mood). A confabulated value is far worse than null. Do not guess.';
-  // Accuracy-critical → always Sonnet, regardless of the chat-take model.
-  const txt = await callClaude({ system, userMessage: `Title: ${title}\nMedium: ${collName || 'unknown'}`, maxTokens: 140, model: ENRICH_MODEL });
+    + 'pace = how the work moves overall: "slow", "medium", or "fast"; null when not applicable (e.g. an album) or unsure. ';
+}
+function parseMeta(txt) {
   const m = txt.match(/\{[\s\S]*\}/); if (!m) return null;
-  const d = JSON.parse(m[0]);
+  let d; try { d = JSON.parse(m[0]); } catch { return null; }
   return {
     year: Number.isInteger(d.year) && d.year > 0 ? d.year : null,
     creator: (typeof d.creator === 'string' && d.creator.trim()) ? d.creator.trim().slice(0, 120) : null,
     mood: Array.isArray(d.mood) ? [...new Set(d.mood.map(x => String(x).trim().toLowerCase()).filter(x => MOOD_PALETTE.includes(x)))].slice(0, 3) : [],
     pace: PACES.includes(d.pace) ? d.pace : null,
   };
+}
+// Research a work and return {year,creator,mood[],pace} or null. Two tiers:
+//   1. training memory, abstain-don't-guess — instant, covers the famous 90%.
+//   2. if identification failed (translated title, recent release, obscure work) →
+//      retry once WITH web search so Sonnet can actually look it up.
+// hints: { creator, year, onSearch } — known fields disambiguate; onSearch fires when tier 2 starts.
+async function fetchMeta(title, collName, hints = {}) {
+  const msg = [`Title: ${title}`, `Medium: ${collName || 'unknown'}`];
+  if (hints.creator) msg.push(`Known creator (use to disambiguate, echo back canonically): ${hints.creator}`);
+  if (hints.year) msg.push(`Known year (use to disambiguate): ${hints.year}`);
+  const userMessage = msg.join('\n');
+
+  // Tier 1 — accuracy-critical → always Sonnet, regardless of the chat-take model.
+  const t1System = 'You identify a known work of media from training memory. ' + enrichFieldSpec()
+    + 'CRITICAL: only fill a field if you identify this EXACT work with HIGH confidence from training. '
+    + 'Obscure / generic / ambiguous / very recent → null (and [] for mood). A confabulated value is far worse than null. Do not guess.';
+  let r = null;
+  try { r = parseMeta(await callClaude({ system: t1System, userMessage, maxTokens: 140, model: ENRICH_MODEL })); }
+  catch (e) { console.warn('fetchMeta tier1', e); }
+
+  // Tier 2 — memory couldn't place it; search the web before giving up. Escalate when the
+  // merged view (model answer + typed hints) still lacks year/creator, or when no mood AND
+  // no pace came back (the tell that identification failed even with year/creator on hand).
+  if (!r || (!r.year && !hints.year) || (!r.creator && !hints.creator) || (!r.mood.length && !r.pace)) {
+    hints.onSearch?.();
+    const t2System = 'You identify a work of media. You have a web_search tool — the title may be a translated '
+      + 'edition, a recent release, or an obscure work, so SEARCH to identify the EXACT work before answering. '
+      + enrichFieldSpec()
+      + 'Base year/creator on what the search confirms; if the search cannot resolve the work, use null (and [] for mood). Never guess.';
+    try {
+      const t2 = parseMeta(await callClaude({ system: t2System, userMessage, maxTokens: 700, model: ENRICH_MODEL, tools: ENRICH_SEARCH_TOOLS }));
+      if (t2) r = r ? { year: t2.year ?? r.year, creator: t2.creator ?? r.creator, mood: t2.mood.length ? t2.mood : r.mood, pace: t2.pace ?? r.pace } : t2;
+    } catch (e) { console.warn('fetchMeta tier2', e); }
+  }
+  return r;
 }
 // Apply researched metadata to an item, filling only blanks (never overwrites). Returns true if changed.
 // mood/pace land as TAGS (already group-assigned via the seed) so they render colored & filter like any tag.
@@ -3486,15 +3537,20 @@ function needsMeta(it) {
   const hasPace = PACES.some(p => tags.includes(p));
   return !it.year || !it.creator || !hasMood || !hasPace;
 }
-// Auto-enrich a freshly-logged item. Silent; updates in place.
+// Auto-enrich a freshly-logged item in place. Toasts progress + honest abstention
+// (silence used to read as "the feature didn't work").
 async function autoEnrich(itemId) {
   if (!isClaudeEnabled()) return;
   const it = state.items.find(i => i.id === itemId); if (!it || !needsMeta(it)) return;
   try {
     const coll = state.collections.find(c => c.id === it.collectionId);
-    const r = await fetchMeta(it.title, coll?.name); if (!r) return;
+    const r = await fetchMeta(it.title, coll?.name, {
+      creator: it.creator, year: it.year,
+      onSearch: () => toast('✦ hmm — searching the web for this one…'),
+    });
     const live = state.items.find(i => i.id === itemId); if (!live) return;
     if (applyMeta(live, r)) { save(); renderItems(); toast(`✦ ${[live.year, live.creator].filter(Boolean).join(' · ') || 'tagged'}`); }
+    else if (!r || (!r.year && !r.creator)) toast('✦ couldn’t identify this one — fill year/creator manually.', true);
   } catch (e) { console.warn('autoEnrich', e); }
 }
 // One-pass backfill over every entry still missing year / creator / mood / pace.
@@ -3507,7 +3563,7 @@ async function enrichLibrary() {
   for (const it of todo) {
     try {
       const coll = state.collections.find(c => c.id === it.collectionId);
-      applyMeta(it, await fetchMeta(it.title, coll?.name));
+      applyMeta(it, await fetchMeta(it.title, coll?.name, { creator: it.creator, year: it.year }));
     } catch (e) { /* skip this one */ }
     if (++done % 5 === 0) { save(); renderItems(); toast(`enriched ${done}/${todo.length}…`); }
   }
@@ -3530,6 +3586,8 @@ function shouldTriggerClaude(prev, next, isNew) {
 function buildClaudeSystem(excludeId = null) {
   const lines = [];
   lines.push("You are Claude, embedded in Leandro's Bitácora — a personal media log of films, TV, games, books. He just saved an entry. Respond in 2–3 short sentences. You can: react to the rating, suggest one related piece, note a pattern across his taste, or give a hot take. Be casual, observant, and direct — no hedging, no 'great choice!' filler. Don't list multiple recommendations. Don't add tags.");
+  lines.push('');
+  lines.push("If the entry is BARE (no rating, no notes, no taste-note — he just logged or queued it), do NOT ask him questions — this note sits on a log, not a chat, and there's no reply box. Earn your keep instead: tell him something worth knowing about the work (what it is, why it matters), or how it sits against his taste sample below, or what to expect going in. Use the Year/Creator/Mood/Pace lines when present.");
   lines.push('');
   lines.push("## Field semantics — important, read carefully");
   lines.push("- `notes` is freeform text. It might be Leandro's own thoughts, OR an imported description, OR a friend's recommendation blurb. **Do not assume Leandro wrote it.** Many of his entries were seeded from an imported schedule with editorial blurbs; those are not his words. Use notes only as background, not as taste signal.");
@@ -3564,6 +3622,8 @@ function buildClaudeMessage(entry, isNew) {
   lines.push(isNew ? "I just logged a new entry:" : "I just updated an entry:");
   lines.push('');
   lines.push(`- Title: ${entry.title}`);
+  if (entry.year) lines.push(`- Year: ${entry.year}`);
+  if (entry.creator) lines.push(`- Creator: ${entry.creator}`);
   lines.push(`- Collection: ${c?.name || '—'}`);
   lines.push(`- Status: ${entry.status}`);
   if (entry.rating) lines.push(`- Rating: ${entry.rating}/5`);
