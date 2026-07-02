@@ -376,6 +376,8 @@ a:hover { color: var(--accent-soft); }
 .eh-label, .dz-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.06em; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 2px; padding: 1px 5px; text-transform: uppercase; white-space: nowrap; }
 .dz-label { margin-left: 2px; }
 .pass-count { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--ink-faint); margin-left: 5px; letter-spacing: 0.04em; }
+#event-history-list .eh-row { cursor: pointer; }
+#event-history-list .eh-row:hover { background: var(--bg-elev); }
 
 .swatch { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s, border-color 0.12s; }
 .swatch:hover { transform: scale(1.15); }
@@ -1096,7 +1098,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <label class="span-2">Setup / config<textarea name="config" class="config-field" rows="4" placeholder="for games: platform, sensitivity, keybinds, mods…"></textarea></label>
         </div>
         <div id="event-history-section" class="event-history-section" style="display:none">
-          <h4>Diary <button type="button" id="relog-btn" title="log another encounter — rewatch / replay / reread">↺ log again</button></h4>
+          <h4>Diary <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— click a pass to edit it</span> <button type="button" id="relog-btn" title="log another encounter — rewatch / replay / reread">↺ log again</button></h4>
           <div id="event-history-list"></div>
         </div>
         <div id="claude-takes-section" class="claude-takes-section" style="display:none">
@@ -1471,7 +1473,11 @@ function projectItem(item) {
   const rated = (item.events || []).filter(e => e.rating > 0);
   item.rating = rated.length ? Math.round(rated.reduce((s, e) => s + e.rating, 0) / rated.length * 100) / 100 : 0;
   item.label = ev.label || '';
-  item.status = ev.status || 'queued';
+  // An in-flight pass wins the projected status: you're "watching S6" even when a
+  // later-dated pass is already done (active > paused > latest event's status). Keeps
+  // the show in Now-Playing / the Active shelf while a season is mid-watch.
+  const inFlight = (item.events || []).find(e => e.status === 'active') || (item.events || []).find(e => e.status === 'paused');
+  item.status = inFlight ? inFlight.status : (ev.status || 'queued');
   item.notes = ev.notes || '';
   item.noteSource = ev.noteSource || '';   // FEAT-14: who authored the description ('', 'me', 'claude', 'friend:Name')
   item.claudeNote = ev.claudeNote || '';
@@ -2436,6 +2442,7 @@ const entryModal = document.getElementById('entry-modal');
 const entryForm = document.getElementById('entry-form');
 
 let relogging = false;   // true while the editor is capturing a NEW pass (rewatch) vs editing the latest
+let editingEventId = null;   // which pass the form is bound to (null → latest); set by clicking a Diary row
 function openEntryModal(item) {
   editing = item ? item.id : null;
   relogging = false;
@@ -2445,6 +2452,7 @@ function openEntryModal(item) {
   // The form edits the LATEST EVENT — with rating projected as an average, the flat
   // fields no longer equal the latest pass, so read per-encounter fields off the event.
   const ev = latestEvent(item);
+  editingEventId = ev?.id || null;
   setRating(ev ? ev.rating || 0 : 0);
   setTagChips(item ? (item.tags || []) : []);
   tagEntryEl.value = ''; hideTagSuggest();
@@ -2471,7 +2479,7 @@ function openEntryModal(item) {
   entryModal.showModal();
   setTimeout(() => entryForm.title.focus(), 50);
 }
-function closeEntryModal() { entryModal.close(); editing = null; relogging = false; }
+function closeEntryModal() { entryModal.close(); editing = null; relogging = false; editingEventId = null; }
 function setRating(n, userInitiated = false) {
   n = clampRating(n);
   entryForm.rating.value = n;
@@ -2516,14 +2524,38 @@ function renderEventHistory(item) {
     const label = ev.label ? `<span class="eh-label">${escapeHtml(ev.label)}</span>` : '';
     const note = ev.notes ? `<span class="eh-note">${sourceTag(ev.noteSource)}${escapeHtml(ev.notes)}</span>` : '<span class="eh-note"></span>';
     const del = multi ? `<button type="button" class="eh-del" data-ev="${escapeAttr(ev.id)}" title="remove this pass">×</button>` : '';
-    return `<div class="eh-row${ev === latest ? ' current' : ''}"><span class="eh-date">${escapeHtml(ev.date || '—')}</span><span class="eh-verb">${verb}</span>${label}<span class="eh-rating">${stars}</span>${note}<span class="eh-status">${escapeHtml(ev.status || '')}</span>${del}</div>`;
+    const isCurrent = !relogging && ev.id === (editingEventId || latest?.id);
+    return `<div class="eh-row${isCurrent ? ' current' : ''}" data-ev-row="${escapeAttr(ev.id)}" title="click to edit this pass"><span class="eh-date">${escapeHtml(ev.date || '—')}</span><span class="eh-verb">${verb}</span>${label}<span class="eh-rating">${stars}</span>${note}<span class="eh-status">${escapeHtml(ev.status || '')}</span>${del}</div>`;
   }).join('');
 }
+// Click a Diary row → the form edits THAT pass (season commentary, an old status…).
+function loadPassIntoForm(item, ev) {
+  relogging = false;
+  editingEventId = ev.id;
+  document.getElementById('modal-title').textContent = ev.label ? `Edit pass — ${ev.label}` : 'Edit pass';
+  setRating(ev.rating || 0);
+  entryForm.status.value = ev.status || 'queued';
+  entryForm.label.value = ev.label || '';
+  entryForm.notes.value = ev.notes || '';
+  setNoteSource(ev.noteSource || '');
+  entryForm.claudeNote.value = ev.claudeNote || '';
+  entryForm.publicReview.value = ev.publicReview || '';
+  renderEventHistory(item);
+}
+document.getElementById('event-history-list').addEventListener('click', e => {
+  if (e.target.closest('.eh-del')) return;   // deletes are handled below
+  const row = e.target.closest('[data-ev-row]'); if (!row || !editing) return;
+  const item = state.items.find(i => i.id === editing); if (!item) return;
+  const ev = (item.events || []).find(x => x.id === row.dataset.evRow); if (!ev) return;
+  loadPassIntoForm(item, ev);
+});
 // "Log again" arms the editor to capture a NEW encounter: keep title/collection/tags, clear the
 // per-pass fields. Nothing is written until Save (so a cancelled re-log leaves no orphan event).
 function armRelog() {
   if (!editing) return;
   relogging = true;
+  editingEventId = null;
+  renderEventHistory(state.items.find(i => i.id === editing));
   document.getElementById('modal-title').textContent = 'New pass';
   setRating(0);
   entryForm.status.value = 'done';
@@ -2552,6 +2584,7 @@ document.getElementById('event-history-list').addEventListener('click', e => {
   relogging = false;
   document.getElementById('modal-title').textContent = 'Edit entry';
   const ev2 = latestEvent(item);
+  editingEventId = ev2?.id || null;
   setRating(ev2?.rating || 0);
   entryForm.status.value = ev2?.status || item.status;
   entryForm.label.value = ev2?.label || '';
@@ -2674,8 +2707,10 @@ entryForm.addEventListener('submit', e => {
   if (editing) {
     const live = state.items.find(i => i.id === editing);
     if (live) {
-      // Snapshot the pre-edit projection so shouldTriggerClaude can detect a real change.
-      prevSnap = { rating: live.rating, status: live.status, notes: live.notes, claudeNote: live.claudeNote, publicReview: live.publicReview };
+      // The form may be bound to a PAST pass (clicked in the Diary) — write to that one.
+      const targetEv = !isRelog ? ((live.events || []).find(x => x.id === editingEventId) || latestEvent(live)) : null;
+      // Snapshot the target pass so shouldTriggerClaude compares like-with-like.
+      prevSnap = targetEv ? { rating: targetEv.rating, notes: targetEv.notes, claudeNote: targetEv.claudeNote, publicReview: targetEv.publicReview } : null;
       // Title-level fields live on the item itself.
       live.title = data.title; live.collectionId = data.collectionId; live.tags = data.tags; live.config = data.config; live.year = data.year; live.creator = data.creator; live.updatedAt = now;
       if (isRelog) {
@@ -2684,12 +2719,15 @@ entryForm.addEventListener('submit', e => {
           rating: data.rating, status: data.status, notes: data.notes, noteSource: data.noteSource, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] });
         toast('logged again.');
       } else {
-        // Per-encounter fields write to the latest event (Phase A: one event per title).
-        let ev = latestEvent(live);
+        // Per-encounter fields write to the selected pass (default: the latest event).
+        let ev = targetEv;
         if (!ev) { ev = { id: uid(), date: today(), kind: kindFor(data.collectionId), claudeReplies: [] }; live.events = [ev]; }
         const wasDone = ev.status === 'done';
         ev.rating = data.rating; ev.status = data.status; ev.label = data.label; ev.notes = data.notes; ev.noteSource = data.noteSource; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
         if (data.status === 'done' && !wasDone) ev.date = today();   // stamp the finish date when entering "done"
+        // The stamped date can make an edited pass the newest (finishing S6 after S5 was
+        // logged) — re-sort (stable) so latestEvent/projection/takes track reality.
+        live.events.sort((a, b) => ((a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0));
       }
       projectItem(live);
       savedItem = live;
@@ -2705,12 +2743,17 @@ entryForm.addEventListener('submit', e => {
     state.items.push(savedItem);
     toast('logged.');
   }
+  const targetEvId = editingEventId;   // capture before closeEntryModal resets it
   save();
   closeEntryModal();
   renderAll();
   if (savedItem) {
     if (isClaudeEnabled()) {
-      const wantsTake = state.settings.claude.respondOnLog && shouldTriggerClaude(prevSnap, savedItem, isNew || isRelog);
+      // Takes only fire for the LATEST pass (new / relog / edit-of-latest). Editing an old
+      // season's commentary is archival — a take would react to the wrong pass.
+      const isLatestPass = isNew || isRelog || !targetEvId || latestEvent(savedItem)?.id === targetEvId;
+      const nextSnap = { rating: data.rating, notes: data.notes, claudeNote: data.claudeNote, publicReview: data.publicReview };
+      const wantsTake = state.settings.claude.respondOnLog && isLatestPass && shouldTriggerClaude(prevSnap, nextSnap, isNew || isRelog);
       (async () => {
         // Enrich FIRST (year/creator/mood/pace) so the take — and the card — see the
         // metadata. needsMeta gate: mood/pace still fill when year+creator were typed.
