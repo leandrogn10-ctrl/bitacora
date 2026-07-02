@@ -365,6 +365,18 @@ a:hover { color: var(--accent-soft); }
 .dupe-results .dupe-merge { white-space: nowrap; }
 .dupe-results .dupe-empty { color: var(--ink-faint); font-size: 12px; line-height: 1.5; }
 
+/* --- seasons-as-passes: entry merge + per-event labels --- */
+.me-list { max-height: 40vh; overflow-y: auto; margin-top: 10px; border: 1px solid var(--line-soft); border-radius: 3px; }
+.me-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--line-soft); font-size: 12px; cursor: pointer; }
+.me-row:last-child { border-bottom: none; }
+.me-row:hover { background: var(--bg-elev); }
+.me-row .me-t { flex: 1; }
+.me-row .me-sub { color: var(--ink-faint); font-size: 10px; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+.me-count { color: var(--ink-dim); font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-right: auto; }
+.eh-label, .dz-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.06em; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 2px; padding: 1px 5px; text-transform: uppercase; white-space: nowrap; }
+.dz-label { margin-left: 2px; }
+.pass-count { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--ink-faint); margin-left: 5px; letter-spacing: 0.04em; }
+
 .swatch { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s, border-color 0.12s; }
 .swatch:hover { transform: scale(1.15); }
 .swatch.selected { border-color: var(--ink); }
@@ -1048,6 +1060,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
               <option value="done">Done</option><option value="dropped">Dropped</option>
             </select>
           </label>
+          <label>Season / part <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— this pass</span><input type="text" name="label" placeholder="S2 · Vol. 3 · NG+…" autocomplete="off" maxlength="40"></label>
           <label>Rating
             <div class="star-input" id="rating-input">
               <div class="star-slot" data-slot="1"><span class="bg">★</span><span class="fg">★</span><button type="button" class="zone half" data-r="0.5" aria-label="0.5 stars"></button><button type="button" class="zone full" data-r="1" aria-label="1 star"></button></div>
@@ -1200,7 +1213,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <label class="span-2"><div class="toggle-row"><input type="checkbox" id="claude-respond-toggle"><span>Respond when I save an entry</span></div></label>
         </div>
         <div class="sync-status" id="claude-status">disabled</div>
-        <div style="margin-top:12px"><button class="btn-secondary" id="enrich-library-btn" type="button">✦ Enrich library — fill missing year &amp; creator</button></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn-secondary" id="enrich-library-btn" type="button">✦ Enrich library — fill missing year &amp; creator</button><button class="btn-secondary" id="merge-entries-btn" type="button">⌖ Merge entries — fold seasons into one title</button></div>
       </div>
       <div class="settings-section">
         <h3>Auto-push code to GitHub Pages</h3>
@@ -1324,6 +1337,25 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
   </div>
 </dialog>
 
+<!-- merge entries modal (fold split seasons into one title) -->
+<dialog id="merge-entries-modal">
+  <div class="modal">
+    <header><div><h2>Merge entries</h2><p>Fold split entries — one per season / volume — into a single title.</p></div><button type="button" class="close" data-close="merge-entries">×</button></header>
+    <div class="modal-body">
+      <div class="desc">Each absorbed entry becomes a <em>pass</em> on the survivor, auto-labeled from its leftover title text (“Severance S2” → <span class="eh-label">S2</span>). Ratings, notes and Claude takes ride along; the card then wears the average rating.</div>
+      <input type="text" id="me-search" placeholder="filter titles…" autocomplete="off" style="margin-top:10px;width:100%">
+      <div id="me-list" class="me-list"></div>
+      <div class="form-grid" style="margin-top:12px">
+        <label class="span-2">Merged title <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— what the single entry is called</span><input type="text" id="me-title" placeholder="select 2+ entries above" autocomplete="off"></label>
+      </div>
+    </div>
+    <footer>
+      <span id="me-count" class="me-count">0 selected</span>
+      <button type="button" class="btn-primary" id="me-merge-btn" disabled>merge into one</button>
+    </footer>
+  </div>
+</dialog>
+
 <aside class="claude-panel hidden" id="claude-panel">
   <header>
     <span class="badge">✦ claude</span>
@@ -1429,11 +1461,16 @@ function kindFor(collectionId) {
   return 'log';
 }
 function latestEvent(item) { return item && item.events && item.events.length ? item.events[item.events.length - 1] : null; }
-// Stamp the flat (projected) fields onto the title from its latest event.
+// Stamp the flat (projected) fields onto the title from its events.
+// rating = AVERAGE across all rated passes (seasons / rewatches) — the card, filters,
+// stats, gist sync and LeandroOS all read this; per-pass ratings live on the events.
+// Every other flat field mirrors the latest event.
 function projectItem(item) {
   const ev = latestEvent(item);
   if (!ev) return item;
-  item.rating = ev.rating || 0;
+  const rated = (item.events || []).filter(e => e.rating > 0);
+  item.rating = rated.length ? Math.round(rated.reduce((s, e) => s + e.rating, 0) / rated.length * 100) / 100 : 0;
+  item.label = ev.label || '';
   item.status = ev.status || 'queued';
   item.notes = ev.notes || '';
   item.noteSource = ev.noteSource || '';   // FEAT-14: who authored the description ('', 'me', 'claude', 'friend:Name')
@@ -1985,7 +2022,8 @@ function renderDiary() {
     const nodeSize = (5 + (ev.rating || 0) * 1.5).toFixed(1);   // ember (5px) → supergiant (12.5px)
     const node = `<span class="dz-node${ev.status === 'active' ? ' dz-node-live' : ''}" style="--ns:${nodeSize}px;--nc:${collColor(item.collectionId)}"></span>`;
     const yr = item.year ? ` <span class="dz-yeartag">(${item.year})</span>` : '';
-    return `<div class="dz-row" data-id="${escapeAttr(item.id)}">${node}<div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(item.title)}${yr}</span><span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
+    const label = ev.label ? `<span class="dz-label">${escapeHtml(ev.label)}</span>` : '';
+    return `<div class="dz-row" data-id="${escapeAttr(item.id)}">${node}<div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(item.title)}${yr}</span>${label}<span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
   };
 
   // "On this day" leads the chronicle (only when unfiltered, like the spotlight).
@@ -2079,12 +2117,17 @@ function renderObservatory() {
   html += obsPanel('Ratings', `<div class="ob-hist">${buckets.map((b, i) => `<div class="ob-hbar" data-rating="${b}" title="${b}★ · ${hc[i]}"><div class="ob-hbar-n">${hc[i] || ''}</div><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(hc[i] / hMax * 100)}%;background:${obsGoldRamp(b)}"></div></div><div class="ob-hbar-x">${b}</div></div>`).join('')}</div>`, true);
 
   // Rewatch Lab — revisited titles ranked by passes, with first→latest rating swing.
+  // A REWATCH is a repeat of the SAME part: events are grouped by label (S1 ≠ S2 — a
+  // season-per-event show isn't "revisited"), and the biggest same-label group is the arc.
   const revisited = state.items.map(it => {
-    const evs = (it.events || []).filter(e => e.status !== 'queued');
-    if (evs.length < 2) return null;
+    const groups = {};
+    for (const e of (it.events || [])) { if (e.status === 'queued') continue; const k = e.label || ''; (groups[k] = groups[k] || []).push(e); }
+    const best = Object.entries(groups).sort((a, b) => b[1].length - a[1].length)[0];
+    if (!best || best[1].length < 2) return null;
+    const [lbl, evs] = best;
     const rs = evs.filter(e => e.rating > 0).slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const swing = rs.length > 1 ? +(rs[rs.length - 1].rating - rs[0].rating).toFixed(1) : null;
-    return { it, passes: evs.length, first: rs[0]?.rating ?? null, last: rs[rs.length - 1]?.rating ?? null, swing };
+    return { it, lbl, passes: evs.length, first: rs[0]?.rating ?? null, last: rs[rs.length - 1]?.rating ?? null, swing };
   }).filter(Boolean).sort((a, b) => b.passes - a.passes || Math.abs(b.swing || 0) - Math.abs(a.swing || 0));
   const rlBody = revisited.length ? revisited.map(r => {
     const arc = (r.first != null && r.last != null) ? `<span class="rl-arc">★${r.first} → ★${r.last}</span>` : `<span class="rl-arc rl-unrated">unrated</span>`;
@@ -2092,7 +2135,8 @@ function renderObservatory() {
     if (r.swing > 0) swing = `<span class="rl-swing up">▲ +${r.swing}</span>`;
     else if (r.swing < 0) swing = `<span class="rl-swing down">▼ ${r.swing}</span>`;
     else if (r.swing === 0) swing = `<span class="rl-swing flat">held</span>`;
-    return `<div class="rl-row" data-id="${escapeAttr(r.it.id)}"><span class="rl-title">${escapeHtml(r.it.title)}</span><span class="rl-passes">×${r.passes}</span>${arc}${swing}</div>`;
+    const lbl = r.lbl ? ` <span class="eh-label">${escapeHtml(r.lbl)}</span>` : '';
+    return `<div class="rl-row" data-id="${escapeAttr(r.it.id)}"><span class="rl-title">${escapeHtml(r.it.title)}${lbl}</span><span class="rl-passes">×${r.passes}</span>${arc}${swing}</div>`;
   }).join('') : `<div class="ob-hint">Log a title more than once — rewatches and their rating swings appear here.</div>`;
   html += obsPanel('Rewatch Lab', rlBody, true);
 
@@ -2182,8 +2226,10 @@ function renderShelf() {
       it.claudeNote && it.claudeNote.trim() ? `<div class="has-claude">note for claude</div>` : '',
       takeCount > 0 ? `<div class="has-claude-takes">${takeCount} claude take${takeCount === 1 ? '' : 's'}</div>` : '',
     ].filter(Boolean).join('');
+    const passes = (it.events || []).length;
+    const ratingTitle = passes > 1 ? `★${it.rating || 0} — average of ${passes} passes` : `${it.rating || 0}/5`;
     return `<article class="item-card" data-id="${it.id}" style="--mc:${collColor(it.collectionId)}">
-      <div class="row1"><div class="title">${escapeHtml(it.title)}</div><div class="rating" title="${it.rating || 0}/5">${stars}</div></div>
+      <div class="row1"><div class="title">${escapeHtml(it.title)}</div><div class="rating" title="${ratingTitle}">${stars}${passes > 1 ? `<span class="pass-count">×${passes}</span>` : ''}</div></div>
       <div class="meta"><span class="status-pill status-${it.status}">${STATUS_LABELS[it.status]}</span><span>${escapeHtml(collName)}</span></div>
       ${byline}${notesPreview}${flagsHtml}${tagsHtml}
     </article>`;
@@ -2396,19 +2442,23 @@ function openEntryModal(item) {
   document.getElementById('modal-title').textContent = item ? 'Edit entry' : 'New entry';
   entryForm.reset();
   populateFormCollections();
-  setRating(item ? item.rating || 0 : 0);
+  // The form edits the LATEST EVENT — with rating projected as an average, the flat
+  // fields no longer equal the latest pass, so read per-encounter fields off the event.
+  const ev = latestEvent(item);
+  setRating(ev ? ev.rating || 0 : 0);
   setTagChips(item ? (item.tags || []) : []);
   tagEntryEl.value = ''; hideTagSuggest();
-  setNoteSource(item ? (item.noteSource || '') : '');
+  setNoteSource(ev ? (ev.noteSource || '') : '');
   if (item) {
     entryForm.title.value = item.title;
     entryForm.collectionId.value = item.collectionId;
-    entryForm.status.value = item.status;
+    entryForm.status.value = ev?.status || item.status;
+    entryForm.label.value = ev?.label || '';
     entryForm.year.value = item.year || '';
     entryForm.creator.value = item.creator || '';
-    entryForm.notes.value = item.notes || '';
-    entryForm.claudeNote.value = item.claudeNote || '';
-    entryForm.publicReview.value = item.publicReview || '';
+    entryForm.notes.value = ev?.notes || '';
+    entryForm.claudeNote.value = ev?.claudeNote || '';
+    entryForm.publicReview.value = ev?.publicReview || '';
     entryForm.config.value = item.config || '';
     document.getElementById('delete-entry').classList.remove('hidden');
   } else {
@@ -2463,9 +2513,10 @@ function renderEventHistory(item) {
   list.innerHTML = [...events].reverse().map(ev => {
     const verb = EVENT_VERB[ev.kind] || 'logged';
     const stars = ev.rating ? '★' + ev.rating : '·';
+    const label = ev.label ? `<span class="eh-label">${escapeHtml(ev.label)}</span>` : '';
     const note = ev.notes ? `<span class="eh-note">${sourceTag(ev.noteSource)}${escapeHtml(ev.notes)}</span>` : '<span class="eh-note"></span>';
     const del = multi ? `<button type="button" class="eh-del" data-ev="${escapeAttr(ev.id)}" title="remove this pass">×</button>` : '';
-    return `<div class="eh-row${ev === latest ? ' current' : ''}"><span class="eh-date">${escapeHtml(ev.date || '—')}</span><span class="eh-verb">${verb}</span><span class="eh-rating">${stars}</span>${note}<span class="eh-status">${escapeHtml(ev.status || '')}</span>${del}</div>`;
+    return `<div class="eh-row${ev === latest ? ' current' : ''}"><span class="eh-date">${escapeHtml(ev.date || '—')}</span><span class="eh-verb">${verb}</span>${label}<span class="eh-rating">${stars}</span>${note}<span class="eh-status">${escapeHtml(ev.status || '')}</span>${del}</div>`;
   }).join('');
 }
 // "Log again" arms the editor to capture a NEW encounter: keep title/collection/tags, clear the
@@ -2476,6 +2527,7 @@ function armRelog() {
   document.getElementById('modal-title').textContent = 'New pass';
   setRating(0);
   entryForm.status.value = 'done';
+  entryForm.label.value = '';
   entryForm.notes.value = '';
   setNoteSource('');
   entryForm.claudeNote.value = '';
@@ -2499,12 +2551,14 @@ document.getElementById('event-history-list').addEventListener('click', e => {
   // Re-sync the form to the (possibly new) latest event and refresh both lists.
   relogging = false;
   document.getElementById('modal-title').textContent = 'Edit entry';
-  setRating(item.rating || 0);
-  entryForm.status.value = item.status;
-  entryForm.notes.value = item.notes || '';
-  setNoteSource(item.noteSource || '');
-  entryForm.claudeNote.value = item.claudeNote || '';
-  entryForm.publicReview.value = item.publicReview || '';
+  const ev2 = latestEvent(item);
+  setRating(ev2?.rating || 0);
+  entryForm.status.value = ev2?.status || item.status;
+  entryForm.label.value = ev2?.label || '';
+  entryForm.notes.value = ev2?.notes || '';
+  setNoteSource(ev2?.noteSource || '');
+  entryForm.claudeNote.value = ev2?.claudeNote || '';
+  entryForm.publicReview.value = ev2?.publicReview || '';
   renderEventHistory(item);
   renderClaudeTakes(item);
   renderItems();
@@ -2602,6 +2656,7 @@ entryForm.addEventListener('submit', e => {
     collectionId: fd.get('collectionId'),
     status: fd.get('status'),
     rating: clampRating(fd.get('rating')),
+    label: (fd.get('label') || '').trim().slice(0, 40),
     tags,
     year: (() => { const y = parseInt(fd.get('year'), 10); return Number.isInteger(y) && y > 0 ? y : null; })(),
     creator: (fd.get('creator') || '').trim().slice(0, 120) || null,
@@ -2625,7 +2680,7 @@ entryForm.addEventListener('submit', e => {
       live.title = data.title; live.collectionId = data.collectionId; live.tags = data.tags; live.config = data.config; live.year = data.year; live.creator = data.creator; live.updatedAt = now;
       if (isRelog) {
         // Append a brand-new encounter (rewatch / replay / reread) — the title's other passes stay.
-        live.events.push({ id: uid(), date: today(), kind: kindFor(data.collectionId),
+        live.events.push({ id: uid(), date: today(), kind: kindFor(data.collectionId), label: data.label,
           rating: data.rating, status: data.status, notes: data.notes, noteSource: data.noteSource, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] });
         toast('logged again.');
       } else {
@@ -2633,7 +2688,7 @@ entryForm.addEventListener('submit', e => {
         let ev = latestEvent(live);
         if (!ev) { ev = { id: uid(), date: today(), kind: kindFor(data.collectionId), claudeReplies: [] }; live.events = [ev]; }
         const wasDone = ev.status === 'done';
-        ev.rating = data.rating; ev.status = data.status; ev.notes = data.notes; ev.noteSource = data.noteSource; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
+        ev.rating = data.rating; ev.status = data.status; ev.label = data.label; ev.notes = data.notes; ev.noteSource = data.noteSource; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
         if (data.status === 'done' && !wasDone) ev.date = today();   // stamp the finish date when entering "done"
       }
       projectItem(live);
@@ -2643,7 +2698,7 @@ entryForm.addEventListener('submit', e => {
     savedItem = {
       id: uid(), title: data.title, collectionId: data.collectionId, tags: data.tags, config: data.config,
       year: data.year, creator: data.creator, createdAt: today(), updatedAt: now,
-      events: [{ id: uid(), date: today(), kind: kindFor(data.collectionId), rating: data.rating, status: data.status,
+      events: [{ id: uid(), date: today(), kind: kindFor(data.collectionId), label: data.label, rating: data.rating, status: data.status,
                  notes: data.notes, noteSource: data.noteSource, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] }],
     };
     projectItem(savedItem);
@@ -2674,6 +2729,94 @@ entryForm.addEventListener('submit', e => {
 
 // ✦ fill — manual: research this title → fill Year/Creator fields + add mood/pace tag chips (user reviews before saving).
 document.getElementById('enrich-library-btn').addEventListener('click', enrichLibrary);
+
+// ─── Merge entries: fold split per-season entries into one title ──────────────
+// Each absorbed entry's events move onto the survivor; unlabeled events get a label
+// derived from the leftover title text ("Severance S2" − "Severance" → "S2").
+const mergeEntriesModal = document.getElementById('merge-entries-modal');
+let meSelected = new Set();
+function meDeriveLabel(srcTitle, finalTitle) {
+  const s = srcTitle.trim(), f = finalTitle.trim();
+  if (!f || s.toLowerCase() === f.toLowerCase()) return '';
+  if (!s.toLowerCase().startsWith(f.toLowerCase())) return '';
+  return s.slice(f.length).replace(/^[\s:—–\-·,(]+/, '').replace(/[)\s]+$/, '').slice(0, 40);
+}
+function meCommonPrefix(titles) {
+  if (!titles.length) return '';
+  let p = titles[0];
+  for (const t of titles.slice(1)) {
+    let i = 0;
+    while (i < p.length && i < t.length && p[i].toLowerCase() === t[i].toLowerCase()) i++;
+    p = p.slice(0, i);
+  }
+  // Ends mid-word ("Severance S1"/"Severance S2" → "Severance S")? Back off to the last space.
+  if (p && /\S/.test(p[p.length - 1]) && titles.some(t => t.length > p.length && /\S/.test(t[p.length]))) {
+    p = p.slice(0, p.lastIndexOf(' ') + 1);
+  }
+  return p.replace(/[\s:—–\-·,(]+$/, '').trim();
+}
+function renderMergeList() {
+  const q = document.getElementById('me-search').value.trim().toLowerCase();
+  const items = [...state.items].sort((a, b) => a.title.localeCompare(b.title))
+    .filter(it => !q || it.title.toLowerCase().includes(q));
+  document.getElementById('me-list').innerHTML = items.map(it => {
+    const coll = state.collections.find(c => c.id === it.collectionId);
+    const passes = (it.events || []).length;
+    return `<label class="me-row"><input type="checkbox" data-id="${escapeAttr(it.id)}"${meSelected.has(it.id) ? ' checked' : ''}><span class="me-t">${escapeHtml(it.title)}</span><span class="me-sub">${escapeHtml(coll?.name || '—')} · ${passes} pass${passes === 1 ? '' : 'es'}${it.rating ? ` · ★${it.rating}` : ''}</span></label>`;
+  }).join('') || '<div class="dupe-empty" style="padding:10px">no titles match</div>';
+}
+function meSync() {
+  document.getElementById('me-count').textContent = `${meSelected.size} selected`;
+  document.getElementById('me-merge-btn').disabled = meSelected.size < 2;
+  const tEl = document.getElementById('me-title');
+  if (meSelected.size >= 2 && !tEl.dataset.touched) {
+    tEl.value = meCommonPrefix(state.items.filter(i => meSelected.has(i.id)).map(i => i.title));
+  }
+}
+document.getElementById('merge-entries-btn').addEventListener('click', () => {
+  meSelected = new Set();
+  document.getElementById('me-search').value = '';
+  const tEl = document.getElementById('me-title'); tEl.value = ''; delete tEl.dataset.touched;
+  renderMergeList(); meSync();
+  mergeEntriesModal.showModal();
+});
+document.getElementById('me-search').addEventListener('input', renderMergeList);
+document.getElementById('me-title').addEventListener('input', e => { e.target.dataset.touched = '1'; });
+document.getElementById('me-list').addEventListener('change', e => {
+  const cb = e.target.closest('input[type="checkbox"]'); if (!cb) return;
+  if (cb.checked) meSelected.add(cb.dataset.id); else meSelected.delete(cb.dataset.id);
+  meSync();
+});
+document.getElementById('me-merge-btn').addEventListener('click', () => {
+  const picked = state.items.filter(i => meSelected.has(i.id));
+  if (picked.length < 2) return;
+  const finalTitle = document.getElementById('me-title').value.trim().slice(0, 300) || picked[0].title;
+  if (!confirm(`Merge ${picked.length} entries into “${finalTitle}”? Their passes, ratings, notes and Claude takes are kept; the separate cards disappear.`)) return;
+  // Survivor = earliest-created pick; everything else folds into it.
+  const target = [...picked].sort((a, b) => ((a.createdAt || '') < (b.createdAt || '') ? -1 : 1))[0];
+  const allEvents = [];
+  for (const it of picked) {
+    for (const ev of (it.events || [])) {
+      if (!ev.label) { const lbl = meDeriveLabel(it.title, finalTitle); if (lbl) ev.label = lbl; }
+      allEvents.push(ev);
+    }
+    if (it !== target) {
+      if (it.year && (!target.year || it.year < target.year)) target.year = it.year;   // original release = earliest
+      if (!target.creator && it.creator) target.creator = it.creator;
+      if (!target.config && it.config) target.config = it.config;
+      target.tags = [...new Set([...(target.tags || []), ...(it.tags || [])])].slice(0, 30);
+    }
+  }
+  allEvents.sort((a, b) => ((a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0));
+  target.title = finalTitle;
+  target.events = allEvents;
+  target.updatedAt = Date.now();
+  projectItem(target);
+  state.items = state.items.filter(i => i === target || !meSelected.has(i.id));
+  save(); renderAll();
+  mergeEntriesModal.close();
+  toast(`⌖ merged into “${finalTitle}” — ${allEvents.length} passes.`);
+});
 document.getElementById('enrich-btn').addEventListener('click', async () => {
   const title = entryForm.title.value.trim();
   if (!title) { toast('add a title first.', true); return; }
@@ -3625,8 +3768,14 @@ function buildClaudeMessage(entry, isNew) {
   if (entry.year) lines.push(`- Year: ${entry.year}`);
   if (entry.creator) lines.push(`- Creator: ${entry.creator}`);
   lines.push(`- Collection: ${c?.name || '—'}`);
+  if (entry.label) lines.push(`- Part: ${entry.label} (this entry covers this pass — react to THIS part)`);
   lines.push(`- Status: ${entry.status}`);
-  if (entry.rating) lines.push(`- Rating: ${entry.rating}/5`);
+  // Season/rewatch context: the passes before this one, so takes can track the arc.
+  const prior = (entry.events || []).slice(0, -1);
+  if (prior.length) lines.push(`- His prior passes: ${prior.map(e => `${e.label || 'pass'}${e.rating ? ` ★${e.rating}` : ' (unrated)'} · ${e.date || '—'}`).join(' — ')}`);
+  // React to THIS pass's rating; the projected item.rating is the cross-pass average.
+  const evRating = latestEvent(entry)?.rating || 0;
+  if (evRating) lines.push(`- Rating: ${evRating}/5${(entry.events || []).length > 1 ? ` (this pass — his average across passes is ★${entry.rating})` : ''}`);
   // FEAT-05: pull mood + pace tags out as labeled signals; the rest stay generic Tags.
   const moodGroupId = (state.tagGroups.find(g => (g.name || '').toLowerCase() === 'mood') || {}).id;
   const paceGroupId = (state.tagGroups.find(g => (g.name || '').toLowerCase() === 'pace') || {}).id;
@@ -3958,12 +4107,13 @@ document.querySelectorAll('[data-close]').forEach(b => {
     if (which === 'share')   shareModal.close();
     if (which === 'help')    helpModal.close();
     if (which === 'prompt')  { if (promptResolve) promptResolve(null); promptModal.close(); }
+    if (which === 'merge-entries') document.getElementById('merge-entries-modal').close();
     // mobile: also clear sheet backdrop + sidebar-as-sheet
     document.querySelector('.sidebar')?.classList.remove('show-as-sheet');
     document.getElementById('sheet-backdrop')?.classList.remove('show');
   });
 });
-[entryModal, tagMgrModal, settingsModal, importModal, shareModal, promptModal].forEach(d => {
+[entryModal, tagMgrModal, settingsModal, importModal, shareModal, promptModal, mergeEntriesModal].forEach(d => {
   d.addEventListener('click', e => {
     if (e.target === d) {
       if (d === entryModal) closeEntryModal();
