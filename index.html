@@ -1430,18 +1430,19 @@ const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, 
 7. Status defaults to 'queued' for things you're recommending.`;
 
 let state = load();
-let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0, creator: null, decade: null, mode: 'shelf' };
+let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0, creator: null, actor: null, decade: null, mode: 'shelf' };
 // Tags filter as an AND-set (multi-select). Toggle membership in/out.
 function toggleViewTag(t) { view.tags = view.tags.includes(t) ? view.tags.filter(x => x !== t) : [...view.tags, t]; }
 // The pristine library state: Everything / All, no tags / rating / search (sort is a display pref, left alone).
-function isViewDefault() { return view.collection === 'all' && view.status === 'all' && !view.tags.length && !view.minRating && !view.creator && view.decade == null && !view.search; }
-function resetView() { view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.creator = null; view.decade = null; view.search = ''; const s = document.getElementById('search'); if (s) s.value = ''; }
-function anyFilterActive() { return view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.creator || view.decade != null || !!view.search; }
+function isViewDefault() { return view.collection === 'all' && view.status === 'all' && !view.tags.length && !view.minRating && !view.creator && !view.actor && view.decade == null && !view.search; }
+function resetView() { view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.creator = null; view.actor = null; view.decade = null; view.search = ''; const s = document.getElementById('search'); if (s) s.value = ''; }
+function anyFilterActive() { return view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.creator || !!view.actor || view.decade != null || !!view.search; }
 // Removable chips for every active filter — shared by Shelf and Diary meta lines.
 function filterChipsHtml() {
   let h = '';
   view.tags.forEach(t => h += `<span class="active-tag">${escapeHtml(t)}<button class="clear-tag" data-tag="${escapeAttr(t)}" type="button">×</button></span>`);
   if (view.creator) h += `<span class="active-tag creator-chip">${escapeHtml(view.creator)}<button id="clear-creator" type="button">×</button></span>`;
+  if (view.actor) h += `<span class="active-tag creator-chip">☆ ${escapeHtml(view.actor)}<button id="clear-actor" type="button">×</button></span>`;
   if (view.decade != null) h += `<span class="active-tag decade-chip">${view.decade}s<button id="clear-decade" type="button">×</button></span>`;
   if (view.minRating) h += `<span class="active-tag rating-chip">★ ${view.minRating}+<button id="clear-rating" type="button">×</button></span>`;
   return h;
@@ -1693,6 +1694,7 @@ function getFilteredItems() {
   if (view.tags.length)          items = items.filter(i => view.tags.every(t => (i.tags || []).includes(t)));
   if (view.minRating)            items = items.filter(i => (i.rating || 0) >= view.minRating);
   if (view.creator)              items = items.filter(i => i.creator === view.creator);
+  if (view.actor)                items = items.filter(i => (i.cast || []).includes(view.actor));
   if (view.decade != null)       items = items.filter(i => i.year && Math.floor(i.year / 10) * 10 === view.decade);
   if (view.search) {
     const q = view.search.toLowerCase();
@@ -1980,6 +1982,7 @@ function getDiaryEvents() {
   if (view.collection !== 'all') items = items.filter(i => i.collectionId === view.collection);
   if (view.tags.length)          items = items.filter(i => view.tags.every(t => (i.tags || []).includes(t)));
   if (view.creator)              items = items.filter(i => i.creator === view.creator);
+  if (view.actor)                items = items.filter(i => (i.cast || []).includes(view.actor));
   if (view.decade != null)       items = items.filter(i => i.year && Math.floor(i.year / 10) * 10 === view.decade);
   if (view.search) {
     const q = view.search.toLowerCase();
@@ -2094,9 +2097,9 @@ function renderObservatory() {
   // One record per title (latest/projected values), or one per non-queued encounter.
   const recs = [];
   if (unit === 'titles') {
-    for (const it of state.items) recs.push({ rating: it.rating || 0, status: it.status, collectionId: it.collectionId, tags: it.tags || [], year: it.year, creator: it.creator });
+    for (const it of state.items) recs.push({ rating: it.rating || 0, status: it.status, collectionId: it.collectionId, tags: it.tags || [], year: it.year, creator: it.creator, cast: it.cast || [] });
   } else {
-    for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued') continue; recs.push({ rating: ev.rating || 0, status: ev.status, collectionId: it.collectionId, tags: it.tags || [], year: it.year, creator: it.creator }); }
+    for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued') continue; recs.push({ rating: ev.rating || 0, status: ev.status, collectionId: it.collectionId, tags: it.tags || [], year: it.year, creator: it.creator, cast: it.cast || [] }); }
   }
 
   // Fingerprint
@@ -2178,6 +2181,14 @@ function renderObservatory() {
   const topCr = Object.entries(crCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const crMax = Math.max(1, ...topCr.map(c => c[1]));
   html += obsPanel('Top creators', topCr.length ? topCr.map(([c, n]) => obsRankBar(escapeHtml(c), n, crMax, n, ` data-creator="${escapeAttr(c)}"`)).join('') : `<div class="ob-hint">add creators (✦ enrich library) to chart creators</div>`);
+
+  // Top actors — RECURRING faces only (≥2 titles): "your people", not a list of one-offs.
+  // cast is filled by ✦ enrich (film/TV actors, principal game voice cast), shown only here.
+  const acCount = {};
+  for (const r of recs) for (const a of r.cast) acCount[a] = (acCount[a] || 0) + 1;
+  const topAc = Object.entries(acCount).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const acMax = Math.max(1, ...topAc.map(a => a[1]));
+  html += obsPanel('Top actors', topAc.length ? topAc.map(([a, n]) => obsRankBar(escapeHtml(a), n, acMax, n, ` data-actor="${escapeAttr(a)}"`)).join('') : `<div class="ob-hint">recurring faces surface once an actor appears in 2+ titles — ✦ enrich fills casts</div>`);
 
   // Encounters over time (by year, always event-based)
   const yc = {};
@@ -3652,9 +3663,10 @@ const ENRICH_SEARCH_TOOLS = [{ type: 'web_search_20260209', name: 'web_search', 
 // The JSON contract both tiers share.
 function enrichFieldSpec() {
   return 'Return ONLY a JSON object as your final answer, nothing after it: '
-    + '{"year": number|null, "creator": string|null, "mood": string[], "pace": "slow"|"medium"|"fast"|null}. '
+    + '{"year": number|null, "creator": string|null, "cast": string[], "mood": string[], "pace": "slow"|"medium"|"fast"|null}. '
     + 'year = original release/publication year of the WORK (for a translated edition, the original — not the translation). '
     + 'creator = primary maker as a canonical full name: director (film/TV), author (book), studio/developer (game), artist/band (album). '
+    + 'cast = the top-billed MAIN and SECONDARY performers as canonical full names — film/TV: actors; games: principal voice cast. 0-8 entries, no bit parts or extras. [] for books, albums, or anything without performers. '
     + `mood = 0-3 entries chosen ONLY from this exact list: [${MOOD_PALETTE.join(', ')}]. Pick the ones that genuinely fit the work's emotional register. Never invent a mood outside the list. `
     + 'pace = how the work moves overall: "slow", "medium", or "fast"; null when not applicable (e.g. an album) or unsure. ';
 }
@@ -3664,10 +3676,13 @@ function parseMeta(txt) {
   return {
     year: Number.isInteger(d.year) && d.year > 0 ? d.year : null,
     creator: (typeof d.creator === 'string' && d.creator.trim()) ? d.creator.trim().slice(0, 120) : null,
+    cast: Array.isArray(d.cast) ? [...new Set(d.cast.map(x => String(x).trim().slice(0, 80)).filter(Boolean))].slice(0, 8) : [],
     mood: Array.isArray(d.mood) ? [...new Set(d.mood.map(x => String(x).trim().toLowerCase()).filter(x => MOOD_PALETTE.includes(x)))].slice(0, 3) : [],
     pace: PACES.includes(d.pace) ? d.pace : null,
   };
 }
+// Cast only makes sense for performed media (film/TV = watch, games = play).
+function castApplies(collectionId) { return ['watch', 'play'].includes(kindFor(collectionId)); }
 // Research a work and return {year,creator,mood[],pace} or null. Two tiers:
 //   1. training memory, abstain-don't-guess — instant, covers the famous 90%.
 //   2. if identification failed (translated title, recent release, obscure work) →
@@ -3684,13 +3699,13 @@ async function fetchMeta(title, collName, hints = {}) {
     + 'CRITICAL: only fill a field if you identify this EXACT work with HIGH confidence from training. '
     + 'Obscure / generic / ambiguous / very recent → null (and [] for mood). A confabulated value is far worse than null. Do not guess.';
   let r = null;
-  try { r = parseMeta(await callClaude({ system: t1System, userMessage, maxTokens: 140, model: ENRICH_MODEL })); }
+  try { r = parseMeta(await callClaude({ system: t1System, userMessage, maxTokens: 280, model: ENRICH_MODEL })); }
   catch (e) { console.warn('fetchMeta tier1', e); }
 
   // Tier 2 — memory couldn't place it; search the web before giving up. Escalate when the
   // merged view (model answer + typed hints) still lacks year/creator, or when no mood AND
   // no pace came back (the tell that identification failed even with year/creator on hand).
-  if (!r || (!r.year && !hints.year) || (!r.creator && !hints.creator) || (!r.mood.length && !r.pace)) {
+  if (!r || (!r.year && !hints.year) || (!r.creator && !hints.creator) || (!r.mood.length && !r.pace) || (hints.wantsCast && !r.cast.length)) {
     hints.onSearch?.();
     const t2System = 'You identify a work of media. You have a web_search tool — the title may be a translated '
       + 'edition, a recent release, or an obscure work, so SEARCH to identify the EXACT work before answering. '
@@ -3698,7 +3713,7 @@ async function fetchMeta(title, collName, hints = {}) {
       + 'Base year/creator on what the search confirms; if the search cannot resolve the work, use null (and [] for mood). Never guess.';
     try {
       const t2 = parseMeta(await callClaude({ system: t2System, userMessage, maxTokens: 700, model: ENRICH_MODEL, tools: ENRICH_SEARCH_TOOLS }));
-      if (t2) r = r ? { year: t2.year ?? r.year, creator: t2.creator ?? r.creator, mood: t2.mood.length ? t2.mood : r.mood, pace: t2.pace ?? r.pace } : t2;
+      if (t2) r = r ? { year: t2.year ?? r.year, creator: t2.creator ?? r.creator, cast: t2.cast.length ? t2.cast : r.cast, mood: t2.mood.length ? t2.mood : r.mood, pace: t2.pace ?? r.pace } : t2;
     } catch (e) { console.warn('fetchMeta tier2', e); }
   }
   return r;
@@ -3710,18 +3725,20 @@ function applyMeta(it, r) {
   let changed = false;
   if (!it.year && r.year) { it.year = r.year; changed = true; }
   if (!it.creator && r.creator) { it.creator = r.creator; changed = true; }
+  if (!(it.cast || []).length && r.cast.length && castApplies(it.collectionId)) { it.cast = r.cast; changed = true; }   // Observatory-only field
   const tags = new Set(it.tags || []);
   for (const m of r.mood) if (!tags.has(m)) { tags.add(m); changed = true; }
   if (r.pace && !PACES.some(p => tags.has(p))) { tags.add(r.pace); changed = true; }   // one pace tag, only if none yet
   if (changed) it.tags = [...tags].slice(0, 30);
   return changed;
 }
-// True when an item still has research to fetch (any of year / creator / mood / pace missing).
+// True when an item still has research to fetch (year / creator / mood / pace missing —
+// plus cast, but only for performed media where cast makes sense).
 function needsMeta(it) {
   const tags = it.tags || [];
   const hasMood = tags.some(t => MOOD_PALETTE.includes(t));
   const hasPace = PACES.some(p => tags.includes(p));
-  return !it.year || !it.creator || !hasMood || !hasPace;
+  return !it.year || !it.creator || !hasMood || !hasPace || (castApplies(it.collectionId) && !(it.cast || []).length);
 }
 // Auto-enrich a freshly-logged item in place. Toasts progress + honest abstention
 // (silence used to read as "the feature didn't work").
@@ -3731,7 +3748,7 @@ async function autoEnrich(itemId) {
   try {
     const coll = state.collections.find(c => c.id === it.collectionId);
     const r = await fetchMeta(it.title, coll?.name, {
-      creator: it.creator, year: it.year,
+      creator: it.creator, year: it.year, wantsCast: castApplies(it.collectionId),
       onSearch: () => toast('✦ hmm — searching the web for this one…'),
     });
     const live = state.items.find(i => i.id === itemId); if (!live) return;
@@ -3749,7 +3766,7 @@ async function enrichLibrary() {
   for (const it of todo) {
     try {
       const coll = state.collections.find(c => c.id === it.collectionId);
-      applyMeta(it, await fetchMeta(it.title, coll?.name, { creator: it.creator, year: it.year }));
+      applyMeta(it, await fetchMeta(it.title, coll?.name, { creator: it.creator, year: it.year, wantsCast: castApplies(it.collectionId) }));
     } catch (e) { /* skip this one */ }
     if (++done % 5 === 0) { save(); renderItems(); toast(`enriched ${done}/${todo.length}…`); }
   }
@@ -4098,11 +4115,13 @@ document.getElementById('observatory').addEventListener('click', e => {
   const r = e.target.closest('[data-rating]'); if (r) { view.minRating = parseFloat(r.dataset.rating); view.collection = 'all'; view.tags = []; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
   const dc = e.target.closest('[data-decade]'); if (dc) { view.decade = parseInt(dc.dataset.decade, 10); view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
   const cr = e.target.closest('[data-creator]'); if (cr) { view.creator = cr.dataset.creator; view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
+  const ac = e.target.closest('[data-actor]'); if (ac) { view.actor = ac.dataset.actor; view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
 });
 document.getElementById('view-meta').addEventListener('click', e => {
   if (e.target.classList.contains('clear-tag')) { view.tags = view.tags.filter(t => t !== e.target.dataset.tag); renderAll(); }
   if (e.target.id === 'clear-rating') { view.minRating = 0; renderAll(); }
   if (e.target.id === 'clear-creator') { view.creator = null; renderAll(); }
+  if (e.target.id === 'clear-actor') { view.actor = null; renderAll(); }
   if (e.target.id === 'clear-decade') { view.decade = null; renderAll(); }
 });
 document.getElementById('empty-state').addEventListener('click', e => {
