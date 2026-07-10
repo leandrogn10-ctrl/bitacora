@@ -156,39 +156,52 @@ settings, **never logged or exported**.
   strips the API key), so re-paste the key in Settings if you want `autoEnrich` on *new* logs there.
 - **Backlog = source of truth:** `~/Downloads/leandro-os/prototype/BITACORA-AUDIT.md` (§0 status banner,
   §2 features).
-- **Shipped (not yet committed): FEAT-16** — **medium-specific genre tags**, same AI-assigned-tag
-  mechanism as FEAT-05's Mood/Pace (one more field in `fetchMeta`'s JSON contract, filled on log/enrich,
-  reviewable via ✦ fill). Three new seeded tag groups (`genreSeeded` flag, independent of
-  `taxonomySeeded` so existing libraries pick them up on next load): **Genre** `terracotta` (film/TV/book
-  shared vocab, 30 entries — pitched at Music's specificity, not umbrella terms: psychological
-  thriller/dark comedy/romantic comedy/slasher/body horror/cyberpunk/space opera/dystopian/high
-  fantasy/fairy tale/noir/heist/biopic/period drama/courtroom drama/true crime/mockumentary +
-  thriller/horror/sci-fi/fantasy/romance/mystery/whodunit/documentary/animation/satire/war/crime/
-  coming-of-age), **Music** `gold` (albums: indie pop/folk/rock/hip-hop/electronic/jazz/classical/
-  ambient/metal/pop/punk/soul/country/r&b/experimental), **Game** `ash` (29 entries: FPS/RPG/JRPG/
-  tactical RPG/platformer/metroidvania/puzzle/strategy/4X/simulation/immersive sim/walking
-  simulator/adventure/roguelike/soulslike/fighting/beat em up/sports/racing/survival
-  horror/survival/sandbox/city builder/battle royale/MOBA/rhythm/deckbuilder/visual novel/stealth)
-  — Game was briefly seeded `ochre`, near-identical to Music's `gold`; migrate() one-time-fixes any
-  group already seeded with the old color. No tag string repeats across Genre/Music/Game/Mood/Pace
-  (the original "adventure"/"horror" collision between Genre and Game would've rendered with
-  whichever group seeded first, since `tagAssignments` is a single global map keyed by tag text, not
-  scoped per medium) — Game's "horror" became "survival horror", Genre dropped plain "adventure" for
-  named subgenres. `genreVocabFor(collectionId)` picks the applicable list by `kindFor` (watch/read →
-  Genre, listen → Music, play → Game; `log` kind gets no genre vocab, no requirement). Up to 3 genre
-  tags per item, matched case-insensitively then canonicalized to vocab casing (games' vocab has
-  mixed case: FPS/RPG/JRPG/MOBA/4X). `needsMeta` only requires genre when `genreVocabFor` is
-  non-empty. `enrichFieldSpec`'s genre instruction tells the model to pick only the narrower tag when
-  a broad genre and a subgenre it implies both fit (e.g. not both "pop" and "indie pop", or "thriller"
-  and "psychological thriller") — `GENRE_SUBSUMED_PAIRS` lists the known pairs. One-time
-  `genreDedupDone` cleanup pass in `migrate()` backfills this for entries a prior enrich run already
-  double-tagged (drops the broader tag when both are present on the same item). Separate one-time
-  `genreVocabV2Seeded` flag assigns colors for genre words added after `genreSeeded` had already run
-  on a library (skips a group the user has since deleted, rather than recreating it). Verified
-  in-browser: tag groups seed with correct distinct colors, chip renders the right `tag-color-*` class,
-  dedup pass drops "pop"/"thriller" while keeping "indie pop"/"psychological thriller", V2 seeding
-  colors a vocab word added after the original seed. Not yet tested against the live Claude API (no
-  key in this session) — the JSON contract change mirrors mood's proven shape exactly. SW `bitacora-v16`.
+- **Shipped (not yet committed): FEAT-16** — **medium-specific genre tags**, AI-assigned like
+  FEAT-05's Mood/Pace (one more field in `fetchMeta`'s JSON contract, filled on log/enrich,
+  reviewable via ✦ fill), built around a **two-tier taxonomy**: `GENRE_TAXONOMY` (film/TV/books,
+  12 umbrellas → 58 leaves), `MUSIC_TAXONOMY` (12 → 44), `GAME_TAXONOMY` (17 → 37) — objects shaped
+  `{ umbrella: [specific subgenres] }`. The model always prefers the most specific leaf; the bare
+  umbrella name is itself a valid, directly-assignable tag, used only when none of its leaves fit
+  but the umbrella clearly does — so an item never ends up with zero genre signal, and nothing
+  outside the closed taxonomy can ever become a tag (enforced in `parseMeta`'s filter, not just by
+  prompt instruction). Umbrella count is small and hand-curated (Observatory rollup bars stay
+  clean); leaf count is the axis meant to grow. `genreTaxonomyFor(collectionId)` picks by `kindFor`
+  (watch/read → Genre, listen → Music, play → Game, `log` kind → none). `taxonomyVocab`/
+  `taxonomyPromptStr`/`taxonomyParentMap` derive the flat vocab, the grouped prompt listing, and the
+  leaf→umbrella map from each taxonomy object — `GENRE_PARENT` merges all three (safe: no leaf name
+  repeats across taxonomies, verified programmatically), `GENRE_SUBSUMED_PAIRS` and
+  `GENRE_UMBRELLA_NAMES` are both derived from it (no more hand-maintained pair list).
+  No tag string repeats across Genre/Music/Game/Mood/Pace — `tagAssignments` is a single global map
+  keyed by tag text, so a shared string (the original "adventure"/"horror" collision between Genre
+  and Game) would render with whichever group seeded first, regardless of the item's actual medium.
+  `migrate()`: group creation (`ensureTagGroup`) is one-time per group (`genreSeeded` flag, so a
+  group the user deletes stays deleted), but vocab→group assignment now runs unconditionally every
+  load (only fills blanks, only into a group that still exists) — new leaves added to a taxonomy
+  later just get colored on next load, no more one-off `...V2Seeded`-style flags needed each time
+  the vocab grows. One-time `genreDedupDone` pass drops a bare umbrella tag wherever its own leaf
+  is also present on the same item (backfills anything a prior enrich run double-tagged before this
+  taxonomy existed). Game was briefly seeded `ochre` (near-identical to Music's `gold`) —
+  self-fixes on load.
+  **Curation loop (the actual point of "umbrella-as-fallback" over "leave it blank")**: when
+  `applyMeta` lands a tag that's a bare umbrella name, `logGenreGap(it, umbrella)` pushes
+  `{itemId, title, umbrella, medium, at}` onto `state.genreGaps` (deduped per item+umbrella, capped
+  at 200) — reviewed in Settings under "Genre gaps (N)", each row with **open** (closes Settings,
+  opens that entry so you can hand-pick a leaf) and **dismiss** (this one genuinely has no better
+  fit). Never auto-creates a tag — promoting a recurring gap into a real leaf is a deliberate code
+  edit to the taxonomy, done by us, not the model. Separately, `it.genreAbstained` is set when
+  `fetchMeta` returned a real (non-null) response but genre came back `[]` — distinguishes "tried,
+  found nothing" from "never asked yet" so `needsMeta` stops re-querying that item forever on every
+  future "Enrich library" pass (mood/pace/year/creator have the same theoretical gap, not fixed here
+  — out of scope, genre's taxonomy is narrow enough per medium that empty comes up far more often).
+  Verified in-browser end to end: taxonomy extracted from the live file and collision-checked
+  (`node`, zero collisions across 195 strings) and coverage-checked (every pre-FEAT-16 vocab word
+  still valid, either as a leaf or promoted to an umbrella name); seeding survives an
+  already-migrated library; a new leaf ("time travel") colors correctly on next load without a new
+  flag; a Genre-umbrella leaf-pair not in the old hand-written list ("documentary"+"true crime")
+  dedupes correctly, proving the auto-derivation; Game-medium umbrella ("shooter") renders `ash`,
+  Genre-medium umbrella ("action") renders `terracotta`; Settings gap list renders a seeded gap and
+  dismiss removes it and shows the empty state. Not yet tested against the live Claude API (no key
+  in this session) — the JSON contract shape mirrors mood's proven pattern. SW `bitacora-v16`.
 - **Open:** merge `feat/roulette` (brings FEAT-04 + FEAT-06, stacked) → `main` + push ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".

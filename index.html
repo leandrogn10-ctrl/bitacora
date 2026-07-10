@@ -1218,6 +1218,11 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn-secondary" id="enrich-library-btn" type="button">✦ Enrich library — fill missing year &amp; creator</button><button class="btn-secondary" id="merge-entries-btn" type="button">⌖ Merge entries — fold seasons into one title</button></div>
       </div>
       <div class="settings-section">
+        <h3>Genre gaps <span id="genre-gaps-count"></span></h3>
+        <div class="desc">Items where no specific subgenre fit, so ✦ fell back to the umbrella tag alone. Not a bug — a curation queue: if the same umbrella keeps showing up for a medium, it's a sign that umbrella needs a named subgenre added to its taxonomy.</div>
+        <div id="genre-gaps-list"></div>
+      </div>
+      <div class="settings-section">
         <h3>Auto-push code to GitHub Pages</h3>
         <div class="desc">Push an updated bitacora.html to your repo without leaving the app. After pushing, your phone gets the new version on next refresh (~30 sec). Requires a <em>separate</em> fine-grained token with Contents: Read & write on the bitacora repo only.</div>
         <p style="margin:6px 0 12px;font-size:12px;color:var(--ink-dim);line-height:1.6">
@@ -1420,35 +1425,88 @@ const TAG_COLORS = ['terracotta', 'gold', 'sage', 'dusty', 'plum', 'ochre', 'rus
 const MOOD_PALETTE = ['melancholy', 'tense', 'cozy', 'bleak', 'hopeful', 'uncanny', 'funny', 'luminous', 'cerebral', 'tender', 'adventurous', 'wistful'];
 const PACES = ['slow', 'medium', 'fast'];
 // FEAT-16: AI-assigned genre tags, same mechanism as mood/pace — vocab is medium-specific.
-// Screen + page share one vocab (Genre); albums and games get their own. Pitched at Music's
-// level of specificity (a single word like "drama"/"comedy" fits ~half of everything and
-// says almost nothing — swapped the lowest-signal umbrella terms for named subgenres; kept
-// the ones that are already narrow enough on their own, same as music keeping "folk"/"jazz").
-// No tag string repeats across the three lists — tagAssignments is a single global map
-// keyed by tag text, so a shared string (the old "adventure"/"horror" collision) would render
-// with whichever group seeded first, regardless of the item's actual medium.
-const GENRE_PALETTE = ['psychological thriller', 'thriller', 'dark comedy', 'romantic comedy', 'slasher', 'body horror', 'horror', 'cyberpunk', 'space opera', 'sci-fi', 'dystopian', 'high fantasy', 'fairy tale', 'fantasy', 'romance', 'mystery', 'whodunit', 'noir', 'heist', 'biopic', 'period drama', 'courtroom drama', 'true crime', 'mockumentary', 'documentary', 'animation', 'satire', 'war', 'crime', 'coming-of-age'];
-const MUSIC_PALETTE = ['indie pop', 'folk', 'rock', 'hip-hop', 'electronic', 'jazz', 'classical', 'ambient', 'metal', 'pop', 'punk', 'soul', 'country', 'r&b', 'experimental'];
-const GAME_GENRE_PALETTE = ['FPS', 'RPG', 'JRPG', 'tactical RPG', 'platformer', 'metroidvania', 'puzzle', 'strategy', '4X', 'simulation', 'immersive sim', 'walking simulator', 'adventure', 'roguelike', 'soulslike', 'fighting', 'beat em up', 'sports', 'racing', 'survival horror', 'survival', 'sandbox', 'city builder', 'battle royale', 'MOBA', 'rhythm', 'deckbuilder', 'visual novel', 'stealth'];
-// Known broad/narrow pairs across the three lists (a subgenre that names its own parent
-// genre) — used for the one-time cleanup below and left in the vocab deliberately (the
-// exclusivity line in enrichFieldSpec asks the model to pick only the narrower one going
-// forward; this is the record of which pairs that applies to for backfilling old entries).
-const GENRE_SUBSUMED_PAIRS = [
-  ['pop', 'indie pop'], ['electronic', 'ambient'],
-  ['thriller', 'psychological thriller'], ['horror', 'slasher'], ['horror', 'body horror'],
-  ['fantasy', 'high fantasy'], ['fantasy', 'fairy tale'], ['mystery', 'whodunit'],
-  ['RPG', 'JRPG'], ['RPG', 'tactical RPG'], ['simulation', 'immersive sim'],
-  ['simulation', 'walking simulator'], ['survival', 'survival horror'],
-];
-// Which genre vocab applies to a title, by medium. Unknown/other collections get no genre vocab.
-function genreVocabFor(collectionId) {
+// Two-tier taxonomy per medium: { umbrella: [specific subgenres] }. The model always prefers
+// the most specific leaf; the bare umbrella name is itself a valid tag, used ONLY when none of
+// its leaves fit but the umbrella clearly does — so every item gets *some* genre signal, never
+// silently nothing, without ever inventing a tag outside this closed structure (enforced in
+// parseMeta, not just by asking nicely in the prompt). Umbrella count stays small and curated
+// by hand (Observatory's rollup bars stay clean); leaf count can grow expansively over time —
+// that's the axis meant to flex.
+// No tag string repeats across the three taxonomies or Mood/Pace — tagAssignments is a single
+// global map keyed by tag text, so a shared string (the old "adventure"/"horror" collision
+// between Genre and Game) would render with whichever group seeded first, regardless of the
+// item's actual medium.
+const GENRE_TAXONOMY = {
+  drama: ['period drama', 'courtroom drama', 'biopic', 'war', 'coming-of-age', 'family drama', 'melodrama', 'political drama', 'medical drama', 'tragedy'],
+  comedy: ['dark comedy', 'romantic comedy', 'mockumentary', 'satire', 'screwball comedy', 'parody', 'sitcom'],
+  horror: ['slasher', 'body horror', 'gothic horror', 'psychological horror', 'supernatural horror', 'found footage'],
+  thriller: ['psychological thriller', 'noir', 'heist', 'legal thriller', 'techno-thriller', 'conspiracy thriller'],
+  mystery: ['whodunit', 'detective', 'cozy mystery'],
+  crime: ['gangster', 'caper'],
+  'sci-fi': ['cyberpunk', 'space opera', 'dystopian', 'time travel', 'post-apocalyptic', 'alien invasion', 'hard sci-fi'],
+  fantasy: ['high fantasy', 'fairy tale', 'sword and sorcery', 'urban fantasy', 'magical realism'],
+  romance: ['romantic drama', 'historical romance'],
+  documentary: ['nature documentary', 'memoir', 'biographical documentary', 'true crime'],
+  animation: [],
+  action: ['martial arts', 'spy', 'disaster', 'swashbuckler', 'quest', 'treasure hunt'],
+};
+const MUSIC_TAXONOMY = {
+  pop: ['indie pop', 'synth-pop', 'dream pop', 'k-pop', 'bedroom pop'],
+  rock: ['indie rock', 'alternative rock', 'classic rock', 'garage rock', 'psychedelic rock', 'math rock'],
+  punk: ['pop punk', 'post-punk', 'hardcore punk'],
+  metal: ['heavy metal', 'black metal', 'metalcore', 'doom metal'],
+  electronic: ['ambient', 'house', 'techno', 'drum and bass', 'synthwave', 'IDM'],
+  'hip-hop': ['trap', 'boom bap', 'conscious hip-hop'],
+  'r&b': ['soul', 'neo-soul', 'funk'],
+  folk: ['singer-songwriter', 'americana', 'folk rock'],
+  country: ['bluegrass', 'outlaw country'],
+  jazz: ['bebop', 'smooth jazz', 'fusion'],
+  classical: ['baroque', 'romantic era', 'minimalism'],
+  experimental: ['noise', 'drone', 'avant-garde'],
+};
+const GAME_TAXONOMY = {
+  shooter: ['FPS', 'third-person shooter', 'arena shooter', 'tactical shooter'],
+  RPG: ['JRPG', 'tactical RPG', 'action RPG', 'MMORPG'],
+  platformer: ['metroidvania', '2D platformer', '3D platformer'],
+  puzzle: ['puzzle platformer', 'match-three'],
+  strategy: ['4X', 'real-time strategy', 'turn-based strategy', 'tower defense'],
+  simulation: ['immersive sim', 'walking simulator', 'city builder', 'life simulation', 'farming simulation', 'sandbox'],
+  adventure: ['point-and-click', 'visual novel', 'text adventure'],
+  roguelike: ['roguelite', 'soulslike'],
+  fighting: ['beat em up', 'arena fighter'],
+  sports: ['racing', 'extreme sports'],
+  'survival horror': [],
+  'battle royale': [],
+  multiplayer: ['MOBA', 'party game'],
+  rhythm: [],
+  card: ['deckbuilder', 'card battler'],
+  stealth: [],
+  survival: ['crafting survival'],
+};
+// Which taxonomy applies to a title, by medium. Unknown/other collections get none.
+function genreTaxonomyFor(collectionId) {
   const kind = kindFor(collectionId);
-  if (kind === 'watch' || kind === 'read') return GENRE_PALETTE;
-  if (kind === 'listen') return MUSIC_PALETTE;
-  if (kind === 'play') return GAME_GENRE_PALETTE;
-  return [];
+  if (kind === 'watch' || kind === 'read') return GENRE_TAXONOMY;
+  if (kind === 'listen') return MUSIC_TAXONOMY;
+  if (kind === 'play') return GAME_TAXONOMY;
+  return null;
 }
+function taxonomyVocab(tax) { return tax ? Object.entries(tax).flatMap(([u, leaves]) => [u, ...leaves]) : []; }
+// e.g. "drama (period drama, courtroom drama, ...); comedy (dark comedy, ...); animation" —
+// bare name (no parens) when an umbrella has no leaves yet, so the model knows it's directly usable.
+function taxonomyPromptStr(tax) {
+  return tax ? Object.entries(tax).map(([u, leaves]) => leaves.length ? `${u} (${leaves.join(', ')})` : u).join('; ') : '';
+}
+// Flat vocab for a medium (used by needsMeta's "does this item have any genre tag" check).
+function genreVocabFor(collectionId) { return taxonomyVocab(genreTaxonomyFor(collectionId)); }
+// leaf → its umbrella, merged across all three taxonomies (a leaf name is unique across all of
+// them, checked above, so this merge is safe). Drives both the one-time dedup pass (drop the
+// umbrella tag when its own leaf is also present) and the gap log (was this assignment an
+// umbrella fallback, i.e. is this tag itself a key in one of the three taxonomies).
+function taxonomyParentMap(tax) { const m = {}; for (const [u, leaves] of Object.entries(tax)) for (const l of leaves) m[l] = u; return m; }
+const GENRE_PARENT = { ...taxonomyParentMap(GENRE_TAXONOMY), ...taxonomyParentMap(MUSIC_TAXONOMY), ...taxonomyParentMap(GAME_TAXONOMY) };
+const GENRE_SUBSUMED_PAIRS = Object.entries(GENRE_PARENT).map(([leaf, umbrella]) => [umbrella, leaf]);
+const GENRE_UMBRELLA_NAMES = new Set([...Object.keys(GENRE_TAXONOMY), ...Object.keys(MUSIC_TAXONOMY), ...Object.keys(GAME_TAXONOMY)]);
 const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, follow these rules:
 
 1. Don't invent source/origin tags like 'recommended-by-claude' or 'from-friend'.
@@ -1523,6 +1581,10 @@ function migrate(s) {
   s.tagAssignments = s.tagAssignments || {};
   s.tagOrder = s.tagOrder || {};
   s.settings = s.settings || {};
+  // FEAT-16: queue of items that landed on a bare umbrella tag (none of its leaves fit) — a
+  // human-reviewed curation signal, not an auto-created tag. Reviewed in Settings; promoting
+  // a recurring gap into a real leaf is a deliberate code edit (adding it to a taxonomy above).
+  s.genreGaps = Array.isArray(s.genreGaps) ? s.genreGaps : [];
   // Seed AI-assigned tag groups + their vocab ONCE each (respects later user edits via the flag).
   // Mood/Pace/Genre/Music/Game are all plain TAGS filled by enrich research, grouped so they render colored.
   const ensureTagGroup = (name, color) => {
@@ -1537,32 +1599,26 @@ function migrate(s) {
     for (const p of PACES) if (!s.tagAssignments[p]) s.tagAssignments[p] = paceGid;
     s.settings.taxonomySeeded = true;
   }
-  // FEAT-16: genre vocab seeded independently — runs even for libraries that already
-  // passed the taxonomySeeded gate above.
+  // FEAT-16: genre groups created independently — runs even for libraries that already
+  // passed the taxonomySeeded gate above. Only the CREATION is one-time (so a group the user
+  // deletes stays deleted); vocab→group assignment below always re-runs, since it only fills
+  // blanks and only into a group that still exists — safe to repeat, and means new leaves
+  // added to a taxonomy later never need their own one-off migration flag.
   if (!s.settings.genreSeeded) {
-    const genreGid = ensureTagGroup('Genre', 'terracotta');
-    for (const g of GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = genreGid;
-    const musicGid = ensureTagGroup('Music', 'gold');
-    for (const g of MUSIC_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = musicGid;
-    const gameGid = ensureTagGroup('Game', 'ash');
-    for (const g of GAME_GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = gameGid;
+    ensureTagGroup('Genre', 'terracotta');
+    ensureTagGroup('Music', 'gold');
+    ensureTagGroup('Game', 'ash');
     s.settings.genreSeeded = true;
   }
-  // FEAT-16 follow-up: Genre/Game vocab grew richer (specific subgenres) after genreSeeded
-  // had already run for some libraries — that flag only fires once, so the new words would
-  // never get an assignment/color. Separate one-time flag scoped to this vocab bump; skips a
-  // group the user has since deleted (respects deletion instead of recreating it).
-  if (!s.settings.genreVocabV2Seeded) {
-    const genreG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'genre');
-    if (genreG) for (const g of GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = genreG.id;
-    const gameG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'game');
-    if (gameG) for (const g of GAME_GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = gameG.id;
-    s.settings.genreVocabV2Seeded = true;
-  }
+  const genreG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'genre');
+  if (genreG) for (const g of taxonomyVocab(GENRE_TAXONOMY)) if (!s.tagAssignments[g]) s.tagAssignments[g] = genreG.id;
+  const musicG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'music');
+  if (musicG) for (const g of taxonomyVocab(MUSIC_TAXONOMY)) if (!s.tagAssignments[g]) s.tagAssignments[g] = musicG.id;
+  const gameG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'game');
+  if (gameG) for (const g of taxonomyVocab(GAME_TAXONOMY)) if (!s.tagAssignments[g]) s.tagAssignments[g] = gameG.id;
   // One-time nudge: Game was briefly seeded with 'ochre', which reads near-identical to
   // Music's 'gold'. Fix any install (incl. this one) that already ran the seed above.
-  const gameGroup = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'game');
-  if (gameGroup && gameGroup.color === 'ochre') gameGroup.color = 'ash';
+  if (gameG && gameG.color === 'ochre') gameG.color = 'ash';
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
   s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };
@@ -3434,6 +3490,32 @@ document.getElementById('dupe-results').addEventListener('click', e => {
 document.getElementById('tag-mgr-btn').addEventListener('click', openTagManager);
 
 const settingsModal = document.getElementById('settings-modal');
+// FEAT-16 curation queue: genreGaps are logged by applyMeta (see logGenreGap), never
+// auto-resolved — reviewing one is either "open it and pick a leaf yourself" or "dismiss,
+// this one genuinely has no better fit" or (mentally, for us) "this umbrella needs a new leaf".
+function renderGenreGaps() {
+  const gaps = state.genreGaps || [];
+  document.getElementById('genre-gaps-count').textContent = gaps.length ? `(${gaps.length})` : '';
+  const box = document.getElementById('genre-gaps-list');
+  if (!gaps.length) { box.innerHTML = '<p class="dupe-empty">None pending — every enriched item found a specific subgenre.</p>'; return; }
+  box.innerHTML = gaps.map(g => `<div class="dupe-row"><div class="dupe-cluster">${escapeHtml(g.title)} <span class="dc">${escapeHtml(g.medium)} · ${escapeHtml(g.at)}</span> → <b>${escapeHtml(g.umbrella)}</b></div><button class="btn-secondary dupe-merge" data-gap-open="${g.id}" type="button">open</button><button class="btn-secondary dupe-merge" data-gap-dismiss="${g.id}" type="button">dismiss</button></div>`).join('');
+}
+document.getElementById('genre-gaps-list').addEventListener('click', e => {
+  const openBtn = e.target.closest('[data-gap-open]');
+  if (openBtn) {
+    const gap = (state.genreGaps || []).find(g => g.id === openBtn.dataset.gapOpen);
+    const item = gap && state.items.find(i => i.id === gap.itemId);
+    if (!item) { toast('that entry no longer exists.', true); return; }
+    settingsModal.close();
+    openEntryModal(item);
+    return;
+  }
+  const dismissBtn = e.target.closest('[data-gap-dismiss]');
+  if (dismissBtn) {
+    state.genreGaps = (state.genreGaps || []).filter(g => g.id !== dismissBtn.dataset.gapDismiss);
+    save(); renderGenreGaps();
+  }
+});
 function openSettings() {
   document.getElementById('claude-rules').value = state.settings.claudeRules || DEFAULT_CLAUDE_RULES;
   document.getElementById('claude-api-key').value = state.settings.claude.apiKey || '';
@@ -3443,7 +3525,7 @@ function openSettings() {
   document.getElementById('sync-gist-id').value = state.settings.sync.gistId || '';
   document.getElementById('codepush-repo').value = state.settings.codePush?.repo || '';
   document.getElementById('codepush-pat').value = state.settings.codePush?.pat || '';
-  renderClaudeStatus(); renderSyncStatus(); renderCodePushStatus();
+  renderClaudeStatus(); renderSyncStatus(); renderCodePushStatus(); renderGenreGaps();
   settingsModal.showModal();
 }
 document.getElementById('settings-btn').addEventListener('click', openSettings);
@@ -3729,7 +3811,8 @@ const ENRICH_MODEL = 'claude-sonnet-4-6';
 // from the direct-browser call. Only used in tier 2 (see fetchMeta); ~1¢/search.
 const ENRICH_SEARCH_TOOLS = [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }];
 // The JSON contract both tiers share.
-function enrichFieldSpec(genreVocab = []) {
+function enrichFieldSpec(genreTax = null) {
+  const genreList = taxonomyPromptStr(genreTax);
   return 'Return ONLY a JSON object as your final answer, nothing after it: '
     + '{"year": number|null, "creator": string|null, "cast": string[], "mood": string[], "pace": "slow"|"medium"|"fast"|null, "genre": string[]}. '
     + 'year = original release/publication year of the WORK (for a translated edition, the original — not the translation). '
@@ -3737,8 +3820,10 @@ function enrichFieldSpec(genreVocab = []) {
     + 'cast = the top-billed MAIN and SECONDARY performers as canonical full names — film/TV: actors; games: principal voice cast. 0-8 entries, no bit parts or extras. [] for books, albums, or anything without performers. '
     + `mood = 0-3 entries chosen ONLY from this exact list: [${MOOD_PALETTE.join(', ')}]. Pick the ones that genuinely fit the work's emotional register. Never invent a mood outside the list. `
     + 'pace = how the work moves overall: "slow", "medium", or "fast"; null when not applicable (e.g. an album) or unsure. '
-    + (genreVocab.length
-      ? `genre = 0-3 entries chosen ONLY from this exact list: [${genreVocab.join(', ')}]. Pick the ones that genuinely fit, but if a broad genre and a narrower subgenre it implies are both in the list and both fit (e.g. "pop" and "indie pop", or "electronic" and "ambient"), pick only the narrower/more specific one — never both. Never invent one outside the list. `
+    + (genreList
+      ? `genre = 1-3 entries chosen ONLY from this taxonomy — categories with their specific subgenres in parens: ${genreList}. `
+        + 'For each category, pick the single most specific subgenre listed that genuinely fits. Only use the bare category name by itself (e.g. "drama") when none of its own subgenres fit but the category clearly does — never leave genre empty if ANY category applies, even loosely. '
+        + 'Never pick both a category name and one of its own subgenres — the specific one alone is enough. Different categories can combine for a genuine hybrid (e.g. "sci-fi" + "dark comedy"), up to 3 total. Only genre=[] if truly nothing in the taxonomy fits at all. Never invent a term outside this taxonomy. '
       : 'genre = [] (this medium has no genre vocabulary). ');
 }
 function parseMeta(txt, genreVocab = []) {
@@ -3763,14 +3848,15 @@ function castApplies(collectionId) { return ['watch', 'play'].includes(kindFor(c
 //      retry once WITH web search so Sonnet can actually look it up.
 // hints: { creator, year, onSearch } — known fields disambiguate; onSearch fires when tier 2 starts.
 async function fetchMeta(title, collName, hints = {}) {
-  const genreVocab = genreVocabFor(hints.collectionId);
+  const genreTax = genreTaxonomyFor(hints.collectionId);
+  const genreVocab = taxonomyVocab(genreTax);
   const msg = [`Title: ${title}`, `Medium: ${collName || 'unknown'}`];
   if (hints.creator) msg.push(`Known creator (use to disambiguate, echo back canonically): ${hints.creator}`);
   if (hints.year) msg.push(`Known year (use to disambiguate): ${hints.year}`);
   const userMessage = msg.join('\n');
 
   // Tier 1 — accuracy-critical → always Sonnet, regardless of the chat-take model.
-  const t1System = 'You identify a known work of media from training memory. ' + enrichFieldSpec(genreVocab)
+  const t1System = 'You identify a known work of media from training memory. ' + enrichFieldSpec(genreTax)
     + 'CRITICAL: only fill a field if you identify this EXACT work with HIGH confidence from training. '
     + 'Obscure / generic / ambiguous / very recent → null (and [] for mood/genre). A confabulated value is far worse than null. Do not guess.';
   let r = null;
@@ -3784,7 +3870,7 @@ async function fetchMeta(title, collName, hints = {}) {
     hints.onSearch?.();
     const t2System = 'You identify a work of media. You have a web_search tool — the title may be a translated '
       + 'edition, a recent release, or an obscure work, so SEARCH to identify the EXACT work before answering. '
-      + enrichFieldSpec(genreVocab)
+      + enrichFieldSpec(genreTax)
       + 'Base year/creator on what the search confirms; if the search cannot resolve the work, use null (and [] for mood/genre). Never guess.';
     try {
       const t2 = parseMeta(await callClaude({ system: t2System, userMessage, maxTokens: 700, model: ENRICH_MODEL, tools: ENRICH_SEARCH_TOOLS }), genreVocab);
@@ -3792,6 +3878,15 @@ async function fetchMeta(title, collName, hints = {}) {
     } catch (e) { console.warn('fetchMeta tier2', e); }
   }
   return r;
+}
+// A gap: the model landed on a bare umbrella tag (none of its own leaves fit) — logged for
+// manual review in Settings, never auto-promoted. One entry per item+umbrella; capped so an
+// ignored queue can't grow unbounded.
+function logGenreGap(it, umbrella) {
+  state.genreGaps = Array.isArray(state.genreGaps) ? state.genreGaps : [];
+  if (state.genreGaps.some(g => g.itemId === it.id && g.umbrella === umbrella)) return;
+  state.genreGaps.unshift({ id: uid(), itemId: it.id, title: it.title, umbrella, medium: kindFor(it.collectionId), at: today() });
+  state.genreGaps = state.genreGaps.slice(0, 200);
 }
 // Apply researched metadata to an item, filling only blanks (never overwrites). Returns true if changed.
 // mood/pace/genre land as TAGS (already group-assigned via the seed) so they render colored & filter like any tag.
@@ -3804,19 +3899,29 @@ function applyMeta(it, r) {
   const tags = new Set(it.tags || []);
   for (const m of r.mood) if (!tags.has(m)) { tags.add(m); changed = true; }
   if (r.pace && !PACES.some(p => tags.has(p))) { tags.add(r.pace); changed = true; }   // one pace tag, only if none yet
-  for (const g of r.genre) if (!tags.has(g)) { tags.add(g); changed = true; }   // up to 3 genre tags, medium-specific vocab
+  for (const g of r.genre) {
+    if (!tags.has(g)) {
+      tags.add(g); changed = true;
+      if (GENRE_UMBRELLA_NAMES.has(g)) logGenreGap(it, g);   // fell back to the umbrella — flag for curation
+    }
+  }
   if (changed) it.tags = [...tags].slice(0, 30);
+  // Genre came back empty even though this medium has a taxonomy — a real, tried-and-abstained
+  // result (r is only non-null when Claude returned parseable output), not "never asked yet".
+  // Stops needsMeta from re-querying this item forever on every future "Enrich library" pass.
+  if (!it.genreAbstained && !r.genre.length && genreVocabFor(it.collectionId).length) { it.genreAbstained = true; changed = true; }
   return changed;
 }
 // True when an item still has research to fetch (year / creator / mood / pace / genre missing —
 // plus cast, but only for performed media where cast makes sense). Genre is only required when
-// the item's medium has a genre vocabulary at all (genreVocabFor returns [] otherwise).
+// the item's medium has a genre vocabulary at all (genreVocabFor returns [] otherwise), and is
+// considered resolved once genreAbstained is set even with zero genre tags.
 function needsMeta(it) {
   const tags = it.tags || [];
   const hasMood = tags.some(t => MOOD_PALETTE.includes(t));
   const hasPace = PACES.some(p => tags.includes(p));
   const vocab = genreVocabFor(it.collectionId);
-  const hasGenre = !vocab.length || vocab.some(g => tags.includes(g));
+  const hasGenre = !vocab.length || vocab.some(g => tags.includes(g)) || it.genreAbstained;
   return !it.year || !it.creator || !hasMood || !hasPace || !hasGenre || (castApplies(it.collectionId) && !(it.cast || []).length);
 }
 // Auto-enrich a freshly-logged item in place. Toasts progress + honest abstention
