@@ -3700,7 +3700,7 @@ function enrichFieldSpec(genreVocab = []) {
     + `mood = 0-3 entries chosen ONLY from this exact list: [${MOOD_PALETTE.join(', ')}]. Pick the ones that genuinely fit the work's emotional register. Never invent a mood outside the list. `
     + 'pace = how the work moves overall: "slow", "medium", or "fast"; null when not applicable (e.g. an album) or unsure. '
     + (genreVocab.length
-      ? `genre = 0-3 entries chosen ONLY from this exact list: [${genreVocab.join(', ')}]. Pick the ones that genuinely fit. Never invent one outside the list. `
+      ? `genre = 0-3 entries chosen ONLY from this exact list: [${genreVocab.join(', ')}]. Pick the ones that genuinely fit, but if a broad genre and a narrower subgenre it implies are both in the list and both fit (e.g. "pop" and "indie pop", or "electronic" and "ambient"), pick only the narrower/more specific one — never both. Never invent one outside the list. `
       : 'genre = [] (this medium has no genre vocabulary). ');
 }
 function parseMeta(txt, genreVocab = []) {
