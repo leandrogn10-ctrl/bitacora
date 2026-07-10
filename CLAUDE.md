@@ -202,6 +202,29 @@ settings, **never logged or exported**.
   Genre-medium umbrella ("action") renders `terracotta`; Settings gap list renders a seeded gap and
   dismiss removes it and shows the empty state. Not yet tested against the live Claude API (no key
   in this session) — the JSON contract shape mirrors mood's proven pattern. SW `bitacora-v16`.
+  **Observatory "By genre" rollup + drill-down** (same session): three panels —
+  **By genre** (watch/read, `GENRE_TAXONOMY`), **By genre (music)**, **By genre (games)** — each
+  conditionally rendered only when the library has items of that medium-group at all (skipped
+  entirely otherwise; shows the `run ✦ enrich` hint if items exist but none are tagged yet, same as
+  By pace). Rolls up every genre tag on a title to its umbrella via `GENRE_PARENT` regardless of
+  whether it landed on a specific leaf or the bare umbrella fallback, ranks descending, top 8 (same
+  cap as Top tags/creators/actors). New `view.genreUmbrella` filter dimension (single-value, alongside
+  creator/actor/decade — NOT part of the `view.tags` AND-array, since a drill-down needs OR across an
+  umbrella's leaves): `hasGenreUmbrella(it, umbrella)` matches the bare umbrella tag OR any leaf under
+  it. Wired through `isViewDefault`/`resetView`/`anyFilterActive`/`filterChipsHtml` (chip: `◈ sci-fi`
+  with its own clear button) and both `getFilteredItems` and `getDiaryEvents`, plus the new
+  `[data-genre-umbrella]` click case in the Observatory delegated handler (same click-to-filter
+  pattern as `data-decade`/`data-creator`/`data-actor`) and the cmdk `+` combo-filter reset line.
+  Verified in-browser: hit the exact documented stale-SW gotcha mid-session (had to unregister +
+  clear caches to see the new code — a good reminder that gotcha is real, not just a warning);
+  confirmed `kindFor` matches on the collection ID string itself, not `.name` — real IDs always
+  carry the keyword (defaults `films`/`tv`/`games`/`books`; custom collections slugify the name into
+  the ID, e.g. "Albums" → `albums-xk2`) so this isn't a gap, just something to remember when hand-
+  seeding test data with placeholder IDs. All three panels render with correct rollups; clicking a
+  bar filters the Shelf to exactly the matching item(s) (leaf-tag member of the umbrella, not just
+  the bare umbrella string); the same filter carries into Diary mode; clear button restores the full
+  list. `preview_click` intermittently missed freshly-re-rendered bar elements in this session —
+  dispatching a real `click` MouseEvent via `preview_eval` worked every time; not a code bug.
 - **Open:** merge `feat/roulette` (brings FEAT-04 + FEAT-06, stacked) → `main` + push ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".

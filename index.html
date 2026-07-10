@@ -610,8 +610,8 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 @media (max-width: 1100px) { .ob-grid { grid-template-columns: 1fr; } .ob-panel.wide { grid-column: auto; } }
 .ob-h { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); margin-bottom: 16px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
 .ob-bar { display: flex; align-items: center; gap: 13px; padding: 5px 0; }
-.ob-bar[data-coll], .ob-bar[data-tag], .ob-bar[data-decade], .ob-bar[data-creator] { cursor: pointer; }
-.ob-bar[data-coll]:hover .ob-bar-label, .ob-bar[data-tag]:hover .ob-bar-label, .ob-bar[data-decade]:hover .ob-bar-label, .ob-bar[data-creator]:hover .ob-bar-label { color: var(--accent); }
+.ob-bar[data-coll], .ob-bar[data-tag], .ob-bar[data-decade], .ob-bar[data-creator], .ob-bar[data-genre-umbrella] { cursor: pointer; }
+.ob-bar[data-coll]:hover .ob-bar-label, .ob-bar[data-tag]:hover .ob-bar-label, .ob-bar[data-decade]:hover .ob-bar-label, .ob-bar[data-creator]:hover .ob-bar-label, .ob-bar[data-genre-umbrella]:hover .ob-bar-label { color: var(--accent); }
 .ob-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-dim); width: 150px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.12s; }
 .ob-bar-track { flex: 1; height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
 .ob-bar-fill { display: block; height: 100%; background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 65%, var(--accent2)), var(--gold)); border-radius: 5px; box-shadow: 0 0 8px -2px color-mix(in srgb, var(--gold) 60%, transparent); }
@@ -1518,13 +1518,17 @@ const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, 
 7. Status defaults to 'queued' for things you're recommending.`;
 
 let state = load();
-let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0, creator: null, actor: null, decade: null, mode: 'shelf' };
+let view = { collection: 'all', status: 'all', search: '', sort: 'recent', tags: [], minRating: 0, creator: null, actor: null, decade: null, genreUmbrella: null, mode: 'shelf' };
 // Tags filter as an AND-set (multi-select). Toggle membership in/out.
 function toggleViewTag(t) { view.tags = view.tags.includes(t) ? view.tags.filter(x => x !== t) : [...view.tags, t]; }
+// Does an item carry this genre umbrella — either the bare umbrella tag itself, or any leaf
+// under it (drives the Observatory "By genre" drill-down; OR across leaves, not the tags[]
+// AND-set view.tags uses).
+function hasGenreUmbrella(it, umbrella) { return (it.tags || []).some(t => t === umbrella || GENRE_PARENT[t] === umbrella); }
 // The pristine library state: Everything / All, no tags / rating / search (sort is a display pref, left alone).
-function isViewDefault() { return view.collection === 'all' && view.status === 'all' && !view.tags.length && !view.minRating && !view.creator && !view.actor && view.decade == null && !view.search; }
-function resetView() { view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.creator = null; view.actor = null; view.decade = null; view.search = ''; const s = document.getElementById('search'); if (s) s.value = ''; }
-function anyFilterActive() { return view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.creator || !!view.actor || view.decade != null || !!view.search; }
+function isViewDefault() { return view.collection === 'all' && view.status === 'all' && !view.tags.length && !view.minRating && !view.creator && !view.actor && view.decade == null && !view.genreUmbrella && !view.search; }
+function resetView() { view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.creator = null; view.actor = null; view.decade = null; view.genreUmbrella = null; view.search = ''; const s = document.getElementById('search'); if (s) s.value = ''; }
+function anyFilterActive() { return view.status !== 'all' || view.collection !== 'all' || view.tags.length || !!view.minRating || !!view.creator || !!view.actor || view.decade != null || !!view.genreUmbrella || !!view.search; }
 // Removable chips for every active filter — shared by Shelf and Diary meta lines.
 function filterChipsHtml() {
   let h = '';
@@ -1532,6 +1536,7 @@ function filterChipsHtml() {
   if (view.creator) h += `<span class="active-tag creator-chip">${escapeHtml(view.creator)}<button id="clear-creator" type="button">×</button></span>`;
   if (view.actor) h += `<span class="active-tag creator-chip">☆ ${escapeHtml(view.actor)}<button id="clear-actor" type="button">×</button></span>`;
   if (view.decade != null) h += `<span class="active-tag decade-chip">${view.decade}s<button id="clear-decade" type="button">×</button></span>`;
+  if (view.genreUmbrella) h += `<span class="active-tag decade-chip">◈ ${escapeHtml(view.genreUmbrella)}<button id="clear-genre-umbrella" type="button">×</button></span>`;
   if (view.minRating) h += `<span class="active-tag rating-chip">★ ${view.minRating}+<button id="clear-rating" type="button">×</button></span>`;
   return h;
 }
@@ -1818,6 +1823,7 @@ function getFilteredItems() {
   if (view.creator)              items = items.filter(i => i.creator === view.creator);
   if (view.actor)                items = items.filter(i => (i.cast || []).includes(view.actor));
   if (view.decade != null)       items = items.filter(i => i.year && Math.floor(i.year / 10) * 10 === view.decade);
+  if (view.genreUmbrella)        items = items.filter(i => hasGenreUmbrella(i, view.genreUmbrella));
   if (view.search) {
     const q = view.search.toLowerCase();
     items = items.filter(i =>
@@ -2106,6 +2112,7 @@ function getDiaryEvents() {
   if (view.creator)              items = items.filter(i => i.creator === view.creator);
   if (view.actor)                items = items.filter(i => (i.cast || []).includes(view.actor));
   if (view.decade != null)       items = items.filter(i => i.year && Math.floor(i.year / 10) * 10 === view.decade);
+  if (view.genreUmbrella)        items = items.filter(i => hasGenreUmbrella(i, view.genreUmbrella));
   if (view.search) {
     const q = view.search.toLowerCase();
     items = items.filter(i => i.title.toLowerCase().includes(q) || (i.creator || '').toLowerCase().includes(q) || (i.tags || []).some(t => t.toLowerCase().includes(q)));
@@ -2296,6 +2303,26 @@ function renderObservatory() {
   const paceTotal = PACES.reduce((s, p) => s + (paceCount[p] || 0), 0);
   const paceMax = Math.max(1, ...PACES.map(p => paceCount[p] || 0));
   html += obsPanel('By pace', paceTotal ? PACES.map(p => obsRankBar(p, paceCount[p] || 0, paceMax, paceCount[p] || 0, ` data-tag="${p}"`)).join('') : `<div class="ob-hint">run ✦ enrich — Claude researches & tags pace</div>`);
+
+  // By genre — one panel per medium-group (Genre/Music/Game have separate taxonomies, so mixing
+  // their umbrellas into one panel would read as nonsense). Rolls up to the umbrella regardless
+  // of whether the item landed on a specific leaf or the bare umbrella fallback — click drills
+  // into the Shelf via view.genreUmbrella (OR across that umbrella's leaves, not the tags[] AND-set).
+  // Skipped entirely for a medium-group with zero items; shows the enrich hint if items exist but
+  // none have a genre tag yet.
+  const genrePanel = (title, kinds, tax) => {
+    const subset = recs.filter(r => kinds.includes(kindFor(r.collectionId)));
+    if (!subset.length) return;
+    const vocab = new Set(taxonomyVocab(tax));
+    const counts = {};
+    for (const r of subset) for (const t of r.tags) if (vocab.has(t)) { const u = GENRE_PARENT[t] || t; counts[u] = (counts[u] || 0) + 1; }
+    const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const max = Math.max(1, ...ranked.map(([, n]) => n));
+    html += obsPanel(title, ranked.length ? ranked.map(([u, n]) => obsRankBar(escapeHtml(u), n, max, n, ` data-genre-umbrella="${escapeAttr(u)}"`)).join('') : `<div class="ob-hint">run ✦ enrich — Claude researches & tags genre</div>`);
+  };
+  genrePanel('By genre', ['watch', 'read'], GENRE_TAXONOMY);
+  genrePanel('By genre (music)', ['listen'], MUSIC_TAXONOMY);
+  genrePanel('By genre (games)', ['play'], GAME_TAXONOMY);
 
   // Top creators
   const crCount = {};
@@ -4300,6 +4327,7 @@ document.getElementById('observatory').addEventListener('click', e => {
   const dc = e.target.closest('[data-decade]'); if (dc) { view.decade = parseInt(dc.dataset.decade, 10); view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
   const cr = e.target.closest('[data-creator]'); if (cr) { view.creator = cr.dataset.creator; view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
   const ac = e.target.closest('[data-actor]'); if (ac) { view.actor = ac.dataset.actor; view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
+  const gu = e.target.closest('[data-genre-umbrella]'); if (gu) { view.genreUmbrella = gu.dataset.genreUmbrella; view.collection = 'all'; view.tags = []; view.minRating = 0; setViewMode('shelf'); window.scrollTo({ top: 0 }); return; }
 });
 document.getElementById('view-meta').addEventListener('click', e => {
   if (e.target.classList.contains('clear-tag')) { view.tags = view.tags.filter(t => t !== e.target.dataset.tag); renderAll(); }
@@ -4307,6 +4335,7 @@ document.getElementById('view-meta').addEventListener('click', e => {
   if (e.target.id === 'clear-creator') { view.creator = null; renderAll(); }
   if (e.target.id === 'clear-actor') { view.actor = null; renderAll(); }
   if (e.target.id === 'clear-decade') { view.decade = null; renderAll(); }
+  if (e.target.id === 'clear-genre-umbrella') { view.genreUmbrella = null; renderAll(); }
 });
 document.getElementById('empty-state').addEventListener('click', e => {
   if (e.target.id === 'empty-clear') {
@@ -4640,7 +4669,7 @@ function cmdkCompute(raw) {
     const good = resolved.filter(x => x.r), bad = resolved.filter(x => !x.r).map(x => x.term);
     if (good.length) {
       const apply = () => {
-        view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.creator = null; view.decade = null;
+        view.collection = 'all'; view.status = 'all'; view.tags = []; view.minRating = 0; view.creator = null; view.decade = null; view.genreUmbrella = null;
         good.forEach(({ r }) => {
           if (r.type === 'tag') view.tags = [...new Set([...view.tags, r.value])];
           else if (r.type === 'collection') view.collection = r.value;
