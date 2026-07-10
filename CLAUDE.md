@@ -156,6 +156,21 @@ settings, **never logged or exported**.
   strips the API key), so re-paste the key in Settings if you want `autoEnrich` on *new* logs there.
 - **Backlog = source of truth:** `~/Downloads/leandro-os/prototype/BITACORA-AUDIT.md` (§0 status banner,
   §2 features).
+- **Shipped (not yet committed): FEAT-16** — **medium-specific genre tags**, same AI-assigned-tag
+  mechanism as FEAT-05's Mood/Pace (one more field in `fetchMeta`'s JSON contract, filled on log/enrich,
+  reviewable via ✦ fill). Three new seeded tag groups (`genreSeeded` flag, independent of
+  `taxonomySeeded` so existing libraries pick them up on next load): **Genre** `terracotta` (film/TV/book
+  shared vocab: drama/comedy/thriller/horror/sci-fi/fantasy/romance/mystery/action/adventure/
+  documentary/animation/satire/war/crime/coming-of-age), **Music** `gold` (albums: indie pop/folk/rock/
+  hip-hop/electronic/jazz/classical/ambient/metal/pop/punk/soul/country/r&b/experimental), **Game**
+  `ochre` (FPS/RPG/platformer/puzzle/strategy/simulation/adventure/roguelike/fighting/sports/racing/
+  horror/sandbox/visual novel). `genreVocabFor(collectionId)` picks the applicable list by `kindFor`
+  (watch/read → Genre, listen → Music, play → Game; `log` kind gets no genre vocab, no requirement).
+  Up to 3 genre tags per item, matched case-insensitively then canonicalized to vocab casing (games'
+  vocab is upper-case: FPS/RPG). `needsMeta` only requires genre when `genreVocabFor` is non-empty.
+  Verified in-browser (tag groups seed with correct colors/vocab, chip renders `tag-color-terracotta`
+  on a film tagged "drama"); not yet tested against the live Claude API (no key in this session) — the
+  JSON contract change mirrors mood's proven shape exactly. SW `bitacora-v16`.
 - **Open:** merge `feat/roulette` (brings FEAT-04 + FEAT-06, stacked) → `main` + push ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".

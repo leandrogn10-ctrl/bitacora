@@ -1419,6 +1419,19 @@ const TAG_COLORS = ['terracotta', 'gold', 'sage', 'dusty', 'plum', 'ochre', 'rus
 // FEAT-05: curated starter moods (hybrid — literary core + coverage). Seed-and-extend: you can add your own.
 const MOOD_PALETTE = ['melancholy', 'tense', 'cozy', 'bleak', 'hopeful', 'uncanny', 'funny', 'luminous', 'cerebral', 'tender', 'adventurous', 'wistful'];
 const PACES = ['slow', 'medium', 'fast'];
+// FEAT-16: AI-assigned genre tags, same mechanism as mood/pace — vocab is medium-specific.
+// Screen + page share one vocab (Genre); albums and games get their own.
+const GENRE_PALETTE = ['drama', 'comedy', 'thriller', 'horror', 'sci-fi', 'fantasy', 'romance', 'mystery', 'action', 'adventure', 'documentary', 'animation', 'satire', 'war', 'crime', 'coming-of-age'];
+const MUSIC_PALETTE = ['indie pop', 'folk', 'rock', 'hip-hop', 'electronic', 'jazz', 'classical', 'ambient', 'metal', 'pop', 'punk', 'soul', 'country', 'r&b', 'experimental'];
+const GAME_GENRE_PALETTE = ['FPS', 'RPG', 'platformer', 'puzzle', 'strategy', 'simulation', 'adventure', 'roguelike', 'fighting', 'sports', 'racing', 'horror', 'sandbox', 'visual novel'];
+// Which genre vocab applies to a title, by medium. Unknown/other collections get no genre vocab.
+function genreVocabFor(collectionId) {
+  const kind = kindFor(collectionId);
+  if (kind === 'watch' || kind === 'read') return GENRE_PALETTE;
+  if (kind === 'listen') return MUSIC_PALETTE;
+  if (kind === 'play') return GAME_GENRE_PALETTE;
+  return [];
+}
 const DEFAULT_CLAUDE_RULES = `When adding entries to my Bitácora on my behalf, follow these rules:
 
 1. Don't invent source/origin tags like 'recommended-by-claude' or 'from-friend'.
@@ -1493,19 +1506,30 @@ function migrate(s) {
   s.tagAssignments = s.tagAssignments || {};
   s.tagOrder = s.tagOrder || {};
   s.settings = s.settings || {};
-  // Seed the Mood + Pace groups + their vocab ONCE (respects later user edits via the flag).
-  // Mood & pace are AI-assigned TAGS (filled by enrich research), grouped so they render colored.
+  // Seed AI-assigned tag groups + their vocab ONCE each (respects later user edits via the flag).
+  // Mood/Pace/Genre/Music/Game are all plain TAGS filled by enrich research, grouped so they render colored.
+  const ensureTagGroup = (name, color) => {
+    let g = s.tagGroups.find(x => (x.name || '').toLowerCase() === name.toLowerCase());
+    if (!g) { g = { id: uid(), name, color }; s.tagGroups.push(g); }
+    return g.id;
+  };
   if (!s.settings.taxonomySeeded) {
-    const ensureGroup = (name, color) => {
-      let g = s.tagGroups.find(x => (x.name || '').toLowerCase() === name.toLowerCase());
-      if (!g) { g = { id: uid(), name, color }; s.tagGroups.push(g); }
-      return g.id;
-    };
-    const moodGid = ensureGroup('Mood', 'plum');
+    const moodGid = ensureTagGroup('Mood', 'plum');
     for (const m of MOOD_PALETTE) if (!s.tagAssignments[m]) s.tagAssignments[m] = moodGid;
-    const paceGid = ensureGroup('Pace', 'sage');
+    const paceGid = ensureTagGroup('Pace', 'sage');
     for (const p of PACES) if (!s.tagAssignments[p]) s.tagAssignments[p] = paceGid;
     s.settings.taxonomySeeded = true;
+  }
+  // FEAT-16: genre vocab seeded independently — runs even for libraries that already
+  // passed the taxonomySeeded gate above.
+  if (!s.settings.genreSeeded) {
+    const genreGid = ensureTagGroup('Genre', 'terracotta');
+    for (const g of GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = genreGid;
+    const musicGid = ensureTagGroup('Music', 'gold');
+    for (const g of MUSIC_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = musicGid;
+    const gameGid = ensureTagGroup('Game', 'ochre');
+    for (const g of GAME_GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = gameGid;
+    s.settings.genreSeeded = true;
   }
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
@@ -2881,13 +2905,15 @@ document.getElementById('enrich-btn').addEventListener('click', async () => {
     const r = await fetchMeta(title, coll?.name, {
       creator: entryForm.creator.value.trim() || null,
       year: parseInt(entryForm.year.value, 10) || null,
+      collectionId: entryForm.collectionId.value,
       onSearch: () => { btn.textContent = '✦ searching…'; },
     });
-    if (r && (r.year || r.creator || r.mood.length || r.pace)) {
+    if (r && (r.year || r.creator || r.mood.length || r.pace || r.genre.length)) {
       if (r.year) entryForm.year.value = r.year;
       if (r.creator) entryForm.creator.value = r.creator;
       for (const m of r.mood) if (!tagChipState.includes(m)) addTagChip(m);           // mood → tag chips
       if (r.pace && !PACES.some(p => tagChipState.includes(p))) addTagChip(r.pace);    // one pace tag
+      for (const g of r.genre) if (!tagChipState.includes(g)) addTagChip(g);          // genre → tag chips
       toast('✦ filled — edit if needed.');
     } else { toast('claude wasn’t sure — fill it in manually.', true); }
   } catch (e) { toast('enrich failed: ' + e.message, true); }
@@ -3661,16 +3687,19 @@ const ENRICH_MODEL = 'claude-sonnet-4-6';
 // from the direct-browser call. Only used in tier 2 (see fetchMeta); ~1¢/search.
 const ENRICH_SEARCH_TOOLS = [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }];
 // The JSON contract both tiers share.
-function enrichFieldSpec() {
+function enrichFieldSpec(genreVocab = []) {
   return 'Return ONLY a JSON object as your final answer, nothing after it: '
-    + '{"year": number|null, "creator": string|null, "cast": string[], "mood": string[], "pace": "slow"|"medium"|"fast"|null}. '
+    + '{"year": number|null, "creator": string|null, "cast": string[], "mood": string[], "pace": "slow"|"medium"|"fast"|null, "genre": string[]}. '
     + 'year = original release/publication year of the WORK (for a translated edition, the original — not the translation). '
     + 'creator = primary maker as a canonical full name: director (film/TV), author (book), studio/developer (game), artist/band (album). '
     + 'cast = the top-billed MAIN and SECONDARY performers as canonical full names — film/TV: actors; games: principal voice cast. 0-8 entries, no bit parts or extras. [] for books, albums, or anything without performers. '
     + `mood = 0-3 entries chosen ONLY from this exact list: [${MOOD_PALETTE.join(', ')}]. Pick the ones that genuinely fit the work's emotional register. Never invent a mood outside the list. `
-    + 'pace = how the work moves overall: "slow", "medium", or "fast"; null when not applicable (e.g. an album) or unsure. ';
+    + 'pace = how the work moves overall: "slow", "medium", or "fast"; null when not applicable (e.g. an album) or unsure. '
+    + (genreVocab.length
+      ? `genre = 0-3 entries chosen ONLY from this exact list: [${genreVocab.join(', ')}]. Pick the ones that genuinely fit. Never invent one outside the list. `
+      : 'genre = [] (this medium has no genre vocabulary). ');
 }
-function parseMeta(txt) {
+function parseMeta(txt, genreVocab = []) {
   const m = txt.match(/\{[\s\S]*\}/); if (!m) return null;
   let d; try { d = JSON.parse(m[0]); } catch { return null; }
   return {
@@ -3679,6 +3708,9 @@ function parseMeta(txt) {
     cast: Array.isArray(d.cast) ? [...new Set(d.cast.map(x => String(x).trim().slice(0, 80)).filter(Boolean))].slice(0, 8) : [],
     mood: Array.isArray(d.mood) ? [...new Set(d.mood.map(x => String(x).trim().toLowerCase()).filter(x => MOOD_PALETTE.includes(x)))].slice(0, 3) : [],
     pace: PACES.includes(d.pace) ? d.pace : null,
+    genre: Array.isArray(d.genre)
+      ? [...new Set(d.genre.map(x => genreVocab.find(v => v.toLowerCase() === String(x).trim().toLowerCase())).filter(Boolean))].slice(0, 3)
+      : [],
   };
 }
 // Cast only makes sense for performed media (film/TV = watch, games = play).
@@ -3689,17 +3721,18 @@ function castApplies(collectionId) { return ['watch', 'play'].includes(kindFor(c
 //      retry once WITH web search so Sonnet can actually look it up.
 // hints: { creator, year, onSearch } — known fields disambiguate; onSearch fires when tier 2 starts.
 async function fetchMeta(title, collName, hints = {}) {
+  const genreVocab = genreVocabFor(hints.collectionId);
   const msg = [`Title: ${title}`, `Medium: ${collName || 'unknown'}`];
   if (hints.creator) msg.push(`Known creator (use to disambiguate, echo back canonically): ${hints.creator}`);
   if (hints.year) msg.push(`Known year (use to disambiguate): ${hints.year}`);
   const userMessage = msg.join('\n');
 
   // Tier 1 — accuracy-critical → always Sonnet, regardless of the chat-take model.
-  const t1System = 'You identify a known work of media from training memory. ' + enrichFieldSpec()
+  const t1System = 'You identify a known work of media from training memory. ' + enrichFieldSpec(genreVocab)
     + 'CRITICAL: only fill a field if you identify this EXACT work with HIGH confidence from training. '
-    + 'Obscure / generic / ambiguous / very recent → null (and [] for mood). A confabulated value is far worse than null. Do not guess.';
+    + 'Obscure / generic / ambiguous / very recent → null (and [] for mood/genre). A confabulated value is far worse than null. Do not guess.';
   let r = null;
-  try { r = parseMeta(await callClaude({ system: t1System, userMessage, maxTokens: 280, model: ENRICH_MODEL })); }
+  try { r = parseMeta(await callClaude({ system: t1System, userMessage, maxTokens: 280, model: ENRICH_MODEL }), genreVocab); }
   catch (e) { console.warn('fetchMeta tier1', e); }
 
   // Tier 2 — memory couldn't place it; search the web before giving up. Escalate when the
@@ -3709,17 +3742,17 @@ async function fetchMeta(title, collName, hints = {}) {
     hints.onSearch?.();
     const t2System = 'You identify a work of media. You have a web_search tool — the title may be a translated '
       + 'edition, a recent release, or an obscure work, so SEARCH to identify the EXACT work before answering. '
-      + enrichFieldSpec()
-      + 'Base year/creator on what the search confirms; if the search cannot resolve the work, use null (and [] for mood). Never guess.';
+      + enrichFieldSpec(genreVocab)
+      + 'Base year/creator on what the search confirms; if the search cannot resolve the work, use null (and [] for mood/genre). Never guess.';
     try {
-      const t2 = parseMeta(await callClaude({ system: t2System, userMessage, maxTokens: 700, model: ENRICH_MODEL, tools: ENRICH_SEARCH_TOOLS }));
-      if (t2) r = r ? { year: t2.year ?? r.year, creator: t2.creator ?? r.creator, cast: t2.cast.length ? t2.cast : r.cast, mood: t2.mood.length ? t2.mood : r.mood, pace: t2.pace ?? r.pace } : t2;
+      const t2 = parseMeta(await callClaude({ system: t2System, userMessage, maxTokens: 700, model: ENRICH_MODEL, tools: ENRICH_SEARCH_TOOLS }), genreVocab);
+      if (t2) r = r ? { year: t2.year ?? r.year, creator: t2.creator ?? r.creator, cast: t2.cast.length ? t2.cast : r.cast, mood: t2.mood.length ? t2.mood : r.mood, pace: t2.pace ?? r.pace, genre: t2.genre.length ? t2.genre : r.genre } : t2;
     } catch (e) { console.warn('fetchMeta tier2', e); }
   }
   return r;
 }
 // Apply researched metadata to an item, filling only blanks (never overwrites). Returns true if changed.
-// mood/pace land as TAGS (already group-assigned via the seed) so they render colored & filter like any tag.
+// mood/pace/genre land as TAGS (already group-assigned via the seed) so they render colored & filter like any tag.
 function applyMeta(it, r) {
   if (!r) return false;
   let changed = false;
@@ -3729,16 +3762,20 @@ function applyMeta(it, r) {
   const tags = new Set(it.tags || []);
   for (const m of r.mood) if (!tags.has(m)) { tags.add(m); changed = true; }
   if (r.pace && !PACES.some(p => tags.has(p))) { tags.add(r.pace); changed = true; }   // one pace tag, only if none yet
+  for (const g of r.genre) if (!tags.has(g)) { tags.add(g); changed = true; }   // up to 3 genre tags, medium-specific vocab
   if (changed) it.tags = [...tags].slice(0, 30);
   return changed;
 }
-// True when an item still has research to fetch (year / creator / mood / pace missing —
-// plus cast, but only for performed media where cast makes sense).
+// True when an item still has research to fetch (year / creator / mood / pace / genre missing —
+// plus cast, but only for performed media where cast makes sense). Genre is only required when
+// the item's medium has a genre vocabulary at all (genreVocabFor returns [] otherwise).
 function needsMeta(it) {
   const tags = it.tags || [];
   const hasMood = tags.some(t => MOOD_PALETTE.includes(t));
   const hasPace = PACES.some(p => tags.includes(p));
-  return !it.year || !it.creator || !hasMood || !hasPace || (castApplies(it.collectionId) && !(it.cast || []).length);
+  const vocab = genreVocabFor(it.collectionId);
+  const hasGenre = !vocab.length || vocab.some(g => tags.includes(g));
+  return !it.year || !it.creator || !hasMood || !hasPace || !hasGenre || (castApplies(it.collectionId) && !(it.cast || []).length);
 }
 // Auto-enrich a freshly-logged item in place. Toasts progress + honest abstention
 // (silence used to read as "the feature didn't work").
@@ -3748,7 +3785,7 @@ async function autoEnrich(itemId) {
   try {
     const coll = state.collections.find(c => c.id === it.collectionId);
     const r = await fetchMeta(it.title, coll?.name, {
-      creator: it.creator, year: it.year, wantsCast: castApplies(it.collectionId),
+      creator: it.creator, year: it.year, wantsCast: castApplies(it.collectionId), collectionId: it.collectionId,
       onSearch: () => toast('✦ hmm — searching the web for this one…'),
     });
     const live = state.items.find(i => i.id === itemId); if (!live) return;
@@ -3756,7 +3793,7 @@ async function autoEnrich(itemId) {
     else if (!r || (!r.year && !r.creator)) toast('✦ couldn’t identify this one — fill year/creator manually.', true);
   } catch (e) { console.warn('autoEnrich', e); }
 }
-// One-pass backfill over every entry still missing year / creator / mood / pace.
+// One-pass backfill over every entry still missing year / creator / mood / pace / genre.
 async function enrichLibrary() {
   if (!isClaudeEnabled()) { toast('add an API key in settings first.', true); openSettings(); return; }
   const todo = state.items.filter(needsMeta);
@@ -3766,7 +3803,7 @@ async function enrichLibrary() {
   for (const it of todo) {
     try {
       const coll = state.collections.find(c => c.id === it.collectionId);
-      applyMeta(it, await fetchMeta(it.title, coll?.name, { creator: it.creator, year: it.year, wantsCast: castApplies(it.collectionId) }));
+      applyMeta(it, await fetchMeta(it.title, coll?.name, { creator: it.creator, year: it.year, wantsCast: castApplies(it.collectionId), collectionId: it.collectionId }));
     } catch (e) { /* skip this one */ }
     if (++done % 5 === 0) { save(); renderItems(); toast(`enriched ${done}/${todo.length}…`); }
   }
