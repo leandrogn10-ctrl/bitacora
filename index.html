@@ -1420,10 +1420,27 @@ const TAG_COLORS = ['terracotta', 'gold', 'sage', 'dusty', 'plum', 'ochre', 'rus
 const MOOD_PALETTE = ['melancholy', 'tense', 'cozy', 'bleak', 'hopeful', 'uncanny', 'funny', 'luminous', 'cerebral', 'tender', 'adventurous', 'wistful'];
 const PACES = ['slow', 'medium', 'fast'];
 // FEAT-16: AI-assigned genre tags, same mechanism as mood/pace — vocab is medium-specific.
-// Screen + page share one vocab (Genre); albums and games get their own.
-const GENRE_PALETTE = ['drama', 'comedy', 'thriller', 'horror', 'sci-fi', 'fantasy', 'romance', 'mystery', 'action', 'adventure', 'documentary', 'animation', 'satire', 'war', 'crime', 'coming-of-age'];
+// Screen + page share one vocab (Genre); albums and games get their own. Pitched at Music's
+// level of specificity (a single word like "drama"/"comedy" fits ~half of everything and
+// says almost nothing — swapped the lowest-signal umbrella terms for named subgenres; kept
+// the ones that are already narrow enough on their own, same as music keeping "folk"/"jazz").
+// No tag string repeats across the three lists — tagAssignments is a single global map
+// keyed by tag text, so a shared string (the old "adventure"/"horror" collision) would render
+// with whichever group seeded first, regardless of the item's actual medium.
+const GENRE_PALETTE = ['psychological thriller', 'thriller', 'dark comedy', 'romantic comedy', 'slasher', 'body horror', 'horror', 'cyberpunk', 'space opera', 'sci-fi', 'dystopian', 'high fantasy', 'fairy tale', 'fantasy', 'romance', 'mystery', 'whodunit', 'noir', 'heist', 'biopic', 'period drama', 'courtroom drama', 'true crime', 'mockumentary', 'documentary', 'animation', 'satire', 'war', 'crime', 'coming-of-age'];
 const MUSIC_PALETTE = ['indie pop', 'folk', 'rock', 'hip-hop', 'electronic', 'jazz', 'classical', 'ambient', 'metal', 'pop', 'punk', 'soul', 'country', 'r&b', 'experimental'];
-const GAME_GENRE_PALETTE = ['FPS', 'RPG', 'platformer', 'puzzle', 'strategy', 'simulation', 'adventure', 'roguelike', 'fighting', 'sports', 'racing', 'horror', 'sandbox', 'visual novel'];
+const GAME_GENRE_PALETTE = ['FPS', 'RPG', 'JRPG', 'tactical RPG', 'platformer', 'metroidvania', 'puzzle', 'strategy', '4X', 'simulation', 'immersive sim', 'walking simulator', 'adventure', 'roguelike', 'soulslike', 'fighting', 'beat em up', 'sports', 'racing', 'survival horror', 'survival', 'sandbox', 'city builder', 'battle royale', 'MOBA', 'rhythm', 'deckbuilder', 'visual novel', 'stealth'];
+// Known broad/narrow pairs across the three lists (a subgenre that names its own parent
+// genre) — used for the one-time cleanup below and left in the vocab deliberately (the
+// exclusivity line in enrichFieldSpec asks the model to pick only the narrower one going
+// forward; this is the record of which pairs that applies to for backfilling old entries).
+const GENRE_SUBSUMED_PAIRS = [
+  ['pop', 'indie pop'], ['electronic', 'ambient'],
+  ['thriller', 'psychological thriller'], ['horror', 'slasher'], ['horror', 'body horror'],
+  ['fantasy', 'high fantasy'], ['fantasy', 'fairy tale'], ['mystery', 'whodunit'],
+  ['RPG', 'JRPG'], ['RPG', 'tactical RPG'], ['simulation', 'immersive sim'],
+  ['simulation', 'walking simulator'], ['survival', 'survival horror'],
+];
 // Which genre vocab applies to a title, by medium. Unknown/other collections get no genre vocab.
 function genreVocabFor(collectionId) {
   const kind = kindFor(collectionId);
@@ -1531,6 +1548,17 @@ function migrate(s) {
     for (const g of GAME_GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = gameGid;
     s.settings.genreSeeded = true;
   }
+  // FEAT-16 follow-up: Genre/Game vocab grew richer (specific subgenres) after genreSeeded
+  // had already run for some libraries — that flag only fires once, so the new words would
+  // never get an assignment/color. Separate one-time flag scoped to this vocab bump; skips a
+  // group the user has since deleted (respects deletion instead of recreating it).
+  if (!s.settings.genreVocabV2Seeded) {
+    const genreG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'genre');
+    if (genreG) for (const g of GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = genreG.id;
+    const gameG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'game');
+    if (gameG) for (const g of GAME_GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = gameG.id;
+    s.settings.genreVocabV2Seeded = true;
+  }
   // One-time nudge: Game was briefly seeded with 'ochre', which reads near-identical to
   // Music's 'gold'. Fix any install (incl. this one) that already ran the seed above.
   const gameGroup = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'game');
@@ -1542,11 +1570,20 @@ function migrate(s) {
   s.settings.theme = s.settings.theme || 'macchiato';
   s.lastModified = s.lastModified || Date.now();
   const collIds = new Set((s.collections || []).map(c => c.id));
+  // FEAT-16 one-time cleanup: a prior enrich pass could apply both a broad genre and its
+  // own narrower subgenre to the same item (both were valid vocab entries, e.g. "pop" +
+  // "indie pop") — drop the broad one wherever both landed on the same title.
+  const dedupeGenre = !s.settings.genreDedupDone;
   for (const it of s.items) {
     if (typeof it.claudeNote === 'undefined') it.claudeNote = '';
     if (typeof it.publicReview === 'undefined') it.publicReview = '';
     if (typeof it.noteSource === 'undefined') it.noteSource = '';   // FEAT-14: legacy notes are unattributed
     if (!Array.isArray(it.claudeReplies)) it.claudeReplies = [];
+    if (dedupeGenre && Array.isArray(it.tags) && it.tags.length) {
+      for (const [broad, narrow] of GENRE_SUBSUMED_PAIRS) {
+        if (it.tags.includes(broad) && it.tags.includes(narrow)) it.tags = it.tags.filter(t => t !== broad);
+      }
+    }
     // Drop dangling collection references so the entry still shows under "Everything"
     // (as "—") instead of being silently filtered into a collection that no longer exists.
     if (it.collectionId && !collIds.has(it.collectionId)) it.collectionId = null;
@@ -1569,6 +1606,7 @@ function migrate(s) {
     }
     projectItem(it);
   }
+  if (dedupeGenre) s.settings.genreDedupDone = true;
   return s;
 }
 

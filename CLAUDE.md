@@ -160,19 +160,35 @@ settings, **never logged or exported**.
   mechanism as FEAT-05's Mood/Pace (one more field in `fetchMeta`'s JSON contract, filled on log/enrich,
   reviewable via ✦ fill). Three new seeded tag groups (`genreSeeded` flag, independent of
   `taxonomySeeded` so existing libraries pick them up on next load): **Genre** `terracotta` (film/TV/book
-  shared vocab: drama/comedy/thriller/horror/sci-fi/fantasy/romance/mystery/action/adventure/
-  documentary/animation/satire/war/crime/coming-of-age), **Music** `gold` (albums: indie pop/folk/rock/
-  hip-hop/electronic/jazz/classical/ambient/metal/pop/punk/soul/country/r&b/experimental), **Game**
-  `ash` (FPS/RPG/platformer/puzzle/strategy/simulation/adventure/roguelike/fighting/sports/racing/
-  horror/sandbox/visual novel) — Game was briefly seeded `ochre`, near-identical to Music's `gold`;
-  migrate() one-time-fixes any group already seeded with the old color. `genreVocabFor(collectionId)`
-  picks the applicable list by `kindFor`
-  (watch/read → Genre, listen → Music, play → Game; `log` kind gets no genre vocab, no requirement).
-  Up to 3 genre tags per item, matched case-insensitively then canonicalized to vocab casing (games'
-  vocab is upper-case: FPS/RPG). `needsMeta` only requires genre when `genreVocabFor` is non-empty.
-  Verified in-browser (tag groups seed with correct colors/vocab, chip renders `tag-color-terracotta`
-  on a film tagged "drama"); not yet tested against the live Claude API (no key in this session) — the
-  JSON contract change mirrors mood's proven shape exactly. SW `bitacora-v16`.
+  shared vocab, 30 entries — pitched at Music's specificity, not umbrella terms: psychological
+  thriller/dark comedy/romantic comedy/slasher/body horror/cyberpunk/space opera/dystopian/high
+  fantasy/fairy tale/noir/heist/biopic/period drama/courtroom drama/true crime/mockumentary +
+  thriller/horror/sci-fi/fantasy/romance/mystery/whodunit/documentary/animation/satire/war/crime/
+  coming-of-age), **Music** `gold` (albums: indie pop/folk/rock/hip-hop/electronic/jazz/classical/
+  ambient/metal/pop/punk/soul/country/r&b/experimental), **Game** `ash` (29 entries: FPS/RPG/JRPG/
+  tactical RPG/platformer/metroidvania/puzzle/strategy/4X/simulation/immersive sim/walking
+  simulator/adventure/roguelike/soulslike/fighting/beat em up/sports/racing/survival
+  horror/survival/sandbox/city builder/battle royale/MOBA/rhythm/deckbuilder/visual novel/stealth)
+  — Game was briefly seeded `ochre`, near-identical to Music's `gold`; migrate() one-time-fixes any
+  group already seeded with the old color. No tag string repeats across Genre/Music/Game/Mood/Pace
+  (the original "adventure"/"horror" collision between Genre and Game would've rendered with
+  whichever group seeded first, since `tagAssignments` is a single global map keyed by tag text, not
+  scoped per medium) — Game's "horror" became "survival horror", Genre dropped plain "adventure" for
+  named subgenres. `genreVocabFor(collectionId)` picks the applicable list by `kindFor` (watch/read →
+  Genre, listen → Music, play → Game; `log` kind gets no genre vocab, no requirement). Up to 3 genre
+  tags per item, matched case-insensitively then canonicalized to vocab casing (games' vocab has
+  mixed case: FPS/RPG/JRPG/MOBA/4X). `needsMeta` only requires genre when `genreVocabFor` is
+  non-empty. `enrichFieldSpec`'s genre instruction tells the model to pick only the narrower tag when
+  a broad genre and a subgenre it implies both fit (e.g. not both "pop" and "indie pop", or "thriller"
+  and "psychological thriller") — `GENRE_SUBSUMED_PAIRS` lists the known pairs. One-time
+  `genreDedupDone` cleanup pass in `migrate()` backfills this for entries a prior enrich run already
+  double-tagged (drops the broader tag when both are present on the same item). Separate one-time
+  `genreVocabV2Seeded` flag assigns colors for genre words added after `genreSeeded` had already run
+  on a library (skips a group the user has since deleted, rather than recreating it). Verified
+  in-browser: tag groups seed with correct distinct colors, chip renders the right `tag-color-*` class,
+  dedup pass drops "pop"/"thriller" while keeping "indie pop"/"psychological thriller", V2 seeding
+  colors a vocab word added after the original seed. Not yet tested against the live Claude API (no
+  key in this session) — the JSON contract change mirrors mood's proven shape exactly. SW `bitacora-v16`.
 - **Open:** merge `feat/roulette` (brings FEAT-04 + FEAT-06, stacked) → `main` + push ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".
