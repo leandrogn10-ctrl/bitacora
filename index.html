@@ -1527,10 +1527,14 @@ function migrate(s) {
     for (const g of GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = genreGid;
     const musicGid = ensureTagGroup('Music', 'gold');
     for (const g of MUSIC_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = musicGid;
-    const gameGid = ensureTagGroup('Game', 'ochre');
+    const gameGid = ensureTagGroup('Game', 'ash');
     for (const g of GAME_GENRE_PALETTE) if (!s.tagAssignments[g]) s.tagAssignments[g] = gameGid;
     s.settings.genreSeeded = true;
   }
+  // One-time nudge: Game was briefly seeded with 'ochre', which reads near-identical to
+  // Music's 'gold'. Fix any install (incl. this one) that already ran the seed above.
+  const gameGroup = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'game');
+  if (gameGroup && gameGroup.color === 'ochre') gameGroup.color = 'ash';
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
   s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };

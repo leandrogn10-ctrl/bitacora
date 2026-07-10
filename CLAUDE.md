@@ -163,8 +163,10 @@ settings, **never logged or exported**.
   shared vocab: drama/comedy/thriller/horror/sci-fi/fantasy/romance/mystery/action/adventure/
   documentary/animation/satire/war/crime/coming-of-age), **Music** `gold` (albums: indie pop/folk/rock/
   hip-hop/electronic/jazz/classical/ambient/metal/pop/punk/soul/country/r&b/experimental), **Game**
-  `ochre` (FPS/RPG/platformer/puzzle/strategy/simulation/adventure/roguelike/fighting/sports/racing/
-  horror/sandbox/visual novel). `genreVocabFor(collectionId)` picks the applicable list by `kindFor`
+  `ash` (FPS/RPG/platformer/puzzle/strategy/simulation/adventure/roguelike/fighting/sports/racing/
+  horror/sandbox/visual novel) — Game was briefly seeded `ochre`, near-identical to Music's `gold`;
+  migrate() one-time-fixes any group already seeded with the old color. `genreVocabFor(collectionId)`
+  picks the applicable list by `kindFor`
   (watch/read → Genre, listen → Music, play → Game; `log` kind gets no genre vocab, no requirement).
   Up to 3 genre tags per item, matched case-insensitively then canonicalized to vocab casing (games'
   vocab is upper-case: FPS/RPG). `needsMeta` only requires genre when `genreVocabFor` is non-empty.
