@@ -225,6 +225,34 @@ settings, **never logged or exported**.
   the bare umbrella string); the same filter carries into Diary mode; clear button restores the full
   list. `preview_click` intermittently missed freshly-re-rendered bar elements in this session —
   dispatching a real `click` MouseEvent via `preview_eval` worked every time; not a code bug.
+  **`it.paceAbstained`** added, mirroring `genreAbstained` exactly: `pace: null` is a legitimate
+  answer (explicitly "not applicable, e.g. an album" per the prompt spec, not just "unsure"), so
+  without tracking that a real attempt happened, `needsMeta` re-asked forever on every future
+  "Enrich library" pass — confirmed against the real exported library that this was actively
+  happening on 15 albums. Verified with a standalone Node harness (sliced the real functions out of
+  `index.html`, no page-global-access workaround needed since it's pure data logic): `needsMeta`
+  true → `applyMeta` with `pace: null` → `paceAbstained` set, `needsMeta` false, second `applyMeta`
+  call is a no-op. **Prompt caching evaluated and skipped**: `fetchMeta`'s system prompt (identical
+  across every call for a given medium — real savings during a library-wide enrich run) comes out
+  to ~650-730 estimated tokens per medium (chars/4 heuristic), under Anthropic's 1024-token minimum
+  for Sonnet cache blocks — wiring `cache_control` on it wouldn't actually cache anything at the
+  current prompt size, so skipped rather than ship dead complexity.
+  **Still open from the real-library audit** (found by exporting the actual 56-item library and
+  running a Node script against it, not synthetic test data — see conversation, not yet actioned):
+  three tag-group color collisions (Genre/Pace both `sage`; a user-created `Time` group and `Music`
+  both `gold`) from groups the user created *before* this session's auto-seeding existed, so
+  `ensureTagGroup`'s find-by-name never overwrote their pre-existing color; 8 taxonomy words
+  (`bedroom pop`, `dream pop`, `indie pop`, `indie rock`, `r&b`, `pop`, `experimental`, `adventure`)
+  stuck pointing at the wrong group for the same reason — `adventure` in particular renders as
+  Genre/sage on real game entries (Half-Life: Alyx, Disco Elysium) instead of Game/ash; the
+  one-time `genreDedupDone` flag missing two live double-tags (`r&b`+`soul` on El Madrileño,
+  `simulation`+`life simulation` on Spiritfarer) because dedup only ever runs once and both were
+  created by *later* enrich activity, after the flag had already fired — needs to run unconditionally
+  every load instead. Also proposed, not yet built: a `poetry` umbrella (one item — Rimbaud — got no
+  genre tag at all, correctly, since nothing in `GENRE_TAXONOMY` fits poetry) and a `latin` umbrella
+  in `MUSIC_TAXONOMY` (reggaeton/flamenco/bolero/salsa/bachata — two real albums use free-form
+  `latin`/`flamenco` tags with no taxonomy home, and the notes reference Bad Bunny/bolero/reggaeton
+  explicitly).
 - **Open:** merge `feat/roulette` (brings FEAT-04 + FEAT-06, stacked) → `main` + push ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".

@@ -3937,16 +3937,21 @@ function applyMeta(it, r) {
   // result (r is only non-null when Claude returned parseable output), not "never asked yet".
   // Stops needsMeta from re-querying this item forever on every future "Enrich library" pass.
   if (!it.genreAbstained && !r.genre.length && genreVocabFor(it.collectionId).length) { it.genreAbstained = true; changed = true; }
+  // Same abstain tracking for pace — null is a legitimate answer (explicitly "not applicable,
+  // e.g. an album" per the prompt spec, or genuine uncertainty for other media), not a miss.
+  // Without this, every album keeps getting re-asked for a field that will never fill.
+  if (!it.paceAbstained && !r.pace) { it.paceAbstained = true; changed = true; }
   return changed;
 }
 // True when an item still has research to fetch (year / creator / mood / pace / genre missing —
 // plus cast, but only for performed media where cast makes sense). Genre is only required when
 // the item's medium has a genre vocabulary at all (genreVocabFor returns [] otherwise), and is
-// considered resolved once genreAbstained is set even with zero genre tags.
+// considered resolved once genreAbstained is set even with zero genre tags — same for pace via
+// paceAbstained (albums structurally never get one).
 function needsMeta(it) {
   const tags = it.tags || [];
   const hasMood = tags.some(t => MOOD_PALETTE.includes(t));
-  const hasPace = PACES.some(p => tags.includes(p));
+  const hasPace = PACES.some(p => tags.includes(p)) || it.paceAbstained;
   const vocab = genreVocabFor(it.collectionId);
   const hasGenre = !vocab.length || vocab.some(g => tags.includes(g)) || it.genreAbstained;
   return !it.year || !it.creator || !hasMood || !hasPace || !hasGenre || (castApplies(it.collectionId) && !(it.cast || []).length);
