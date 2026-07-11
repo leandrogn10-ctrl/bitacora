@@ -1449,6 +1449,7 @@ const GENRE_TAXONOMY = {
   documentary: ['nature documentary', 'memoir', 'biographical documentary', 'true crime'],
   animation: [],
   action: ['martial arts', 'spy', 'disaster', 'swashbuckler', 'quest', 'treasure hunt'],
+  poetry: [],
 };
 const MUSIC_TAXONOMY = {
   pop: ['indie pop', 'synth-pop', 'dream pop', 'k-pop', 'bedroom pop'],
@@ -1463,6 +1464,7 @@ const MUSIC_TAXONOMY = {
   jazz: ['bebop', 'smooth jazz', 'fusion'],
   classical: ['baroque', 'romantic era', 'minimalism'],
   experimental: ['noise', 'drone', 'avant-garde'],
+  latin: ['reggaeton', 'flamenco', 'bolero', 'salsa', 'bachata', 'latin pop'],
 };
 const GAME_TAXONOMY = {
   shooter: ['FPS', 'third-person shooter', 'arena shooter', 'tactical shooter'],
@@ -1621,9 +1623,47 @@ function migrate(s) {
   if (musicG) for (const g of taxonomyVocab(MUSIC_TAXONOMY)) if (!s.tagAssignments[g]) s.tagAssignments[g] = musicG.id;
   const gameG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'game');
   if (gameG) for (const g of taxonomyVocab(GAME_TAXONOMY)) if (!s.tagAssignments[g]) s.tagAssignments[g] = gameG.id;
-  // One-time nudge: Game was briefly seeded with 'ochre', which reads near-identical to
-  // Music's 'gold'. Fix any install (incl. this one) that already ran the seed above.
-  if (gameG && gameG.color === 'ochre') gameG.color = 'ash';
+  // One-time fix, real-library-audit-driven: a group the user created BEFORE this session's
+  // auto-seeding existed (e.g. a hand-made "Genre" or "Time" group) can already own one of the
+  // 5 canonical colors — ensureTagGroup only sets color on creation, so it silently left a
+  // legacy color in place, producing collisions (Genre/Pace both sage; a legacy "Time" and Music
+  // both gold, confirmed against the real exported library). Force the 5 core groups to their
+  // canonical colors, then bump any OTHER group that happens to collide with one of those colors
+  // to the first free slot in TAG_COLORS — never touches a group already using its own color.
+  if (!s.settings.genreColorFixDone) {
+    const CANONICAL_GROUP_COLORS = { Mood: 'plum', Pace: 'sage', Genre: 'terracotta', Music: 'gold', Game: 'ash' };
+    for (const [name, color] of Object.entries(CANONICAL_GROUP_COLORS)) {
+      const g = s.tagGroups.find(x => (x.name || '').toLowerCase() === name.toLowerCase());
+      if (g) g.color = color;
+    }
+    const canonicalNames = new Set(Object.keys(CANONICAL_GROUP_COLORS).map(n => n.toLowerCase()));
+    const canonicalColors = new Set(Object.values(CANONICAL_GROUP_COLORS));
+    // Never reclaim a vacated color within this same pass — it may still be legitimately owned
+    // by the canonical group (or another bumped group already reassigned to it), so only ADD to
+    // this set, never delete, or two colliding groups can end up reassigned to the same color.
+    const usedColors = new Set(s.tagGroups.map(g => g.color));
+    for (const g of s.tagGroups) {
+      if (canonicalNames.has((g.name || '').toLowerCase())) continue;
+      if (canonicalColors.has(g.color)) {
+        const free = TAG_COLORS.find(c => !usedColors.has(c));
+        if (free) { g.color = free; usedColors.add(free); }
+      }
+    }
+    s.settings.genreColorFixDone = true;
+  }
+  // One-time fix, same root cause: taxonomy words that already had a PRE-EXISTING (legacy,
+  // wrong) assignment before this session's groups existed never got corrected by the
+  // fill-blanks loop above. Confirmed against the real library: "adventure" pointed at Genre
+  // instead of Game on actual game entries; "bedroom pop"/"dream pop"/"indie pop"/"indie rock"/
+  // "r&b"/"pop"/"experimental" pointed at Genre or a legacy "Music Genre" group instead of Music.
+  // Force (not fill-blanks) every taxonomy word to its correct group, once — safe because these
+  // exact strings have exactly one correct home by construction, unlike arbitrary user tags.
+  if (!s.settings.genreAssignmentFixDone) {
+    if (genreG) for (const g of taxonomyVocab(GENRE_TAXONOMY)) s.tagAssignments[g] = genreG.id;
+    if (musicG) for (const g of taxonomyVocab(MUSIC_TAXONOMY)) s.tagAssignments[g] = musicG.id;
+    if (gameG) for (const g of taxonomyVocab(GAME_TAXONOMY)) s.tagAssignments[g] = gameG.id;
+    s.settings.genreAssignmentFixDone = true;
+  }
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
   s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };
@@ -1631,16 +1671,20 @@ function migrate(s) {
   s.settings.theme = s.settings.theme || 'macchiato';
   s.lastModified = s.lastModified || Date.now();
   const collIds = new Set((s.collections || []).map(c => c.id));
-  // FEAT-16 one-time cleanup: a prior enrich pass could apply both a broad genre and its
-  // own narrower subgenre to the same item (both were valid vocab entries, e.g. "pop" +
-  // "indie pop") — drop the broad one wherever both landed on the same title.
-  const dedupeGenre = !s.settings.genreDedupDone;
+  // FEAT-16 dedup: a prior enrich pass — or a LATER one, see below — could apply both a broad
+  // genre and its own narrower subgenre to the same item (both were valid vocab entries, e.g.
+  // "pop" + "indie pop") — drop the broad one wherever both landed on the same title. Runs every
+  // load, not one-time: a one-shot flag missed two live double-tags in the real library
+  // ("r&b"+"soul" on El Madrileño, "simulation"+"life simulation" on Spiritfarer) because both
+  // were created by enrich activity that happened AFTER the flag had already fired once. This
+  // filter is idempotent (removing an already-absent tag is a no-op), so running it unconditionally
+  // costs nothing on the common case where nothing needs fixing.
   for (const it of s.items) {
     if (typeof it.claudeNote === 'undefined') it.claudeNote = '';
     if (typeof it.publicReview === 'undefined') it.publicReview = '';
     if (typeof it.noteSource === 'undefined') it.noteSource = '';   // FEAT-14: legacy notes are unattributed
     if (!Array.isArray(it.claudeReplies)) it.claudeReplies = [];
-    if (dedupeGenre && Array.isArray(it.tags) && it.tags.length) {
+    if (Array.isArray(it.tags) && it.tags.length) {
       for (const [broad, narrow] of GENRE_SUBSUMED_PAIRS) {
         if (it.tags.includes(broad) && it.tags.includes(narrow)) it.tags = it.tags.filter(t => t !== broad);
       }
@@ -1667,7 +1711,6 @@ function migrate(s) {
     }
     projectItem(it);
   }
-  if (dedupeGenre) s.settings.genreDedupDone = true;
   return s;
 }
 

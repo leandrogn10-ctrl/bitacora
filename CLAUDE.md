@@ -237,22 +237,29 @@ settings, **never logged or exported**.
   to ~650-730 estimated tokens per medium (chars/4 heuristic), under Anthropic's 1024-token minimum
   for Sonnet cache blocks — wiring `cache_control` on it wouldn't actually cache anything at the
   current prompt size, so skipped rather than ship dead complexity.
-  **Still open from the real-library audit** (found by exporting the actual 56-item library and
-  running a Node script against it, not synthetic test data — see conversation, not yet actioned):
-  three tag-group color collisions (Genre/Pace both `sage`; a user-created `Time` group and `Music`
-  both `gold`) from groups the user created *before* this session's auto-seeding existed, so
-  `ensureTagGroup`'s find-by-name never overwrote their pre-existing color; 8 taxonomy words
-  (`bedroom pop`, `dream pop`, `indie pop`, `indie rock`, `r&b`, `pop`, `experimental`, `adventure`)
-  stuck pointing at the wrong group for the same reason — `adventure` in particular renders as
-  Genre/sage on real game entries (Half-Life: Alyx, Disco Elysium) instead of Game/ash; the
-  one-time `genreDedupDone` flag missing two live double-tags (`r&b`+`soul` on El Madrileño,
-  `simulation`+`life simulation` on Spiritfarer) because dedup only ever runs once and both were
-  created by *later* enrich activity, after the flag had already fired — needs to run unconditionally
-  every load instead. Also proposed, not yet built: a `poetry` umbrella (one item — Rimbaud — got no
-  genre tag at all, correctly, since nothing in `GENRE_TAXONOMY` fits poetry) and a `latin` umbrella
-  in `MUSIC_TAXONOMY` (reggaeton/flamenco/bolero/salsa/bachata — two real albums use free-form
-  `latin`/`flamenco` tags with no taxonomy home, and the notes reference Bad Bunny/bolero/reggaeton
-  explicitly).
+  **Real-library-audit fixes, all shipped**: (1) one-time `genreColorFixDone` forces the 5
+  canonical groups (Mood/Pace/Genre/Music/Game) to their intended colors regardless of a
+  pre-existing group the user made before this session's auto-seeding existed (which
+  `ensureTagGroup`'s find-by-name correctly never touched, but that meant a legacy color could
+  collide) — then bumps any OTHER group still colliding with one of those 5 colors to the first
+  free `TAG_COLORS` slot. Caught a real bug in this fix while testing: the bump step originally did
+  `usedColors.delete(oldColor)` before reassigning, which let a SECOND colliding group get
+  reassigned back to a color a canonical group still legitimately owns — fixed by only ever adding
+  to the used-set, never deleting. (2) one-time `genreAssignmentFixDone` force-reassigns (not
+  fill-blanks) every taxonomy word to its correct group — fixes `adventure` rendering Genre/sage
+  instead of Game/ash on real game entries, and 7 Music words (`bedroom pop`, `dream pop`,
+  `indie pop`, `indie rock`, `r&b`, `pop`, `experimental`) stuck on Genre or a legacy "Music Genre"
+  group. (3) the `genreDedupDone` one-time flag was missing two live double-tags (`r&b`+`soul` on
+  El Madrileño, `simulation`+`life simulation` on Spiritfarer) because both were created by enrich
+  activity *after* the flag had already fired once — dedup now runs unconditionally every load
+  (idempotent, costs nothing when there's nothing to fix). (4) added `poetry` (leafless) to
+  `GENRE_TAXONOMY` and `latin` (reggaeton/flamenco/bolero/salsa/bachata/latin pop) to
+  `MUSIC_TAXONOMY` — collision-checked (0 across 203 strings). Verified all four together in-browser
+  against a reconstruction of the exact real-library state (pre-existing legacy groups/colors,
+  the two live double-tags): dedup now ALSO catches `latin`+`flamenco` on El Madrileño as a bonus,
+  since `flamenco` became one of `latin`'s own leaves — nothing in the fix was written for that
+  case specifically, it just fell out of the general derivation. Final state has all 7 groups
+  (5 canonical + 2 legacy) on distinct colors, confirmed programmatically.
 - **Open:** merge `feat/roulette` (brings FEAT-04 + FEAT-06, stacked) → `main` + push ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".
