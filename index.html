@@ -1452,14 +1452,14 @@ const GENRE_TAXONOMY = {
   poetry: [],
 };
 const MUSIC_TAXONOMY = {
-  pop: ['indie pop', 'synth-pop', 'dream pop', 'k-pop', 'bedroom pop'],
-  rock: ['indie rock', 'alternative rock', 'classic rock', 'garage rock', 'psychedelic rock', 'math rock'],
+  pop: ['indie pop', 'synth-pop', 'dream pop', 'k-pop', 'bedroom pop', 'art pop'],
+  rock: ['indie rock', 'alternative rock', 'classic rock', 'garage rock', 'psychedelic rock', 'math rock', 'lo-fi'],
   punk: ['pop punk', 'post-punk', 'hardcore punk'],
   metal: ['heavy metal', 'black metal', 'metalcore', 'doom metal'],
   electronic: ['ambient', 'house', 'techno', 'drum and bass', 'synthwave', 'IDM'],
   'hip-hop': ['trap', 'boom bap', 'conscious hip-hop'],
   'r&b': ['soul', 'neo-soul', 'funk'],
-  folk: ['singer-songwriter', 'americana', 'folk rock'],
+  folk: ['singer-songwriter', 'americana', 'folk rock', 'indie folk'],
   country: ['bluegrass', 'outlaw country'],
   jazz: ['bebop', 'smooth jazz', 'fusion'],
   classical: ['baroque', 'romantic era', 'minimalism'],
@@ -1651,19 +1651,26 @@ function migrate(s) {
     }
     s.settings.genreColorFixDone = true;
   }
-  // One-time fix, same root cause: taxonomy words that already had a PRE-EXISTING (legacy,
-  // wrong) assignment before this session's groups existed never got corrected by the
-  // fill-blanks loop above. Confirmed against the real library: "adventure" pointed at Genre
-  // instead of Game on actual game entries; "bedroom pop"/"dream pop"/"indie pop"/"indie rock"/
-  // "r&b"/"pop"/"experimental" pointed at Genre or a legacy "Music Genre" group instead of Music.
-  // Force (not fill-blanks) every taxonomy word to its correct group, once — safe because these
-  // exact strings have exactly one correct home by construction, unlike arbitrary user tags.
-  if (!s.settings.genreAssignmentFixDone) {
-    if (genreG) for (const g of taxonomyVocab(GENRE_TAXONOMY)) s.tagAssignments[g] = genreG.id;
-    if (musicG) for (const g of taxonomyVocab(MUSIC_TAXONOMY)) s.tagAssignments[g] = musicG.id;
-    if (gameG) for (const g of taxonomyVocab(GAME_TAXONOMY)) s.tagAssignments[g] = gameG.id;
-    s.settings.genreAssignmentFixDone = true;
-  }
+  // Fix, same root cause as the color fix above: taxonomy words that already had a
+  // PRE-EXISTING (legacy, wrong) assignment before this session's groups existed never got
+  // corrected by the fill-blanks loop above. Confirmed against the real library: "adventure"
+  // pointed at Genre instead of Game on actual game entries; several Music words (bedroom pop,
+  // indie pop, pop, r&b, art pop, indie folk, lo-fi, ...) pointed at Genre or a legacy "Music
+  // Genre" group instead of Music. Force (not fill-blanks) each taxonomy word to its correct
+  // group — safe because these exact strings have exactly one correct home by construction,
+  // unlike arbitrary user tags. Per-word memory (not a single boolean) instead of a one-time
+  // flag: a boolean already bit us once this session — "genreAssignmentFixDone" fired, then
+  // 3 more words (art pop, indie folk, lo-fi) got added to the taxonomy afterward and the
+  // already-spent flag meant they'd never get force-corrected. Tracking which words have
+  // already been force-fixed means a taxonomy word added at ANY future point gets force-fixed
+  // exactly once, automatically, with no new flag to remember to add.
+  s.settings.genreForceFixedWords = Array.isArray(s.settings.genreForceFixedWords) ? s.settings.genreForceFixedWords : [];
+  const forceFixedWords = new Set(s.settings.genreForceFixedWords);
+  const forceFix = (vocab, group) => { if (!group) return; for (const w of vocab) if (!forceFixedWords.has(w)) { s.tagAssignments[w] = group.id; forceFixedWords.add(w); } };
+  forceFix(taxonomyVocab(GENRE_TAXONOMY), genreG);
+  forceFix(taxonomyVocab(MUSIC_TAXONOMY), musicG);
+  forceFix(taxonomyVocab(GAME_TAXONOMY), gameG);
+  s.settings.genreForceFixedWords = [...forceFixedWords];
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
   s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };

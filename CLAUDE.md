@@ -245,21 +245,41 @@ settings, **never logged or exported**.
   free `TAG_COLORS` slot. Caught a real bug in this fix while testing: the bump step originally did
   `usedColors.delete(oldColor)` before reassigning, which let a SECOND colliding group get
   reassigned back to a color a canonical group still legitimately owns — fixed by only ever adding
-  to the used-set, never deleting. (2) one-time `genreAssignmentFixDone` force-reassigns (not
-  fill-blanks) every taxonomy word to its correct group — fixes `adventure` rendering Genre/sage
-  instead of Game/ash on real game entries, and 7 Music words (`bedroom pop`, `dream pop`,
-  `indie pop`, `indie rock`, `r&b`, `pop`, `experimental`) stuck on Genre or a legacy "Music Genre"
-  group. (3) the `genreDedupDone` one-time flag was missing two live double-tags (`r&b`+`soul` on
-  El Madrileño, `simulation`+`life simulation` on Spiritfarer) because both were created by enrich
-  activity *after* the flag had already fired once — dedup now runs unconditionally every load
-  (idempotent, costs nothing when there's nothing to fix). (4) added `poetry` (leafless) to
-  `GENRE_TAXONOMY` and `latin` (reggaeton/flamenco/bolero/salsa/bachata/latin pop) to
-  `MUSIC_TAXONOMY` — collision-checked (0 across 203 strings). Verified all four together in-browser
-  against a reconstruction of the exact real-library state (pre-existing legacy groups/colors,
-  the two live double-tags): dedup now ALSO catches `latin`+`flamenco` on El Madrileño as a bonus,
-  since `flamenco` became one of `latin`'s own leaves — nothing in the fix was written for that
-  case specifically, it just fell out of the general derivation. Final state has all 7 groups
-  (5 canonical + 2 legacy) on distinct colors, confirmed programmatically.
+  to the used-set, never deleting. (2) force-reassigns (not fill-blanks) every taxonomy word to
+  its correct group — fixed `adventure` rendering Genre/sage instead of Game/ash on real game
+  entries, and 7 Music words (`bedroom pop`, `dream pop`, `indie pop`, `indie rock`, `r&b`, `pop`,
+  `experimental`) stuck on Genre or a legacy "Music Genre" group. (3) the `genreDedupDone` one-time
+  flag was missing two live double-tags (`r&b`+`soul` on El Madrileño, `simulation`+`life
+  simulation` on Spiritfarer) because both were created by enrich activity *after* the flag had
+  already fired once — dedup now runs unconditionally every load (idempotent, costs nothing when
+  there's nothing to fix). (4) added `poetry` (leafless) to `GENRE_TAXONOMY` and `latin`
+  (reggaeton/flamenco/bolero/salsa/bachata/latin pop) to `MUSIC_TAXONOMY` — collision-checked
+  (0 across 203 strings). Verified all four together in-browser against a reconstruction of the
+  exact real-library state (pre-existing legacy groups/colors, the two live double-tags): dedup
+  now ALSO catches `latin`+`flamenco` on El Madrileño as a bonus, since `flamenco` became one of
+  `latin`'s own leaves — nothing in the fix was written for that case specifically, it just fell
+  out of the general derivation. Final state has all 7 groups (5 canonical + 2 legacy) on distinct
+  colors, confirmed programmatically.
+  **Follow-up round, same session**: the live "Filter by tag" dropdown on the real deployed app
+  (confirming fix (1)+(2) above had already reached production — `adventure`/`pop`/`r&b` were
+  correctly under Game/Music) surfaced 3 more legacy custom tags stuck under Genre: `art pop`,
+  `indie folk`, `lo-fi` — pre-taxonomy free-form tags, not caught by the earlier fix since they
+  weren't in the taxonomy yet. Added as leaves: `art pop` under Music's `pop`, `indie folk` under
+  `folk`, `lo-fi` under `rock` (flagged as a genuine judgment call — lo-fi is more a production
+  aesthetic than a genre, cuts across pop/hip-hop/rock, but its one live use is on an indie-rock
+  album). This exposed a real mechanism bug: fix (2) above (`genreAssignmentFixDone`) was a
+  single one-time boolean, already spent on the real library — adding new taxonomy words after
+  that point meant they'd NEVER get force-corrected, the same class of problem the fill-blanks
+  loop already solved once. Fixed properly this time instead of bolting on another one-off flag:
+  replaced the boolean with `settings.genreForceFixedWords`, a list of words already force-fixed.
+  Any taxonomy word — present now or added at any future point — gets force-corrected exactly
+  once, automatically, the first time `migrate()` sees it; no new flag to remember to add when the
+  taxonomy grows again (and it will). `classic` (on *Is This It*) deliberately NOT touched —
+  it's not taxonomy vocab, almost certainly shorthand for the already-existing `classic rock` leaf;
+  correct fix is a manual tag-manager merge, not new taxonomy, left for the user to do. Verified
+  in-browser against a reconstruction of the real post-fix-(1)/(2) state (stale
+  `genreAssignmentFixDone: true`, no `genreForceFixedWords` yet, the 3 new words still on Genre):
+  all 3 correctly land on Music after one load, `classic` correctly untouched.
 - **Open:** merge `feat/roulette` (brings FEAT-04 + FEAT-06, stacked) → `main` + push ·
   FEAT-07 heatmap · FEAT-08 auto-ingestion · FEAT-10 Releer · FEAT-11 in-app graph · FEAT-12 Wrapped ·
   "Ask the Observatory".
