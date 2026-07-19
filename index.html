@@ -527,6 +527,7 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .sync-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); margin-top: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
 .sync-status.ok { color: var(--c-sage-fg); }
 .sync-status.err { color: #c47878; }
+.sync-status.warn { color: var(--accent); }
 
 .import-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; margin: 10px 0 18px; font-size: 12px; color: var(--ink-dim); }
 .import-card .label { color: var(--ink-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; }
@@ -545,6 +546,30 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .claude-panel .panel-body.thinking::before { content: '✦'; color: var(--c-dusty-fg); animation: pulse 1.2s infinite; font-style: normal; }
 .claude-panel.error .panel-body { color: #c47878; font-size: 12px; }
 .claude-panel .panel-foot { padding: 8px 16px 12px; font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line-soft); }
+
+/* Curator — conversational recommendations + season planning */
+.curator-body { display: flex; flex-direction: column; gap: 14px; height: min(64vh, 640px); }
+.curator-thread { flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
+.curator-msg { max-width: 84%; padding: 10px 13px; border-radius: 3px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+.curator-msg.user { align-self: flex-end; background: var(--paper-hi); border: 1px solid var(--line); font-family: 'Instrument Serif', serif; font-size: 15px; color: var(--ink); }
+.curator-msg.assistant { align-self: flex-start; background: var(--paper); border-left: 2px dotted var(--c-dusty-fg); border-radius: 2px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--ink-dim); }
+.curator-msg.assistant::before { content: '✦ '; color: var(--c-dusty-fg); }
+.curator-msg.assistant.thinking { color: var(--ink-faint); font-style: italic; }
+.curator-msg.assistant.thinking::before { animation: pulse 1.2s infinite; }
+.curator-msg.assistant.error { color: #c47878; border-left-color: #c47878; }
+.curator-via { display: block; margin-top: 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); }
+.curator-actions { display: flex; flex-direction: column; gap: 8px; align-self: flex-start; max-width: 84%; }
+.curator-action { background: var(--paper); border: 1px solid var(--c-gold-bd); border-radius: 3px; padding: 9px 12px; display: flex; flex-direction: column; gap: 6px; }
+.curator-action.applied { opacity: 0.55; }
+.curator-action .ca-label { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--gold); }
+.curator-action .ca-note { font-size: 12px; color: var(--ink-faint); }
+.curator-action .ca-btn { align-self: flex-start; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; padding: 4px 10px; border: 1px solid var(--c-gold-bd); border-radius: 2px; color: var(--accent); transition: background 0.12s; }
+.curator-action .ca-btn:hover:not(:disabled) { background: var(--c-gold-bg); }
+.curator-action .ca-btn:disabled { color: var(--ink-faint); border-color: var(--line); cursor: default; }
+.curator-add-all { align-self: flex-start; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; }
+.curator-input-row { display: flex; gap: 10px; flex: 0 0 auto; }
+.curator-input-row input { flex: 1; background: var(--paper); border: 1px solid var(--line); border-radius: 2px; padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: 'JetBrains Mono', monospace; }
+.curator-input-row input:focus { border-color: var(--accent); background: var(--paper-hi); }
 
 .claude-takes-section { padding: 16px 26px 4px; border-top: 1px solid var(--line-soft); margin-top: 4px; }
 .claude-takes-section h4 { font-family: 'Instrument Serif', serif; font-size: 18px; font-style: italic; color: var(--c-dusty-fg); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
@@ -718,9 +743,7 @@ dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); 
 .item-card .desc { margin-top: 2px; }
 .item-card .desc-me, .item-card .desc-none { font-family: 'Instrument Serif', 'Times New Roman', serif; font-size: 15px; color: var(--ink-dim); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .item-card .desc-friend { font-family: 'Instrument Serif', 'Times New Roman', serif; font-size: 15px; font-style: italic; color: var(--ink-dim); line-height: 1.4; padding-left: 9px; border-left: 2px solid var(--line); }
-.item-card .desc-claude { font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; color: var(--c-dusty-fg); padding-left: 9px; border-left: 2px dotted var(--c-dusty-fg); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .item-card .desc-by { display: block; font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); margin-top: 3px; }
-.item-card .desc-claude .desc-by { color: var(--c-dusty-fg); margin-top: 0; margin-bottom: 3px; }
 .src-tag { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); }
 .src-tag.src-claude { color: var(--c-dusty-fg); }
 
@@ -1263,6 +1286,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           </label>
         </div>
         <div class="sync-status" id="sync-status">disabled</div>
+        <div class="sync-status" id="storage-durability"></div>
       </div>
     </div>
     <footer><span style="color:var(--ink-faint);font-size:11px">changes save automatically</span><button class="submit" data-close="settings">done</button></footer>
@@ -1360,6 +1384,20 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
       <span id="me-count" class="me-count">0 selected</span>
       <button type="button" class="btn-primary" id="me-merge-btn" disabled>merge into one</button>
     </footer>
+  </div>
+</dialog>
+
+<!-- curator: conversational recommendations + season planning -->
+<dialog id="curator-modal">
+  <div class="modal wide curator-modal">
+    <header><div><h2>Curator</h2><p>Ask for a recommendation, or plan a stretch of time — the backlog gets first refusal.</p></div><button type="button" class="close" data-close="curator">×</button></header>
+    <div class="modal-body curator-body">
+      <div id="curator-thread" class="curator-thread"></div>
+      <form id="curator-form" class="curator-input-row">
+        <input type="text" id="curator-input" placeholder="a movie for me and my sister… / plan august… / june's over, push what's left to august" autocomplete="off">
+        <button type="submit" class="btn-primary">ask</button>
+      </form>
+    </div>
   </div>
 </dialog>
 
@@ -1558,6 +1596,11 @@ function kindFor(collectionId) {
   if (c.includes('music') || c.includes('album') || c.includes('disco') || c.includes('song')) return 'listen';
   return 'log';
 }
+// Albums are often self-titled or terse — pairing the artist at a glance is worth the extra
+// width; everywhere else (film/TV/book/game) the bare title already carries enough identity.
+function displayTitle(item) {
+  return (kindFor(item.collectionId) === 'listen' && item.creator) ? `${item.title} — ${item.creator}` : item.title;
+}
 function latestEvent(item) { return item && item.events && item.events.length ? item.events[item.events.length - 1] : null; }
 // Stamp the flat (projected) fields onto the title from its events.
 // rating = AVERAGE across all rated passes (seasons / rewatches) — the card, filters,
@@ -1616,6 +1659,14 @@ function migrate(s) {
     ensureTagGroup('Music', 'gold');
     ensureTagGroup('Game', 'ash');
     s.settings.genreSeeded = true;
+  }
+  // Curator: period tags ("august-2026", "summer-2026") are plain tags, just grouped for color —
+  // no scheduling field, matching the app's existing "months are just tags" principle. Creation is
+  // one-time (a group the user deletes stays deleted); individual tags get assigned to it at the
+  // moment the curator chat creates/applies them (see ensureSeasonTag), not seeded from a vocab list.
+  if (!s.settings.seasonSeeded) {
+    ensureTagGroup('Season', 'rust');
+    s.settings.seasonSeeded = true;
   }
   const genreG = s.tagGroups.find(g => (g.name || '').toLowerCase() === 'genre');
   if (genreG) for (const g of taxonomyVocab(GENRE_TAXONOMY)) if (!s.tagAssignments[g]) s.tagAssignments[g] = genreG.id;
@@ -1948,7 +1999,7 @@ function renderSpotlight() {
   row.innerHTML = active.map(it => {
     const c = state.collections.find(x => x.id === it.collectionId);
     return `<div class="spot-card" data-id="${it.id}" style="--mc:${collColor(it.collectionId)}">
-      <div class="st">In progress</div><div class="ttl">${escapeHtml(it.title)}</div>
+      <div class="st">In progress</div><div class="ttl">${escapeHtml(displayTitle(it))}</div>
       <div class="sub">${escapeHtml(c ? c.name : '—')}</div></div>`;
   }).join('');
 }
@@ -2205,13 +2256,13 @@ function renderDiary() {
     const verb = EVENT_VERB[ev.kind] || 'logged';
     const day = (ev.date || '').slice(8, 10);
     const stars = ev.rating ? renderStars(ev.rating) : '';
-    const note = ev.notes ? `<div class="dz-note">${sourceTag(ev.noteSource)}${escapeHtml(ev.notes)}</div>` : '';
+    const note = ev.notes ? `<div class="dz-note">${sourceTag(ev.noteSource, false)}${escapeHtml(ev.notes)}</div>` : '';
     const coll = state.collections.find(c => c.id === item.collectionId);
     const nodeSize = (5 + (ev.rating || 0) * 1.5).toFixed(1);   // ember (5px) → supergiant (12.5px)
     const node = `<span class="dz-node${ev.status === 'active' ? ' dz-node-live' : ''}" style="--ns:${nodeSize}px;--nc:${collColor(item.collectionId)}"></span>`;
     const yr = item.year ? ` <span class="dz-yeartag">(${item.year})</span>` : '';
     const label = ev.label ? `<span class="dz-label">${escapeHtml(ev.label)}</span>` : '';
-    return `<div class="dz-row" data-id="${escapeAttr(item.id)}">${node}<div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(item.title)}${yr}</span>${label}<span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
+    return `<div class="dz-row" data-id="${escapeAttr(item.id)}">${node}<div class="dz-day">${day}</div><div class="dz-body"><div class="dz-line"><span class="dz-verb">${verb}</span><span class="dz-title">${escapeHtml(displayTitle(item))}${yr}</span>${label}<span class="dz-stars">${stars}</span></div>${note}<div class="dz-sub">${escapeHtml(coll ? coll.name : '—')} · ${escapeHtml(ev.status)}</div></div></div>`;
   };
 
   // "On this day" leads the chronicle (only when unfiltered, like the spotlight).
@@ -2255,7 +2306,7 @@ function renderOnThisDay() {
   const rows = hits.map(({ ev, item }) => {
     const yr = (ev.date || '').slice(0, 4), ago = +curY - +yr;
     const stars = ev.rating ? renderStars(ev.rating) : '';
-    return `<div class="otd-row" data-id="${escapeAttr(item.id)}"><span class="otd-title">${escapeHtml(item.title)}</span><span class="otd-when">${yr} · ${ago}y ago</span><span class="otd-stars">${stars}</span></div>`;
+    return `<div class="otd-row" data-id="${escapeAttr(item.id)}"><span class="otd-title">${escapeHtml(displayTitle(item))}</span><span class="otd-when">${yr} · ${ago}y ago</span><span class="otd-stars">${stars}</span></div>`;
   }).join('');
   return `<div class="dz-onthisday"><div class="otd-head">✦ On this day</div>${rows}</div>`;
 }
@@ -2435,7 +2486,8 @@ function renderShelf() {
     const stars = renderStars(it.rating || 0);
     const tagsHtml = (it.tags && it.tags.length) ? `<div class="tags">${it.tags.slice(0, 6).map(t => tagPillHtml(t, view.tags.includes(t))).join('')}</div>` : '';
     const notesPreview = renderDescription(it.notes, it.noteSource);
-    const byline = (it.year || it.creator) ? `<div class="byline">${[it.year, it.creator].filter(Boolean).map(x => escapeHtml(String(x))).join(' · ')}</div>` : '';
+    const bylineCreator = displayTitle(it) === it.title ? it.creator : null;   // don't repeat what the title already shows
+    const byline = (it.year || bylineCreator) ? `<div class="byline">${[it.year, bylineCreator].filter(Boolean).map(x => escapeHtml(String(x))).join(' · ')}</div>` : '';
     const takeCount = (it.claudeReplies || []).length;
     const flagsHtml = [
       it.config && it.config.trim() ? `<div class="has-config">setup logged</div>` : '',
@@ -2445,7 +2497,7 @@ function renderShelf() {
     const passes = (it.events || []).length;
     const ratingTitle = passes > 1 ? `★${it.rating || 0} — average of ${passes} passes` : `${it.rating || 0}/5`;
     return `<article class="item-card" data-id="${it.id}" style="--mc:${collColor(it.collectionId)}">
-      <div class="row1"><div class="title">${escapeHtml(it.title)}</div><div class="rating" title="${ratingTitle}">${stars}${passes > 1 ? `<span class="pass-count">×${passes}</span>` : ''}</div></div>
+      <div class="row1"><div class="title">${escapeHtml(displayTitle(it))}</div><div class="rating" title="${ratingTitle}">${stars}${passes > 1 ? `<span class="pass-count">×${passes}</span>` : ''}</div></div>
       <div class="meta"><span class="status-pill status-${it.status}">${STATUS_LABELS[it.status]}</span><span>${escapeHtml(collName)}</span></div>
       ${byline}${notesPreview}${flagsHtml}${tagsHtml}
     </article>`;
@@ -2616,20 +2668,22 @@ noteSourceEl.addEventListener('click', e => {
 });
 noteSourceNameEl.addEventListener('input', () => { noteSourceState = 'friend:' + noteSourceNameEl.value.trim(); syncNoteSourceHidden(); });
 
-// Render an entry's description in the lane its source dictates. Serif is reserved for the user's own words.
+// Render an entry's description for outward views (Shelf/Diary). Claude's authorship is
+// tracked in noteSource and stays reviewable in the entry editor's me/Claude/friend toggle —
+// it's just not visually flagged out here; only a friend's own attribution reads differently.
 function renderDescription(notes, source) {
   if (!notes) return '';
   const p = parseNoteSource(source);
   const txt = escapeHtml(notes);
-  if (p.kind === 'claude') return `<div class="desc desc-claude"><span class="desc-by">Claude</span>${txt}</div>`;
   if (p.kind === 'friend') { const who = p.name ? escapeHtml(p.name) : 'a friend'; return `<div class="desc desc-friend">${txt}<span class="desc-by">— ${who}</span></div>`; }
-  if (p.kind === 'me')     return `<div class="desc desc-me">${txt}</div>`;
-  return `<div class="desc desc-none">${txt}</div>`;   // legacy / unattributed
+  return `<div class="desc desc-none">${txt}</div>`;
 }
-// Compact inline provenance marker (Diary + editor event-history, where the note is one line).
-function sourceTag(source) {
+// Compact inline provenance marker. `includeClaude` is true in the entry editor's event
+// history (that's the "enter the tab" view where provenance is meant to be visible) and
+// false in the outward Diary timeline, where Claude's authorship stays unmarked like renderDescription.
+function sourceTag(source, includeClaude = true) {
   const p = parseNoteSource(source);
-  if (p.kind === 'claude') return `<span class="src-tag src-claude">✦ Claude</span> `;
+  if (p.kind === 'claude') return includeClaude ? `<span class="src-tag src-claude">✦ Claude</span> ` : '';
   if (p.kind === 'friend') return `<span class="src-tag">from ${p.name ? escapeHtml(p.name) : 'a friend'}</span> `;
   return '';
 }
@@ -3602,7 +3656,7 @@ function openSettings() {
   document.getElementById('sync-gist-id').value = state.settings.sync.gistId || '';
   document.getElementById('codepush-repo').value = state.settings.codePush?.repo || '';
   document.getElementById('codepush-pat').value = state.settings.codePush?.pat || '';
-  renderClaudeStatus(); renderSyncStatus(); renderCodePushStatus(); renderGenreGaps();
+  renderClaudeStatus(); renderSyncStatus(); renderCodePushStatus(); renderGenreGaps(); renderStorageDurability();
   settingsModal.showModal();
 }
 document.getElementById('settings-btn').addEventListener('click', openSettings);
@@ -3714,6 +3768,37 @@ function renderSyncStatus() {
 }
 
 function isSyncEnabled() { return !!(state.settings.sync.enabled && state.settings.sync.githubPat && state.settings.sync.gistId); }
+
+// ── Durable storage ──────────────────────────────────────────────────────────
+// iOS/WebKit sweeps a site's localStorage — the library AND the sync credentials,
+// which by design live nowhere else (see cleanStateForSync) — after 7 days without
+// interaction. That's exactly what wiped the phone. Requesting persistent storage
+// exempts this origin from the sweep: granted on iOS 17+/Safari 17+ and heuristically
+// on Chrome/Firefox, with NO prompt on WebKit (it keys off engagement / Home-Screen
+// install). Fire-and-forget — never blocks boot, never throws; result feeds the readout.
+let storagePersisted = null;   // null = unknown/unsupported · true/false once resolved
+async function ensurePersistentStorage() {
+  try {
+    if (!navigator.storage?.persist) return;
+    storagePersisted = await navigator.storage.persisted();
+    if (!storagePersisted) storagePersisted = await navigator.storage.persist();
+  } catch { /* Storage API absent or flaky — leave durability unknown */ }
+  if (settingsModal?.open) renderStorageDurability();
+}
+function renderStorageDurability() {
+  const el = document.getElementById('storage-durability');
+  if (!el) return;
+  if (storagePersisted === true) {
+    el.textContent = 'storage · persistent — protected from eviction';
+    el.className = 'sync-status ok';
+  } else if (storagePersisted === false) {
+    el.textContent = 'storage · best-effort — may evict; add to Home Screen via Safari';
+    el.className = 'sync-status warn';
+  } else {
+    el.textContent = 'storage · durability unknown on this browser';
+    el.className = 'sync-status';
+  }
+}
 
 // CRITICAL: never push credentials to the gist. Strip them before any write.
 function cleanStateForSync() {
@@ -3861,8 +3946,9 @@ document.getElementById('sync-disable-btn').addEventListener('click', () => {
 });
 
 function isClaudeEnabled() { return !!(state.settings.claude.enabled && state.settings.claude.apiKey); }
-async function callClaude({ system, userMessage, maxTokens = 350, model, tools }) {
-  const body = { model: model || state.settings.claude.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: userMessage }] };
+// `userMessage` (single-shot) or `messages` ([{role,content}, …], multi-turn — curator chat) — exactly one of the two.
+async function callClaude({ system, userMessage, messages, maxTokens = 350, model, tools }) {
+  const body = { model: model || state.settings.claude.model, max_tokens: maxTokens, system, messages: messages || [{ role: 'user', content: userMessage }] };
   if (tools) body.tools = tools;
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -4068,22 +4154,27 @@ function buildClaudeSystem(excludeId = null) {
   lines.push("## Leandro's house rules:");
   lines.push(state.settings.claudeRules || DEFAULT_CLAUDE_RULES);
   lines.push('');
+  lines.push(...tasteSampleLines(excludeId));
+  return lines.join('\n');
+}
+// Shared by buildClaudeSystem (log-reaction takes) and buildCuratorSystem (chat) — a compact
+// grounding sample so both surfaces read the same taste signal instead of drifting apart.
+function tasteSampleLines(excludeId = null) {
   const sample = [...state.items]
     .filter(i => i.id !== excludeId)
     .filter(i => i.rating >= 4 || i.status === 'done' || i.status === 'dropped')
     .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
     .slice(0, 24);
-  if (sample.length) {
-    lines.push('## Sample of his taste (rated/finished entries):');
-    for (const it of sample) {
-      const c = state.collections.find(c => c.id === it.collectionId);
-      const stars = it.rating ? '★'.repeat(Math.floor(it.rating)) + (it.rating % 1 >= 0.5 ? '½' : '') : '·';
-      const note = it.claudeNote ? ` — taste-note: ${it.claudeNote}` : '';
-      const meta = [it.year, it.creator].filter(Boolean).join(', ');
-      lines.push(`- ${it.title}${meta ? ` [${meta}]` : ''} (${c?.name || '—'}) ${stars} · ${it.status}${note}`);
-    }
+  if (!sample.length) return [];
+  const lines = ['## Sample of his taste (rated/finished entries):'];
+  for (const it of sample) {
+    const c = state.collections.find(c => c.id === it.collectionId);
+    const stars = it.rating ? '★'.repeat(Math.floor(it.rating)) + (it.rating % 1 >= 0.5 ? '½' : '') : '·';
+    const note = it.claudeNote ? ` — taste-note: ${it.claudeNote}` : '';
+    const meta = [it.year, it.creator].filter(Boolean).join(', ');
+    lines.push(`- ${it.title}${meta ? ` [${meta}]` : ''} (${c?.name || '—'}) ${stars} · ${it.status}${note}`);
   }
-  return lines.join('\n');
+  return lines;
 }
 function buildClaudeMessage(entry, isNew) {
   const c = state.collections.find(c => c.id === entry.collectionId);
@@ -4438,12 +4529,14 @@ document.querySelectorAll('[data-close]').forEach(b => {
     if (which === 'help')    helpModal.close();
     if (which === 'prompt')  { if (promptResolve) promptResolve(null); promptModal.close(); }
     if (which === 'merge-entries') document.getElementById('merge-entries-modal').close();
+    if (which === 'curator') curatorModal.close();
     // mobile: also clear sheet backdrop + sidebar-as-sheet
     document.querySelector('.sidebar')?.classList.remove('show-as-sheet');
     document.getElementById('sheet-backdrop')?.classList.remove('show');
   });
 });
-[entryModal, tagMgrModal, settingsModal, importModal, shareModal, promptModal, mergeEntriesModal].forEach(d => {
+const curatorModal = document.getElementById('curator-modal');
+[entryModal, tagMgrModal, settingsModal, importModal, shareModal, promptModal, mergeEntriesModal, curatorModal].forEach(d => {
   d.addEventListener('click', e => {
     if (e.target === d) {
       if (d === entryModal) closeEntryModal();
@@ -4462,6 +4555,7 @@ document.addEventListener('keydown', e => {
     // nothing open resets the library to its default. So Esc-Esc → Everything / All.
     let closed = false;
     if (document.getElementById('roul-modal').open) { closeRoulette(); closed = true; }
+    if (curatorModal.open)  { curatorModal.close(); closed = true; }
     if (helpModal.open)     { helpModal.close(); closed = true; }
     if (entryModal.open)    { closeEntryModal(); closed = true; }
     if (tagMgrModal.open)   { tagMgrModal.close(); closed = true; }
@@ -4636,12 +4730,327 @@ function cmdkHl(text, positions) {
 
 // Capture-without-leaving-flow: pre-fill the new-entry title from the query.
 function logFromQuery(q) { openEntryModal(null); entryForm.title.value = q; try { entryForm.title.setSelectionRange(q.length, q.length); } catch {} }
-async function askClaudeFreeform(q) {
-  if (!isClaudeEnabled()) { toast('add an api key in settings first.', true); openSettings(); return; }
-  showClaudePanel({ title: q, status: 'thinking', text: 'thinking…' });
-  try { const text = await callClaude({ system: buildClaudeSystem(), userMessage: q }); showClaudePanel({ title: q, status: 'done', text }); }
-  catch (e) { showClaudePanel({ title: q, status: 'error', text: 'claude error: ' + e.message }); }
+// ---- Curator: multi-turn chat for ad-hoc recommendations + time-boxed queue planning ----
+// Session-only history (module-level array, never persisted) — lost on reload, kept across
+// open/close of the dialog within the same page load so a "what else" follow-up still has context.
+let curatorMessages = [];
+function seasonGroupId() { return (state.tagGroups.find(g => (g.name || '').toLowerCase() === 'season') || {}).id || null; }
+// Assign a period tag to the Season group the first time it's used — fill-blank, same pattern as
+// the taxonomy groups (migrate() creates the group once; this claims individual tag strings lazily).
+function ensureSeasonTag(tag) {
+  const gid = seasonGroupId();
+  if (gid && !state.tagAssignments[tag]) state.tagAssignments[tag] = gid;
 }
+function queuedBacklogLines() {
+  const gid = seasonGroupId();
+  const queued = state.items.filter(i => i.status === 'queued');
+  if (!queued.length) return ['## Current backlog (status = queued): none.'];
+  const lines = ['## Current backlog (status = queued) — when planning a time period, propose FROM HERE first, only invent a new title once nothing here fits the remaining slots/medium mix:'];
+  for (const it of queued) {
+    const c = state.collections.find(c => c.id === it.collectionId);
+    const seasonTags = gid ? (it.tags || []).filter(t => state.tagAssignments[t] === gid) : [];
+    const otherTags = (it.tags || []).filter(t => !seasonTags.includes(t));
+    lines.push(`- id:${it.id} · "${it.title}" (${c?.name || '—'})`
+      + (otherTags.length ? ` · tags: ${otherTags.join(', ')}` : '')
+      + (seasonTags.length ? ` · scheduled: ${seasonTags.join(', ')}` : ' · unscheduled')
+      + (it.notes ? ` · note: ${it.notes.slice(0, 140)}` : ''));
+  }
+  return lines;
+}
+// Everything NOT in the queued backlog (queuedBacklogLines already covers that in more detail) —
+// active/paused/done/dropped titles, across every medium. Without this the curator only ever saw
+// a capped, rating-filtered "taste sample" (tasteSampleLines) and would happily re-recommend
+// something already logged with a low rating, or nothing rated yet, or paused.
+function libraryIndexLines() {
+  const rest = state.items.filter(i => i.status !== 'queued');
+  if (!rest.length) return [];
+  const lines = ['## Everything else already in his library (already active/paused/done/dropped — separate from the queued backlog above; ids here are usable for tag_update/note_update too). NEVER propose queue_new for a title on either list, in any medium — treat a close variant (same work, different edition/translation/remaster) as the same title too:'];
+  for (const it of rest) {
+    const c = state.collections.find(c => c.id === it.collectionId);
+    const meta = [c?.name, it.creator].filter(Boolean).join(' · ');
+    lines.push(`- id:${it.id} · ${it.title}${meta ? ` (${meta})` : ''} · ${it.status}`
+      + (it.notes ? ` · note [${it.noteSource || 'unattributed'}]: ${it.notes.slice(0, 140)}` : ''));
+  }
+  return lines;
+}
+function seasonTagsInUse() {
+  const gid = seasonGroupId();
+  if (!gid) return [];
+  return Object.keys(state.tagAssignments).filter(t => state.tagAssignments[t] === gid);
+}
+function buildCuratorSystem() {
+  const lines = [];
+  lines.push("You are Claude, embedded in Leandro's Bitácora as a conversational curator. He'll ask you for two kinds of things in this chat:");
+  lines.push('1. Ad-hoc recommendations ("a movie for me and my 11-year-old sister", "something short before bed") — have a real back-and-forth: ask a clarifying question only if it genuinely changes the answer, remember what he\'s ruled out earlier in this conversation, don\'t re-suggest it.');
+  lines.push('Before you recommend or queue ANYTHING, in any medium, check it against both the backlog and the library index below (titles, close variants included — same work under a different edition/translation/remaster counts). If it\'s already there in any status, he\'s already got it — say so instead of proposing it again.');
+  lines.push('2. Planning or reorganizing a stretch of time ("give me a set for august", "june\'s over, push what\'s left to august") — see Planning rules and the backlog below.');
+  lines.push('');
+  lines.push('Be direct and specific — no hedging, no listing five options when one considered pick is better. Casual register. 2-5 sentences per turn unless he asks for a list.');
+  lines.push('');
+  lines.push('## Planning rules');
+  lines.push("- Filling a period: draw from the backlog below FIRST. Only propose a brand-new title once nothing unscheduled there fits the remaining slots or medium mix.");
+  lines.push('- Balance the set: vary medium (film/TV/game/book/album), vary mood and pace, avoid stacking two heavy/bleak entries back to back. Judgment call, not a fixed quota.');
+  lines.push('- Reorganizing ("june passed, move what\'s left to august") means retagging existing items — remove the old period tag, add the new one. Don\'t touch anything else about the entry.');
+  lines.push(`- Period tags already in use — reuse the exact string for the same period instead of a near-duplicate: ${seasonTagsInUse().join(', ') || '(none yet)'}`);
+  lines.push('- New period tags: lowercase-hyphenated, e.g. "august-2026", "summer-2026".');
+  lines.push('');
+  lines.push('## Collections (use the id, not the name, in actions):');
+  lines.push(state.collections.map(c => `- id:${c.id} = ${c.name}`).join('\n'));
+  lines.push('');
+  lines.push(...queuedBacklogLines());
+  lines.push('');
+  lines.push(...libraryIndexLines());
+  lines.push('');
+  lines.push(...tasteSampleLines());
+  lines.push('');
+  lines.push("## Leandro's house rules:");
+  lines.push(state.settings.claudeRules || DEFAULT_CLAUDE_RULES);
+  lines.push('');
+  lines.push('## Actions — how to propose a library change');
+  lines.push('When (and only when) you want to propose adding, retagging, or re-describing entries, end your reply with a line containing exactly <<<ACTIONS>>> then a raw JSON array (no markdown fence) and nothing after it. Each element is one of:');
+  lines.push('  {"type":"queue_new","title":"…","creator":"canonical full name — director/author/studio/artist — or null if genuinely unknown","year":YYYY or null,"collectionId":"films","tags":["…"],"periodTag":"august-2026" or null,"note":"your actual take, 1-3 sentences"}');
+  lines.push('  {"type":"tag_update","itemId":"…","addTags":["…"],"removeTags":["…"],"periodTag":"august-2026" or null,"note":"one line on why"}');
+  lines.push('  {"type":"note_update","itemId":"…","note":"the new description — replaces the old one entirely"}');
+  lines.push('`title` is the work\'s own name ONLY — never fold the creator into it (no "Album — Artist"); always put the creator in its own `creator` field instead, same as you would for year. `periodTag` is specifically the Season tag being applied (or null) — regular descriptive tags go in `tags`/`addTags` instead.');
+  lines.push('`note` on a `queue_new`, and `note` on a `note_update`, become that entry\'s permanent description — not a throwaway justification, write it with the same voice and specificity as your on-save reactions elsewhere in this app: what it actually sounds/reads/plays like, a sharp comparison to something adjacent, why THIS fits what he asked for. Concrete and vivid, not a press-release ("sophisticated pop with real emotional depth" tells him nothing he can\'t see from the genre tag). No hedging, no "you\'ll love this."');
+  lines.push('Use `note_update` when he asks you to punch up, rewrite, or fix a flat/generic description on an existing entry — his own words or a friend\'s (tagged as such in the library index above) are off limits for this, only rewrite ones that are already yours or unattributed.');
+  lines.push('Nothing is written to his library until he clicks the button — don\'t emit an action for something you\'re only discussing hypothetically, only for what you\'re actually recommending right now. Omit the <<<ACTIONS>>> line entirely if there\'s nothing to propose.');
+  return lines.join('\n');
+}
+function parseCuratorActions(raw) {
+  const marker = raw.indexOf('<<<ACTIONS>>>');
+  if (marker === -1) return { cleanText: raw.trim(), actions: [] };
+  const cleanText = raw.slice(0, marker).trim();
+  const m = raw.slice(marker + '<<<ACTIONS>>>'.length).match(/\[[\s\S]*\]/);
+  if (!m) return { cleanText, actions: [] };
+  let parsed; try { parsed = JSON.parse(m[0]); } catch { return { cleanText, actions: [] }; }
+  if (!Array.isArray(parsed)) return { cleanText, actions: [] };
+  const collIds = new Set(state.collections.map(c => c.id));
+  const clampTags = arr => Array.isArray(arr) ? [...new Set(arr.map(t => String(t).trim().toLowerCase().slice(0, 60)).filter(Boolean))].slice(0, 10) : [];
+  const clampTxt = (v, n) => typeof v === 'string' ? v.trim().slice(0, n) : '';
+  const actions = parsed.map(a => {
+    if (!a || typeof a !== 'object') return null;
+    const periodTag = clampTxt(a.periodTag, 60).toLowerCase() || null;
+    if (a.type === 'queue_new') {
+      const title = clampTxt(a.title, 300);
+      if (!title) return null;
+      const collectionId = collIds.has(a.collectionId) ? a.collectionId : (state.collections[0]?.id || null);
+      // Defense in depth: the system prompt tells it the whole library so it shouldn't get here,
+      // but if it slips, never let a duplicate action reach the button — drop it silently rather
+      // than let him click "add" on something he's already logged.
+      const isDupe = state.items.some(i => i.collectionId === collectionId && i.title.trim().toLowerCase() === title.toLowerCase());
+      if (isDupe) return null;
+      const tags = clampTags(a.tags);
+      if (periodTag && !tags.includes(periodTag)) tags.push(periodTag);
+      const creator = clampTxt(a.creator, 120) || null;
+      const year = Number.isInteger(a.year) && a.year > 0 ? a.year : null;
+      return { type: 'queue_new', title, creator, year, collectionId, tags, periodTag, note: clampTxt(a.note, 420) };
+    }
+    if (a.type === 'tag_update') {
+      if (typeof a.itemId !== 'string' || !state.items.some(i => i.id === a.itemId)) return null;
+      const addTags = clampTags(a.addTags);
+      if (periodTag && !addTags.includes(periodTag)) addTags.push(periodTag);
+      return { type: 'tag_update', itemId: a.itemId, addTags, removeTags: clampTags(a.removeTags), periodTag, note: clampTxt(a.note, 300) };
+    }
+    if (a.type === 'note_update') {
+      const target = typeof a.itemId === 'string' ? state.items.find(i => i.id === a.itemId) : null;
+      if (!target) return null;
+      const note = clampTxt(a.note, 420);
+      if (!note) return null;
+      // Defense in depth (same reasoning as the dupe-guard above): his own words or a friend's
+      // are never fair game for this action, no matter what the prompt says or he asked for.
+      const srcKind = parseNoteSource(target.noteSource).kind;
+      if (srcKind === 'me' || srcKind === 'friend') return null;
+      return { type: 'note_update', itemId: a.itemId, note };
+    }
+    return null;
+  }).filter(Boolean);
+  return { cleanText, actions };
+}
+// Mutates state for one action; caller is responsible for save()/renderAll() (batched for "add all").
+function performCuratorAction(act) {
+  if (act.applied) return true;
+  if (act.periodTag) ensureSeasonTag(act.periodTag);
+  if (act.type === 'queue_new') {
+    const item = { id: uid(), title: act.title, collectionId: act.collectionId, tags: act.tags, year: act.year || null, creator: act.creator || null, createdAt: today(), updatedAt: Date.now(),
+      events: [{ id: uid(), date: today(), kind: kindFor(act.collectionId), rating: 0, status: 'queued', notes: act.note || '', noteSource: 'claude', claudeNote: '', publicReview: '', claudeReplies: [] }] };
+    projectItem(item);
+    state.items.push(item);
+    toast(`queued “${act.title}”.`);
+  } else if (act.type === 'tag_update') {
+    const item = state.items.find(i => i.id === act.itemId);
+    if (!item) { toast('that entry no longer exists.', true); return false; }
+    const removeSet = new Set(act.removeTags);
+    item.tags = [...new Set([...(item.tags || []).filter(t => !removeSet.has(t)), ...act.addTags])];
+    item.updatedAt = Date.now();
+    toast(`retagged “${item.title}”.`);
+  } else if (act.type === 'note_update') {
+    const item = state.items.find(i => i.id === act.itemId);
+    if (!item) { toast('that entry no longer exists.', true); return false; }
+    const srcKind = parseNoteSource(item.noteSource).kind;
+    if (srcKind === 'me' || srcKind === 'friend') { toast('that description is in your own words — left it alone.', true); return false; }
+    const ev = latestEvent(item);
+    if (ev) { ev.notes = act.note; ev.noteSource = 'claude'; }
+    projectItem(item);
+    item.updatedAt = Date.now();
+    toast(`updated description for “${item.title}”.`);
+  }
+  act.applied = true;
+  return true;
+}
+function applyCuratorAction(msgIdx, actIdx) {
+  const act = curatorMessages[msgIdx]?.actions?.[actIdx];
+  if (!act || act.applied) return;
+  performCuratorAction(act);
+  save(); renderAll(); renderCuratorThread();
+}
+function applyAllCuratorActions(msgIdx) {
+  const acts = curatorMessages[msgIdx]?.actions;
+  if (!acts?.length) return;
+  acts.forEach(performCuratorAction);
+  save(); renderAll(); renderCuratorThread();
+}
+function curatorActionHtml(a, msgIdx, actIdx) {
+  let label;
+  if (a.type === 'queue_new') {
+    label = `+ queue “${escapeHtml(a.title)}”${[a.year, a.creator].filter(Boolean).length ? ` · ${escapeHtml([a.year, a.creator].filter(Boolean).join(' · '))}` : ''}${a.periodTag ? ` · ${escapeHtml(a.periodTag)}` : ''}`;
+  } else if (a.type === 'note_update') {
+    label = `✎ rewrite description — “${escapeHtml((state.items.find(i => i.id === a.itemId) || {}).title || '?')}”`;
+  } else {
+    label = `retag “${escapeHtml((state.items.find(i => i.id === a.itemId) || {}).title || '?')}”`
+      + (a.removeTags.length ? ` −${a.removeTags.map(escapeHtml).join(', −')}` : '')
+      + (a.addTags.length ? ` +${a.addTags.map(escapeHtml).join(', +')}` : '');
+  }
+  return `<div class="curator-action${a.applied ? ' applied' : ''}">
+    <div class="ca-label">${label}</div>
+    ${a.note ? `<div class="ca-note">${escapeHtml(a.note)}</div>` : ''}
+    <button type="button" class="ca-btn" data-msg="${msgIdx}" data-act="${actIdx}" ${a.applied ? 'disabled' : ''}>${a.applied ? 'added ✓' : (a.type === 'queue_new' ? 'add' : 'apply')}</button>
+  </div>`;
+}
+function renderCuratorThread() {
+  const el = document.getElementById('curator-thread');
+  el.innerHTML = curatorMessages.map((m, i) => {
+    if (m.role === 'user') return `<div class="curator-msg user">${escapeHtml(m.text)}</div>`;
+    if (m.thinking) return `<div class="curator-msg assistant thinking">thinking…</div>`;
+    const pending = (m.actions || []).filter(a => !a.applied).length;
+    const actionsHtml = (m.actions && m.actions.length)
+      ? `<div class="curator-actions">${m.actions.map((a, j) => curatorActionHtml(a, i, j)).join('')}${m.actions.length > 1 && pending > 1 ? `<button type="button" class="btn-secondary curator-add-all" data-msg="${i}">add all ${pending}</button>` : ''}</div>`
+      : '';
+    const badge = m.via ? `<span class="curator-via">${m.via === 'sub' ? 'Max subscription' : 'API'}</span>` : '';
+    return `<div class="curator-msg assistant${m.error ? ' error' : ''}">${escapeHtml(m.text)}${badge}</div>${actionsHtml}`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+// Curator's Max-subscription path: same local helper LeandroOS's newtab.js talks to
+// (~/.leandro-os/los-music-helper.py, a launchd service) — it shells the logged-in Claude Code
+// CLI with ANTHROPIC_API_KEY stripped from its env, so chat bills against the Max plan's 5-hour
+// window instead of API credits. Localhost-only + a paired token; CORS only opens for file://
+// origins today (LOS_ALLOW_FILE=1) — Bitácora's deployed GitHub Pages origin is NOT on that
+// allowlist (widening it is a real security-boundary change, out of scope here), so this path is
+// reachable only when the app is opened as file:// on the same Mac the helper runs on. Every other
+// context (the deployed https:// tab, the phone — 127.0.0.1 there is the phone, not the Mac) can't
+// reach it at all, and curatorAsk falls back to the ordinary API-key path automatically.
+const LOS_HELPER_URL = 'http://127.0.0.1:17654';
+let losToken = null, losTokenPromise = null;
+function losPair() {
+  if (losToken !== null) return Promise.resolve(losToken);
+  if (losTokenPromise) return losTokenPromise;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 2500);   // fail fast — a missing helper shouldn't stall the chat
+  losTokenPromise = fetch(LOS_HELPER_URL + '/pair', { cache: 'no-store', signal: ac.signal })
+    .then(r => r.json()).then(d => { losToken = (d && d.token) || ''; return losToken; })
+    .catch(e => { losTokenPromise = null; throw e; })
+    .finally(() => clearTimeout(timer));
+  return losTokenPromise;
+}
+// Mirrors newtab.js's _claudeFlatten — the CLI takes one prompt, so a multi-turn chat renders as a
+// "Leandro:"/"Claude:" transcript instead of a real messages[] array.
+function flattenCuratorMessages(messages) {
+  if (messages.length === 1) return messages[0].content;
+  return messages.map(m => (m.role === 'user' ? 'Leandro' : 'Claude') + ': ' + m.content).join('\n\n');
+}
+// The CLI's --model takes a short alias, not the API's full model id.
+function losModelAlias(id) {
+  const s = (id || '').toLowerCase();
+  return s.includes('opus') ? 'opus' : s.includes('haiku') ? 'haiku' : 'sonnet';
+}
+async function callClaudeSub({ system, messages, model }) {
+  const tok = await losPair();
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 90000);   // matches the helper's own CLAUDE_TIMEOUT
+  let res;
+  try {
+    res = await fetch(LOS_HELPER_URL + '/claude', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-LOS-Token': tok || '' },
+      body: JSON.stringify({ system: system || '', prompt: flattenCuratorMessages(messages), model: losModelAlias(model) }),
+      signal: ac.signal,
+    });
+  } finally { clearTimeout(timer); }
+  if (!res.ok || !res.body) throw new Error('helper HTTP ' + res.status);
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', text = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) >= 0) {
+      const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 2);
+      if (line.indexOf('data:') !== 0) continue;
+      const payload = line.slice(5).trim(); if (!payload) continue;
+      let ev; try { ev = JSON.parse(payload); } catch { continue; }
+      if (ev.t != null) text += ev.t;
+      else if (ev.error) throw new Error(ev.error);
+      else if (ev.done) return text;
+    }
+  }
+  return text;
+}
+async function curatorAsk() {
+  const payload = curatorMessages.map(m => ({ role: m.role, content: m.text }));
+  curatorMessages.push({ role: 'assistant', text: '', thinking: true });
+  renderCuratorThread();
+  const system = buildCuratorSystem();
+  let raw = null, via = null, subErr = null;
+  if (location.protocol === 'file:') {
+    try { raw = await callClaudeSub({ system, messages: payload, model: state.settings.claude.model }); via = 'sub'; }
+    catch (e) { subErr = e; }   // helper not running / not paired on this Mac — fall through to the API key
+  }
+  try {
+    if (raw === null) { raw = await callClaude({ system, messages: payload, maxTokens: 800 }); via = 'api'; }
+    const { cleanText, actions } = parseCuratorActions(raw);
+    curatorMessages[curatorMessages.length - 1] = { role: 'assistant', text: cleanText, actions, via };
+  } catch (e) {
+    const msg = subErr ? `claude error: ${e.message} (Max-subscription helper also failed: ${subErr.message})` : `claude error: ${e.message}`;
+    curatorMessages[curatorMessages.length - 1] = { role: 'assistant', text: msg, error: true };
+  }
+  renderCuratorThread();
+}
+function curatorSubmit() {
+  const input = document.getElementById('curator-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  curatorMessages.push({ role: 'user', text });
+  renderCuratorThread();
+  curatorAsk();
+}
+function openCurator(prefill) {
+  // file:// gets a pass even with no API key configured — it may reach the Max-subscription helper instead.
+  if (!isClaudeEnabled() && location.protocol !== 'file:') { toast('add an api key in settings first.', true); openSettings(); return; }
+  renderCuratorThread();
+  curatorModal.showModal();
+  const input = document.getElementById('curator-input');
+  if (prefill) { input.value = prefill; curatorSubmit(); }
+  else input.focus();
+}
+document.getElementById('curator-form').addEventListener('submit', e => { e.preventDefault(); curatorSubmit(); });
+document.getElementById('curator-thread').addEventListener('click', e => {
+  const allBtn = e.target.closest('.curator-add-all');
+  if (allBtn) { applyAllCuratorActions(Number(allBtn.dataset.msg)); return; }
+  const btn = e.target.closest('.ca-btn');
+  if (btn && !btn.disabled) applyCuratorAction(Number(btn.dataset.msg), Number(btn.dataset.act));
+});
 function askClaudeAboutItem(it) {
   if (!isClaudeEnabled()) { toast('add an api key in settings first.', true); openSettings(); return; }
   respondOnLog(it, false);
@@ -4663,6 +5072,7 @@ function paletteActions() {
   cmd('shelf', 'Shelf', 'the library grid', '▦', 'shelf grid library view shelves cards', () => setViewMode('shelf'), 'S');
   cmd('observatory', 'Observatory', 'stats & patterns in your taste', '◴', 'observatory stats statistics dashboard patterns charts ratings decade creator', () => setViewMode('observatory'), 'O');
   if (isClaudeEnabled()) cmd('enrich', 'Enrich library', 'fill missing year & creator via Claude', '✦', 'enrich library year creator director author studio fill metadata claude backfill', () => enrichLibrary());
+  if (isClaudeEnabled()) cmd('curator', 'Ask the curator', 'recommend · plan or reorganize a season', '✦', 'curator ask claude recommend suggest plan season summer august queue backlog reorganize retag', () => openCurator());
   STATUSES.forEach(s => cmd('st:' + s, 'Show ' + s, 'filter by status', '◓', 'filter status ' + s, () => { view.status = s; renderAll(); }));
   if (isSyncEnabled()) cmd('sync', 'Sync now', 'pull + push', '↻', 'sync cloud gist pull push refresh', () => { Promise.resolve(syncPull()).then(syncPush); toast('syncing…'); });
   state.collections.forEach(c => A.push({ kind: 'collection', key: 'col:' + c.id, title: c.name, sub: 'collection', icon: '▸', keywords: 'collection ' + c.name, run: () => { view.collection = c.id; view.status = 'all'; view.tags = []; renderAll(); } }));
@@ -4767,7 +5177,7 @@ function cmdkCompute(raw) {
   // Fallbacks — the palette never says "no results."
   if (query && !commandsOnly) {
     rows.push({ a: { kind: 'fallback', icon: '+', title: `Log “${query}”`, sub: 'create a new entry', run: () => logFromQuery(query) }, positions: [] });
-    rows.push({ a: { kind: 'fallback', icon: '✦', title: `Ask Claude “${query}”`, sub: 'library-aware', run: () => askClaudeFreeform(query) }, positions: [] });
+    rows.push({ a: { kind: 'fallback', icon: '✦', title: `Ask the curator “${query}”`, sub: 'library-aware chat', run: () => openCurator(query) }, positions: [] });
   }
   return { rows, query, commandsOnly };
 }
@@ -4826,6 +5236,7 @@ helpModal.addEventListener('click', e => { if (e.target === helpModal) helpModal
 
 renderAll();
 if (isSyncEnabled()) { setSyncPipState('on'); syncPull(); }
+ensurePersistentStorage();
 
 // Service worker — offline support
 if ('serviceWorker' in navigator) {
