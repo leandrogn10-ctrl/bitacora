@@ -1068,6 +1068,10 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
       <p id="empty-sub">Press <kbd>n</kbd> or click <strong>+ entry</strong> to log your first piece.</p>
     </div>
   </main>
+  <!-- sheet backdrop must live INSIDE .app: .app{z-index:1} is a stacking context, so the
+       sidebar sheet's z-index:850 only counts in here — as a body child this would paint
+       over the open sheet (body-level 840 beats the whole app at 1) and eat its taps -->
+  <div class="sheet-backdrop" id="sheet-backdrop"></div>
 </div>
 
 <dialog id="entry-modal">
@@ -1413,8 +1417,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
 
 <input type="file" id="import-file" accept=".json,application/json" hidden>
 
-<!-- Mobile UI: bottom tab bar + FAB + sheet backdrop (CSS hides these on desktop) -->
-<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<!-- Mobile UI: bottom tab bar + FAB (CSS hides these on desktop; sheet backdrop lives in .app) -->
 <button class="fab" id="fab-add" aria-label="New entry" title="New entry">＋</button>
 <nav class="bottom-tabs" id="bottom-tabs">
   <button class="tab active" data-tab="library"><span class="icon">B</span><span>Library</span></button>
