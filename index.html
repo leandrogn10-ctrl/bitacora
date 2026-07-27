@@ -4951,6 +4951,11 @@ function renderCuratorThread() {
 // context (the deployed https:// tab, the phone — 127.0.0.1 there is the phone, not the Mac) can't
 // reach it at all, and curatorAsk falls back to the ordinary API-key path automatically.
 const LOS_HELPER_URL = 'http://127.0.0.1:17654';
+// The helper now grants the deployed Pages origin a SCOPED token — good only for /claude/*,
+// never /project/* — so sub mode works there too, not just file://. Anywhere else (the phone,
+// where 127.0.0.1 is the phone itself) the 2.5s pair fails and we fall through to the API key.
+const LOS_REACHABLE = location.protocol === 'file:' ||
+                      location.origin === 'https://leandrogn10-ctrl.github.io';
 let losToken = null, losTokenPromise = null;
 function losPair() {
   if (losToken !== null) return Promise.resolve(losToken);
@@ -5012,7 +5017,7 @@ async function curatorAsk() {
   renderCuratorThread();
   const system = buildCuratorSystem();
   let raw = null, via = null, subErr = null;
-  if (location.protocol === 'file:') {
+  if (LOS_REACHABLE) {
     try { raw = await callClaudeSub({ system, messages: payload, model: state.settings.claude.model }); via = 'sub'; }
     catch (e) { subErr = e; }   // helper not running / not paired on this Mac — fall through to the API key
   }
@@ -5037,7 +5042,7 @@ function curatorSubmit() {
 }
 function openCurator(prefill) {
   // file:// gets a pass even with no API key configured — it may reach the Max-subscription helper instead.
-  if (!isClaudeEnabled() && location.protocol !== 'file:') { toast('add an api key in settings first.', true); openSettings(); return; }
+  if (!isClaudeEnabled() && !LOS_REACHABLE) { toast('add an api key in settings first.', true); openSettings(); return; }
   renderCuratorThread();
   curatorModal.showModal();
   const input = document.getElementById('curator-input');
