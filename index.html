@@ -12,6 +12,32 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%231f1812'/><text x='256' y='380' font-family='Georgia,serif' font-style='italic' font-size='420' fill='%23d8623f' text-anchor='middle'>B</text></svg>">
 <link rel="apple-touch-icon" id="apple-touch-icon-link">
 <script>
+/* ── LA CAJA NEGRA — estate flight-recorder emitter. losLog/losWarn/losErr(evt,data) batch-POST
+   to the Mac helper's /log ring; off-Mac (phone PWA) the fetch fails silently. Never throws.
+   Own <script> so nothing here can affect the app's main block. Mirrors app-shell's plumbing
+   copy (hand-added — Bitácora predates the shell and is never retro-fitted onto it). ── */
+(() => {
+  const SRC = 'bitacora';
+  const SINK = 'http://127.0.0.1:17654/log';
+  let buf = [], timer = null, lastKey = null, lastE = null;
+  const flush = () => { timer = null; if (!buf.length) return; const b = buf; buf = []; lastKey = lastE = null;
+    try { fetch(SINK, { method: 'POST', body: JSON.stringify({ src: SRC, entries: b }), keepalive: true }).catch(() => {}); } catch (e) {} };
+  const push = (lvl, evt, data) => { try {
+    const e = { ts: Date.now(), lvl, evt: String(evt).slice(0, 80) }; let ds = '';
+    if (data != null) { try { ds = JSON.stringify(data) || ''; e.data = ds.length > 600 ? ds.slice(0, 600) + '…' : data; } catch (_) { e.data = String(data).slice(0, 600); } }
+    const key = lvl + '|' + e.evt + '|' + ds;
+    if (key === lastKey && lastE) { lastE.n = (lastE.n || 1) + 1; return; }   // repeat-suppress: a hot error → 1 line + a count
+    if (buf.length >= 200) return;
+    buf.push(e); lastKey = key; lastE = e;
+    if (!timer) timer = setTimeout(flush, 8000);
+  } catch (_) {} };
+  window.addEventListener('error', ev => push('error', 'js.error', { msg: String(ev.message || '').slice(0, 200), at: String(ev.filename || '').split('/').pop() + ':' + (ev.lineno || 0) }));
+  window.addEventListener('unhandledrejection', ev => { const r = ev && ev.reason; push('error', 'js.rejection', { msg: String((r && (r.message || r)) || '').slice(0, 200) }); });
+  window.addEventListener('pagehide', () => flush());
+  window.losLog = (e, d) => push('info', e, d); window.losWarn = (e, d) => push('warn', e, d); window.losErr = (e, d) => push('error', e, d);
+})();
+</script>
+<script>
 (function() {
   const c = document.createElement('canvas');
   c.width = 180; c.height = 180;
@@ -3875,7 +3901,7 @@ async function _syncPull(force = false) {
       save({ markModified: false, push: false });
     }
     setSyncPipState('on');
-  } catch (e) { console.error('pull', e); toast('pull failed: ' + e.message, true); setSyncPipState(navigator.onLine ? 'error' : 'offline'); }
+  } catch (e) { console.error('pull', e); losErr('sync.pull.fail', { err: String(e.message || e).slice(0, 160), online: navigator.onLine }); toast('pull failed: ' + e.message, true); setSyncPipState(navigator.onLine ? 'error' : 'offline'); }
 }
 async function _syncPush() {
   if (!isSyncEnabled()) return;
@@ -3886,7 +3912,7 @@ async function _syncPush() {
     state.settings.sync.lastSyncedAt = Date.now();
     suppressSync = true; save({ markModified: false, push: false }); suppressSync = false;
     setSyncPipState('on');
-  } catch (e) { console.error('push', e); toast('push failed: ' + e.message, true); setSyncPipState(navigator.onLine ? 'error' : 'offline'); }
+  } catch (e) { console.error('push', e); losErr('sync.push.fail', { err: String(e.message || e).slice(0, 160), online: navigator.onLine }); toast('push failed: ' + e.message, true); setSyncPipState(navigator.onLine ? 'error' : 'offline'); }
 }
 function setSyncPipState(s) {
   const pip = document.getElementById('sync-pip');
