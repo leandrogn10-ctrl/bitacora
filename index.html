@@ -1255,6 +1255,13 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
               <option value="claude-opus-4-6">Opus — best, slowest</option>
             </select>
           </label>
+          <label>Billing
+            <select id="claude-mode">
+              <option value="auto">Auto — Max plan, key as backup</option>
+              <option value="sub">Max plan only</option>
+              <option value="api">API key only</option>
+            </select>
+          </label>
           <label>&nbsp;
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
               <button class="btn-primary" id="claude-save-btn" type="button">Save</button>
@@ -1751,6 +1758,10 @@ function migrate(s) {
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
   s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };
+  // Billing path, added after `claude` shipped — a restored pre-mode snapshot arrives with
+  // mode === undefined, so merge over the default instead of trusting the saved object wholesale.
+  // 'auto' reproduces the old silent-fallback behavior, so old saves behave exactly as before.
+  s.settings.claude.mode = s.settings.claude.mode || 'auto';   // 'auto' | 'sub' | 'api'
   s.settings.codePush = s.settings.codePush || { repo: '', path: 'index.html', pat: null };
   s.settings.theme = s.settings.theme || 'macchiato';
   s.lastModified = s.lastModified || Date.now();
@@ -3677,6 +3688,7 @@ function openSettings() {
   document.getElementById('claude-rules').value = state.settings.claudeRules || DEFAULT_CLAUDE_RULES;
   document.getElementById('claude-api-key').value = state.settings.claude.apiKey || '';
   document.getElementById('claude-model').value = state.settings.claude.model || 'claude-haiku-4-5-20251001';
+  document.getElementById('claude-mode').value = claudeMode();
   document.getElementById('claude-respond-toggle').checked = !!state.settings.claude.respondOnLog;
   document.getElementById('sync-pat').value = state.settings.sync.githubPat || '';
   document.getElementById('sync-gist-id').value = state.settings.sync.gistId || '';
@@ -3691,6 +3703,9 @@ document.getElementById('sync-pip').addEventListener('click', openSettings);
 document.getElementById('claude-rules').addEventListener('input', e => { state.settings.claudeRules = e.target.value; save(); });
 document.getElementById('claude-respond-toggle').addEventListener('change', e => { state.settings.claude.respondOnLog = e.target.checked; save(); renderClaudeStatus(); });
 document.getElementById('claude-model').addEventListener('change', e => { state.settings.claude.model = e.target.value; save(); });
+// Device-local on purpose: the helper only exists on the Mac, so this must NOT ride the gist sync
+// (it doesn't — the sync payload lists its claude fields explicitly).
+document.getElementById('claude-mode').addEventListener('change', e => { state.settings.claude.mode = e.target.value; save(); renderClaudeStatus(); });
 document.getElementById('claude-save-btn').addEventListener('click', () => {
   const key = document.getElementById('claude-api-key').value.trim();
   if (!key) { toast('paste a key first.', true); return; }
@@ -3702,14 +3717,30 @@ document.getElementById('claude-save-btn').addEventListener('click', () => {
 });
 document.getElementById('claude-disable-btn').addEventListener('click', () => {
   if (!confirm('Forget your API key?')) return;
-  state.settings.claude = { enabled: false, apiKey: null, model: state.settings.claude.model, respondOnLog: state.settings.claude.respondOnLog };
+  // `mode` rides along: forgetting the key must not silently reset the billing choice.
+  state.settings.claude = { enabled: false, apiKey: null, model: state.settings.claude.model, respondOnLog: state.settings.claude.respondOnLog, mode: state.settings.claude.mode };
   save(); document.getElementById('claude-api-key').value = ''; renderClaudeStatus(); toast('key cleared.');
 });
 
 function renderClaudeStatus() {
   const el = document.getElementById('claude-status');
-  if (!isClaudeEnabled()) { el.textContent = 'disabled · paste a key to enable'; el.className = 'sync-status'; return; }
-  el.textContent = state.settings.claude.respondOnLog ? `enabled · ${state.settings.claude.model.split('-')[1]}` : 'enabled · respond-on-log OFF';
+  if (!el) return;
+  const mode = claudeMode();
+  if (!isClaudeEnabled()) {
+    el.textContent = mode === 'sub'
+      ? 'disabled · Max-plan-only, but the helper is not reachable from here'
+      : 'disabled · paste a key to enable';
+    el.className = 'sync-status'; return;
+  }
+  // Two different facts, and the second is the one that was missing: what the setting SAYS will
+  // happen, and what actually served the last reply ('auto' can swap paths without telling you).
+  const plan = mode === 'sub' ? 'Max plan only'
+             : mode === 'api' ? 'API key only'
+             : (losReachable() ? 'auto · Max plan, key as backup' : 'auto · key (helper unreachable here)');
+  const via = CLAUDE_VIA === 'sub' ? ' · last call: Max plan'
+            : CLAUDE_VIA === 'api' ? ' · last call: API key' : '';
+  const base = state.settings.claude.respondOnLog ? `enabled · ${state.settings.claude.model.split('-')[1]}` : 'enabled · respond-on-log OFF';
+  el.textContent = `${base} · ${plan}${via}`;
   el.className = 'sync-status ok';
 }
 function renderCodePushStatus() {
@@ -3971,10 +4002,41 @@ document.getElementById('sync-disable-btn').addEventListener('click', () => {
   toast('credentials cleared.');
 });
 
-function isClaudeEnabled() { return !!(state.settings.claude.enabled && state.settings.claude.apiKey); }
+// Billing path. A function, not the LOS_REACHABLE const further down — that const is in its TDZ
+// until its own line runs, and these predicates are reachable from earlier code.
+function losReachable() {
+  return location.protocol === 'file:' || location.origin === 'https://leandrogn10-ctrl.github.io';
+}
+function claudeMode() { return state.settings.claude.mode || 'auto'; }
+function canUseSub() { return claudeMode() !== 'api' && losReachable(); }
+function canUseApi()  { return claudeMode() !== 'sub' && !!state.settings.claude.apiKey; }
+// Last path that actually served a reply, for the Setup readout. Deliberately not persisted — it
+// describes this tab's session, and a value surviving a reload would be a lie.
+let CLAUDE_VIA = null;
+function noteVia(v) { CLAUDE_VIA = v; try { renderClaudeStatus(); } catch (e) {} }
+function isClaudeEnabled() { return !!(state.settings.claude.enabled && (canUseApi() || canUseSub())); }
 // `userMessage` (single-shot) or `messages` ([{role,content}, …], multi-turn — curator chat) — exactly one of the two.
 async function callClaude({ system, userMessage, messages, maxTokens = 350, model, tools }) {
-  const body = { model: model || state.settings.claude.model, max_tokens: maxTokens, system, messages: messages || [{ role: 'user', content: userMessage }] };
+  const msgs = messages || [{ role: 'user', content: userMessage }];
+  // Max-plan route. Skipped when `tools` are declared: the helper streams plain text from the CLI
+  // and has no way to hand back Anthropic's server-tool result blocks, so a tool-bearing request
+  // (tier-2 enrich web search) must stay on the API. That's a capability limit, not a preference —
+  // so it overrides even 'sub' rather than failing the call.
+  if (!tools && canUseSub()) {
+    try {
+      const t = await callClaudeSub({ system, messages: msgs, model: model || state.settings.claude.model });
+      noteVia('sub');
+      return t;
+    } catch (e) {
+      if (claudeMode() === 'sub') { noteVia(null); throw new Error('Max-plan helper unreachable (' + e.message + ') — is los-music-helper running?'); }
+      console.warn('[claude] sub mode unavailable, falling back to the API key:', e.message);
+    }
+  }
+  if (!state.settings.claude.apiKey) {
+    throw new Error(tools ? 'this call needs the API key (web search is not available on the Max-plan path)'
+                          : 'no api key, and the Max-plan helper is unreachable');
+  }
+  const body = { model: model || state.settings.claude.model, max_tokens: maxTokens, system, messages: msgs };
   if (tools) body.tools = tools;
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -3988,6 +4050,7 @@ async function callClaude({ system, userMessage, messages, maxTokens = 350, mode
     throw new Error(msg);
   }
   const data = await res.json();
+  noteVia('api');
   // With server tools (web search) the content array interleaves server_tool_use /
   // web_search_tool_result blocks before the answer — the final text block is the answer.
   const texts = (data.content || []).filter(b => b.type === 'text');
@@ -4980,8 +5043,8 @@ const LOS_HELPER_URL = 'http://127.0.0.1:17654';
 // The helper now grants the deployed Pages origin a SCOPED token — good only for /claude/*,
 // never /project/* — so sub mode works there too, not just file://. Anywhere else (the phone,
 // where 127.0.0.1 is the phone itself) the 2.5s pair fails and we fall through to the API key.
-const LOS_REACHABLE = location.protocol === 'file:' ||
-                      location.origin === 'https://leandrogn10-ctrl.github.io';
+// The single definition now lives up with the billing predicates, as losReachable() — hoisted, so
+// it's callable from the earlier code that decides which path a request takes.
 let losToken = null, losTokenPromise = null;
 function losPair() {
   if (losToken !== null) return Promise.resolve(losToken);
@@ -5042,18 +5105,14 @@ async function curatorAsk() {
   curatorMessages.push({ role: 'assistant', text: '', thinking: true });
   renderCuratorThread();
   const system = buildCuratorSystem();
-  let raw = null, via = null, subErr = null;
-  if (LOS_REACHABLE) {
-    try { raw = await callClaudeSub({ system, messages: payload, model: state.settings.claude.model }); via = 'sub'; }
-    catch (e) { subErr = e; }   // helper not running / not paired on this Mac — fall through to the API key
-  }
+  // callClaude now owns the sub-vs-API decision (it honors settings.claude.mode and falls back),
+  // so the curator no longer races its own copy of that logic — it just reads back which path won.
   try {
-    if (raw === null) { raw = await callClaude({ system, messages: payload, maxTokens: 800 }); via = 'api'; }
+    const raw = await callClaude({ system, messages: payload, maxTokens: 800 });
     const { cleanText, actions } = parseCuratorActions(raw);
-    curatorMessages[curatorMessages.length - 1] = { role: 'assistant', text: cleanText, actions, via };
+    curatorMessages[curatorMessages.length - 1] = { role: 'assistant', text: cleanText, actions, via: CLAUDE_VIA };
   } catch (e) {
-    const msg = subErr ? `claude error: ${e.message} (Max-subscription helper also failed: ${subErr.message})` : `claude error: ${e.message}`;
-    curatorMessages[curatorMessages.length - 1] = { role: 'assistant', text: msg, error: true };
+    curatorMessages[curatorMessages.length - 1] = { role: 'assistant', text: `claude error: ${e.message}`, error: true };
   }
   renderCuratorThread();
 }
@@ -5068,7 +5127,9 @@ function curatorSubmit() {
 }
 function openCurator(prefill) {
   // file:// gets a pass even with no API key configured — it may reach the Max-subscription helper instead.
-  if (!isClaudeEnabled() && !LOS_REACHABLE) { toast('add an api key in settings first.', true); openSettings(); return; }
+  // isClaudeEnabled() now covers the helper path too (and respects Billing), so the old
+  // `|| LOS_REACHABLE` escape hatch is gone — it would have ignored an explicit 'API key only'.
+  if (!isClaudeEnabled()) { toast('add an api key in settings first.', true); openSettings(); return; }
   renderCuratorThread();
   curatorModal.showModal();
   const input = document.getElementById('curator-input');
