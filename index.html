@@ -1250,9 +1250,9 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <label class="span-2">Anthropic API key<input type="password" id="claude-api-key" placeholder="sk-ant-..." autocomplete="off"></label>
           <label>Model
             <select id="claude-model">
-              <option value="claude-haiku-4-5-20251001">Haiku — fast & cheap</option>
-              <option value="claude-sonnet-4-6">Sonnet — balanced</option>
-              <option value="claude-opus-4-6">Opus — best, slowest</option>
+              <option value="claude-haiku-4-5">Haiku — fast &amp; cheap</option>
+              <option value="claude-sonnet-5">Sonnet — balanced</option>
+              <option value="claude-opus-5">Opus — best, slowest</option>
             </select>
           </label>
           <label>Billing
@@ -1659,6 +1659,19 @@ function projectItem(item) {
   return item;
 }
 
+// Legacy → current model ids. A FUNCTION DECLARATION, not a const, on purpose: `let state = load()`
+// runs at the top level ~70 lines ABOVE this point and calls migrate(), so a const here sits in the
+// temporal dead zone and migrate() throws on every cold load. Same reason as the hoisted helpers
+// further down. Add a row whenever the option list moves.
+function claudeModelMigration(id) {
+  return ({
+    'claude-haiku-4-5-20251001': 'claude-haiku-4-5',
+    'claude-sonnet-4-6': 'claude-sonnet-5',
+    'claude-opus-4-6': 'claude-opus-5',
+    'claude-opus-4-8': 'claude-opus-5',
+    'sonnet': 'claude-sonnet-5', 'opus': 'claude-opus-5', 'haiku': 'claude-haiku-4-5',
+  })[id] || id;
+}
 function migrate(s) {
   s.tagGroups = s.tagGroups || [];
   s.tagAssignments = s.tagAssignments || {};
@@ -1757,7 +1770,10 @@ function migrate(s) {
   s.settings.genreForceFixedWords = [...forceFixedWords];
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
-  s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5-20251001', respondOnLog: true };
+  s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5', respondOnLog: true };
+  // A model id stored before the option list moved is still a legal STRING — merging restores it
+  // untouched and it flows straight to the API, silently exempt from the current set.
+  s.settings.claude.model = claudeModelMigration(s.settings.claude.model) || 'claude-haiku-4-5';
   // Billing path, added after `claude` shipped — a restored pre-mode snapshot arrives with
   // mode === undefined, so merge over the default instead of trusting the saved object wholesale.
   // 'auto' reproduces the old silent-fallback behavior, so old saves behave exactly as before.
@@ -3687,7 +3703,7 @@ document.getElementById('genre-gaps-list').addEventListener('click', e => {
 function openSettings() {
   document.getElementById('claude-rules').value = state.settings.claudeRules || DEFAULT_CLAUDE_RULES;
   document.getElementById('claude-api-key').value = state.settings.claude.apiKey || '';
-  document.getElementById('claude-model').value = state.settings.claude.model || 'claude-haiku-4-5-20251001';
+  document.getElementById('claude-model').value = state.settings.claude.model || 'claude-haiku-4-5';
   document.getElementById('claude-mode').value = claudeMode();
   document.getElementById('claude-respond-toggle').checked = !!state.settings.claude.respondOnLog;
   document.getElementById('sync-pat').value = state.settings.sync.githubPat || '';
@@ -4058,7 +4074,7 @@ async function callClaude({ system, userMessage, messages, maxTokens = 350, mode
 }
 // Year/creator lookups run on Sonnet (more accurate, fewer confabulations) no matter
 // which model handles the conversational takes — isolates accuracy from the cost choice.
-const ENRICH_MODEL = 'claude-sonnet-4-6';
+const ENRICH_MODEL = 'claude-sonnet-5';   // exact id, never the 'sonnet' alias: this drives fetchMeta's taxonomy classification, and a silent tier swap changes what lands on real entries
 // Anthropic server-side web search — declared per-request, executed on their end, so it works
 // from the direct-browser call. Only used in tier 2 (see fetchMeta); ~1¢/search.
 const ENRICH_SEARCH_TOOLS = [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }];
@@ -5063,11 +5079,9 @@ function flattenCuratorMessages(messages) {
   if (messages.length === 1) return messages[0].content;
   return messages.map(m => (m.role === 'user' ? 'Leandro' : 'Claude') + ': ' + m.content).join('\n\n');
 }
-// The CLI's --model takes a short alias, not the API's full model id.
-function losModelAlias(id) {
-  const s = (id || '').toLowerCase();
-  return s.includes('opus') ? 'opus' : s.includes('haiku') ? 'haiku' : 'sonnet';
-}
+/* Deliberately NO alias mapping: the CLI's --model takes a full model id as well as an alias, and a
+   bare alias resolves to whatever the CLI currently calls 'sonnet' — the model swaps with no diff and
+   no failing test. Legacy stored ids are normalized once in migrate(), not per call. */
 async function callClaudeSub({ system, messages, model }) {
   const tok = await losPair();
   const ac = new AbortController();
@@ -5076,7 +5090,7 @@ async function callClaudeSub({ system, messages, model }) {
   try {
     res = await fetch(LOS_HELPER_URL + '/claude', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-LOS-Token': tok || '' },
-      body: JSON.stringify({ system: system || '', prompt: flattenCuratorMessages(messages), model: losModelAlias(model) }),
+      body: JSON.stringify({ system: system || '', prompt: flattenCuratorMessages(messages), model: model || '' }),
       signal: ac.signal,
     });
   } finally { clearTimeout(timer); }
