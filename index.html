@@ -1249,11 +1249,8 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
         <div class="form-grid">
           <label class="span-2">Anthropic API key<input type="password" id="claude-api-key" placeholder="sk-ant-..." autocomplete="off"></label>
           <label>Model
-            <select id="claude-model">
-              <option value="claude-haiku-4-5">Haiku — fast &amp; cheap</option>
-              <option value="claude-sonnet-5">Sonnet — balanced</option>
-              <option value="claude-opus-5">Opus — best, slowest</option>
-            </select>
+            <!-- Options are BUILT from claudeModels(), never hand-written here — see populateClaudeModelSelect(). -->
+            <select id="claude-model"></select>
           </label>
           <label>Billing
             <select id="claude-mode">
@@ -1659,10 +1656,26 @@ function projectItem(item) {
   return item;
 }
 
-// Legacy → current model ids. A FUNCTION DECLARATION, not a const, on purpose: `let state = load()`
-// runs at the top level ~70 lines ABOVE this point and calls migrate(), so a const here sits in the
+// EVERY helper in this block is a FUNCTION DECLARATION, not a const, on purpose: `let state = load()`
+// runs at the top level ~80 lines ABOVE this point and calls migrate(), so a const here sits in the
 // temporal dead zone and migrate() throws on every cold load. Same reason as the hoisted helpers
-// further down. Add a row whenever the option list moves.
+// further down. The sibling apps declare these as consts because their `load()` runs below the
+// declaration; do not "harmonize" this file to match them without moving `let state = load()` first.
+
+// The ONE list of model ids this app may send. The <select> is built from it and resolveClaudeModel()
+// refuses everything outside it, so the dropdown and the stored value cannot drift apart. Pinned ids
+// only, never a bare alias: an alias follows whatever the CLI calls current, so the model changes
+// with no diff, no log line and no failing test. Order = dropdown order; [0] is the default.
+// Built once and cached on the function itself — a plain `const` above would be the TDZ bug again.
+function claudeModels() {
+  return claudeModels._v || (claudeModels._v = [
+    { id: 'claude-haiku-4-5', tier: 'haiku 4.5', label: 'Haiku — fast & cheap' },
+    { id: 'claude-sonnet-5',  tier: 'sonnet 5',  label: 'Sonnet — balanced' },
+    { id: 'claude-opus-5',    tier: 'opus 5',    label: 'Opus — best, slowest' },
+  ]);
+}
+function claudeModelDefault() { return claudeModels()[0].id; }
+// Legacy → current model ids. Add a row whenever the option list moves; never rewrite history in place.
 function claudeModelMigration(id) {
   return ({
     'claude-haiku-4-5-20251001': 'claude-haiku-4-5',
@@ -1672,6 +1685,21 @@ function claudeModelMigration(id) {
     'sonnet': 'claude-sonnet-5', 'opus': 'claude-opus-5', 'haiku': 'claude-haiku-4-5',
   })[id] || id;
 }
+// Migrate what we recognize, then REFUSE what's left. The table alone can't be the whole guard:
+// it only knows ids that existed when it was written, so any other string — a bare alias from an
+// ancient gist, a typo, a model a newer build introduced — would ride through as a legal string
+// straight into the request body. Anything not in claudeModels() falls back to the default.
+// Trade-off, stated on purpose: a newer id synced from a device running a newer build gets reset
+// here. That's deliberate — this build has no dropdown entry for it and couldn't honor it anyway.
+function resolveClaudeModel(id) {
+  const m = claudeModelMigration(id);
+  return claudeModels().some(x => x.id === m) ? m : claudeModelDefault();
+}
+// `split('-')[1]` printed "haiku" for BOTH claude-haiku-4-5 and claude-haiku-4-5-20251001, so a
+// fork could sit on the wrong spelling for months and still look right in the status line. Print
+// the tier from the list, and an unrecognized id verbatim so it reads as wrong on sight — which
+// also matters for the stored per-reply ids in `claudeReplies`, written by whatever was current then.
+function claudeTier(id) { return (claudeModels().find(m => m.id === id) || {}).tier || id; }
 function migrate(s) {
   s.tagGroups = s.tagGroups || [];
   s.tagAssignments = s.tagAssignments || {};
@@ -1770,10 +1798,10 @@ function migrate(s) {
   s.settings.genreForceFixedWords = [...forceFixedWords];
   s.settings.claudeRules = s.settings.claudeRules ?? DEFAULT_CLAUDE_RULES;
   s.settings.sync = s.settings.sync || { enabled: false, githubPat: null, gistId: null, lastSyncedAt: null };
-  s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: 'claude-haiku-4-5', respondOnLog: true };
+  s.settings.claude = s.settings.claude || { enabled: false, apiKey: null, model: claudeModelDefault(), respondOnLog: true };
   // A model id stored before the option list moved is still a legal STRING — merging restores it
   // untouched and it flows straight to the API, silently exempt from the current set.
-  s.settings.claude.model = claudeModelMigration(s.settings.claude.model) || 'claude-haiku-4-5';
+  s.settings.claude.model = resolveClaudeModel(s.settings.claude.model);
   // Billing path, added after `claude` shipped — a restored pre-mode snapshot arrives with
   // mode === undefined, so merge over the default instead of trusting the saved object wholesale.
   // 'auto' reproduces the old silent-fallback behavior, so old saves behave exactly as before.
@@ -2922,7 +2950,11 @@ function renderClaudeTakes(item) {
   section.style.display = 'block';
   list.innerHTML = [...replies].reverse().map(r => {
     const when = new Date(r.at).toLocaleString();
-    const model = (r.model || '').split('-')[1] || 'claude';
+    // A stored reply id is whatever was current when it was written and never passes through
+    // migrate(), so an old row can still hold a dated id or a bare alias. claudeTier() prints
+    // those verbatim rather than flattening them to "haiku" — this list is the only place the
+    // real history of which model answered is visible. Escaped: it rides in from synced state.
+    const model = r.model ? escapeHtml(claudeTier(r.model)) : 'claude';
     return `<div class="claude-take"><span class="meta">${when} · ${model}</span>${escapeHtml(r.text)}</div>`;
   }).join('');
 }
@@ -3700,10 +3732,18 @@ document.getElementById('genre-gaps-list').addEventListener('click', e => {
     save(); renderGenreGaps();
   }
 });
+// Two hand-kept copies of the same list is how a dated id can outlive its own migration row, so the
+// markup ships an empty <select> and the options come from claudeModels(). new Option() sets the
+// label as text, so an "&" in a label needs no escaping.
+function populateClaudeModelSelect() {
+  const sel = document.getElementById('claude-model');
+  if (sel) sel.replaceChildren(...claudeModels().map(m => new Option(m.label, m.id)));
+}
 function openSettings() {
   document.getElementById('claude-rules').value = state.settings.claudeRules || DEFAULT_CLAUDE_RULES;
   document.getElementById('claude-api-key').value = state.settings.claude.apiKey || '';
-  document.getElementById('claude-model').value = state.settings.claude.model || 'claude-haiku-4-5';
+  populateClaudeModelSelect();
+  document.getElementById('claude-model').value = resolveClaudeModel(state.settings.claude.model);
   document.getElementById('claude-mode').value = claudeMode();
   document.getElementById('claude-respond-toggle').checked = !!state.settings.claude.respondOnLog;
   document.getElementById('sync-pat').value = state.settings.sync.githubPat || '';
@@ -3755,7 +3795,7 @@ function renderClaudeStatus() {
              : (losReachable() ? 'auto · Max plan, key as backup' : 'auto · key (helper unreachable here)');
   const via = CLAUDE_VIA === 'sub' ? ' · last call: Max plan'
             : CLAUDE_VIA === 'api' ? ' · last call: API key' : '';
-  const base = state.settings.claude.respondOnLog ? `enabled · ${state.settings.claude.model.split('-')[1]}` : 'enabled · respond-on-log OFF';
+  const base = state.settings.claude.respondOnLog ? `enabled · ${claudeTier(state.settings.claude.model)}` : 'enabled · respond-on-log OFF';
   el.textContent = `${base} · ${plan}${via}`;
   el.className = 'sync-status ok';
 }
@@ -4354,8 +4394,8 @@ function showClaudePanel({ title, status, text }) {
   body.textContent = text;
   document.getElementById('claude-panel-foot').innerHTML =
     status === 'thinking'
-      ? `<span>${state.settings.claude.model.split('-')[1]}</span><span>•</span>`
-      : `<span>${state.settings.claude.model.split('-')[1]}</span><span>${new Date().toLocaleTimeString()}</span>`;
+      ? `<span>${claudeTier(state.settings.claude.model)}</span><span>•</span>`
+      : `<span>${claudeTier(state.settings.claude.model)}</span><span>${new Date().toLocaleTimeString()}</span>`;
 }
 document.getElementById('claude-panel-close').addEventListener('click', () => { document.getElementById('claude-panel').classList.add('hidden'); });
 
