@@ -5271,7 +5271,9 @@ function renderCuratorThread() {
     const actionsHtml = (m.actions && m.actions.length)
       ? `<div class="cur-actions">${m.actions.map((a, j) => curatorActionHtml(a, i, j)).join('')}${m.actions.length > 1 && pending > 1 ? `<button type="button" class="cur-add-all" data-msg="${i}">add all ${pending}</button>` : ''}</div>`
       : '';
-    const badge = m.via ? `<span class="cur-via">${m.via === 'sub' ? 'Max subscription' : 'API'}</span>` : '';
+    // The tier is the one REQUESTED: neither path hands back a per-reply receipt naming the model
+    // it served, so this reads "what was asked for", which is the honest claim available here.
+    const badge = m.via ? `<span class="cur-via">${m.via === 'sub' ? 'Max subscription' : 'API'}${m.model ? ' · ' + escapeHtml(claudeTier(m.model)) : ''}</span>` : '';
     // `live` is the turn being streamed right now: its prose node is written to directly by
     // curatorAsk, so it must survive a re-render with a stable hook.
     const body = m.live
@@ -5364,6 +5366,12 @@ const CURATOR_SEARCH_TOOLS = [
   { type: 'web_search_20260209', name: 'web_search', max_uses: 6, allowed_callers: ['direct'] },
   { type: 'web_fetch_20260209',  name: 'web_fetch',  max_uses: 4, allowed_callers: ['direct'] },
 ];
+// The desk runs on Opus regardless of the Settings dropdown, for the same reason fetchMeta runs
+// on Sonnet: that dropdown prices the ON-SAVE takes (a two-line reaction, cheap on purpose), and a
+// turn that has to search the web, weigh it against the backlog and propose library writes is a
+// different job. Pinned id, never an alias — and it must stay inside claudeModels(), which is the
+// ONE list this app may send; resolveClaudeModel() would silently reset anything else to haiku.
+const CURATOR_MODEL = 'claude-opus-5';
 let curatorBusy = false;
 function curatorSetBusy(b) {
   curatorBusy = b;
@@ -5399,7 +5407,7 @@ async function curatorAsk() {
   // from memory: at the helper's chat defaults (low / 90s) a research turn gives up and deflects.
   try {
     const raw = await callClaude({
-      system, messages: payload, maxTokens: 2000, effort: 'medium', timeout: 300,
+      system, messages: payload, maxTokens: 2000, model: CURATOR_MODEL, effort: 'medium', timeout: 300,
       apiTools: CURATOR_SEARCH_TOOLS,
       onDelta: t => { curatorSetSub(''); paint(t); },
       onStatus: st => {
@@ -5411,7 +5419,7 @@ async function curatorAsk() {
     });
     settled = true;
     const { cleanText, actions } = parseCuratorActions(raw);
-    curatorMessages[last()] = { role: 'assistant', text: cleanText, actions, via: CLAUDE_VIA, sources };
+    curatorMessages[last()] = { role: 'assistant', text: cleanText, actions, via: CLAUDE_VIA, model: CURATOR_MODEL, sources };
   } catch (e) {
     settled = true;
     // A turn cut at the wall already wrote real text and already spent the window. Show it,
@@ -5419,7 +5427,7 @@ async function curatorAsk() {
     const partial = (e.partial || '').trim();
     if (partial) {
       const { cleanText, actions } = parseCuratorActions(partial);
-      curatorMessages[last()] = { role: 'assistant', text: cleanText, actions, via: CLAUDE_VIA, sources, truncated: true };
+      curatorMessages[last()] = { role: 'assistant', text: cleanText, actions, via: CLAUDE_VIA, model: CURATOR_MODEL, sources, truncated: true };
     } else {
       curatorMessages[last()] = { role: 'assistant', text: `claude error: ${e.message}`, error: true };
     }
