@@ -94,13 +94,31 @@ rendered width against an invented family — `document.fonts.check()` answers `
 do not exist, verified in this very webview); the vault restoring a 3-title library into a wiped
 webview with accented titles intact, which is also the proof that the base64 hop decodes as UTF-8.
 
-**Not verified, and honestly cannot be from here:** anything involving the real phone — the install,
-the free-signing re-sign, a mint under launchd, whether an install works against a locked or sleeping
-phone, and app-slot availability. The simulator proves origin and layout semantics; it cannot prove
-the signing path.
+**Verified on the real phone (18-sep-2026, 15:50–15:51):** app slots checked with the phone
+unlocked *before* taking one (quiosco + bitacora = 2); a provisioning profile minted from nothing
+for a brand-new bundle id with no Xcode session and no keychain prompt; the app installed; and the
+whole script run again **under launchd** (`runs = 1`, `last exit code = 0`), writing its
+`ok · profile expires 2026-09-25T19:50:37Z` line only after the install returned 0. The agent is
+loaded, with both calendar intervals confirmed in `launchctl print` rather than in the file.
 
-**Known gap:** the in-app tap-through of a real save (FAB → fill → save → vault accept) was not driven
-on a device, because simulator input was unavailable in the session that built this. The JS half and
-the Swift half are each pinned by their own harness and the live bridge transport is proven by the
-log lines arriving through `webkit.messageHandlers` — but the end-to-end tap has not been performed.
-Do that first thing on the real phone.
+Note that the launchd run correctly did NOT mint a profile — 7 days remained, above the 3-day
+threshold — which is right, and looks exactly like the bug where a rebuild silently fails to renew.
+The only honest readout is the expiry read back out of the built app, which is why the log prints it.
+
+**Still not verified, and not claimable:**
+- **A mint under launchd.** The mint was the by-hand run. First real chance is ~22-sep, when the
+  profile drops under 3 days. El Quiosco's run does not answer this for Bitácora if the session
+  contexts differ.
+- **An install against a locked or sleeping phone.** Completely unknown in both directions — and
+  the 03:40 run depends on it.
+- **The vault pull.** `devicectl device copy from --domain-type appDataContainer` returns
+  `CoreDeviceError 7000` ("failed to retrieve the file node"), which is almost certainly *no such
+  file* — the app has not yet been opened on the phone, so it has written no vault — rather than a
+  wrong `--source` form. Do not read that as the path being validated; it is untested either way.
+
+**The one gap to close first, on the phone:** open the app and save a real entry (FAB → title →
+save). That exercises the only path no harness covers end to end — page `setItem` → native bridge →
+`Vault.offer` → `bitacora-vault.json` on disk — and it is also what makes the vault pull testable.
+The JS half and the Swift half are each pinned by their own falsified harness, and the bridge
+transport is proven by log lines arriving through `webkit.messageHandlers`, but the tap itself has
+not been performed.
