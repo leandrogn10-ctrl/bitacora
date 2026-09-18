@@ -37,10 +37,11 @@ d = ImageDraw.Draw(img)
 f = ImageFont.truetype(os.path.join(HERE, 'Fonts', 'InstrumentSerif-Italic.ttf'), 660)
 box = d.textbbox((0, 0), 'B', font=f)
 x = (S - (box[2] - box[0])) / 2 - box[0]
-# Optically centred against the rule below it, not geometrically centred on the canvas:
-# the rule carries visual weight at the foot, so a glyph on the true centre reads as floating
-# too high (it did — first thing noticed on the home screen). +30px sits the B ON the rule.
-y = (S - (box[3] - box[1])) / 2 - box[1] + 30
+# Dead centre, and verified as such rather than nudged by eye: textbbox for this glyph equals
+# its rendered INK bbox (measured — same h=476, same offsets), so this expression centres the
+# visible strokes, not a metrics box padded with ascender space. Earlier revisions carried a
+# -46 fudge (read as too high) and then a +30 one (still off); the fudge was the bug.
+y = (S - (box[3] - box[1])) / 2 - box[1]
 
 d.text((x - 9, y + 7), 'B', font=f, fill=SPILL)          # neon spill, not a drop shadow
 d.text((x, y), 'B', font=f, fill=GOLD)

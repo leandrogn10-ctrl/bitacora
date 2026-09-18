@@ -124,7 +124,21 @@ input, textarea, select { font-size: max(16px, 1em); }
       to `display: block`. So the modal sat at the top of a full-height block box and the rest
       was empty. One declaration makes the existing rules mean what they were written to mean.
       Scoped to [open] so a closed dialog stays hidden. */
-  dialog[open] { display: flex; }
+  dialog[open] {
+    display: flex;
+    /*  …and it must NOT scroll. The sheet slides in by translating up to its own height
+        downward, and in WebKit a transformed child contributes SCROLLABLE OVERFLOW to its
+        container. `showModal()` then moves focus into the sheet, the browser scrolls that
+        element into view, and the dialog scrolls by ~477px — so the sheet is flung above the
+        top of the screen (measured static top: -407) and settles back down as the overflow
+        shrinks. That is the "it starts up and then moves down" wobble. The content scroller
+        is `.modal-body`; the dialog itself never needed to scroll.
+        It must be `clip`, not `hidden`: `hidden` still creates a SCROLL CONTAINER, and
+        scrollIntoView scrolls one happily — it only suppresses the scrollbar and user
+        dragging. Measured: with `hidden` the sheet still flew to a static top of -407.
+        `clip` creates no scroll container, so there is nothing for the focus to scroll. */
+    overflow: clip;
+  }
 
   /*  (c) The + button floated over every open sheet. It is the action you take FROM the
       library, and while a sheet is up it is both wrong and in the way. */
