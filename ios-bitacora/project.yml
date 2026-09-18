@@ -1,0 +1,59 @@
+# XcodeGen spec → generates Bitacora.xcodeproj AND Info.plist from this file.
+# The only manual Xcode step is: Signing → Team = your Apple ID, plug in the iPhone, Run.
+#   regenerate:  bash ios-bitacora/setup-xcode.sh
+#
+# NOTE, learned the hard way: an `info:` block makes XcodeGen GENERATE the plist at that path,
+# overwriting whatever is there. A hand-written Info.plist next to it is silently clobbered on
+# the next regenerate, and the app builds fine without any of its keys — a letterboxed black
+# screen with no error anywhere. So the plist is DERIVED from here and only from here.
+name: Bitacora
+options:
+  bundleIdPrefix: com.leandro
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+targets:
+  Bitacora:
+    type: application
+    platform: iOS
+    sources:
+      # Listed one by one ON PURPOSE: test-vault.swift carries its own @main and a directory
+      # glob would compile the harness into the app, colliding with BitacoraApp's.
+      - path: BitacoraApp.swift
+      - path: LogbookView.swift
+      - path: Vault.swift
+      - path: Assets.xcassets
+      - path: Resources/app          # the derived web payload — built by build-bitacora.py
+        type: folder                 # folder reference: served verbatim by the scheme handler
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Bitácora
+        # Without a valid UILaunchScreen iOS runs the app in legacy compatibility mode and
+        # letterboxes it in black — which is exactly what happened when this key went missing.
+        # Wine, not white: a white flash before a dark app is the loudest "web view" tell.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIViewControllerBasedStatusBarAppearance: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # The vault must be readable WITHOUT the app working. If signing lapses and the app
+        # will not launch, Documents/ is still openable in Files.app, so the library is never
+        # trapped behind the one thing that broke.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        # NOTE: no UIAppFonts. App-registered fonts are a UIKit facility and do NOT reach the
+        # WKWebView content process; the page gets its faces from @font-face over the bundled
+        # ttf in phone.css. Listing them here would look like it worked and change nothing.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.leandro.bitacora
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Bitacora.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

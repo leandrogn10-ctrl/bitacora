@@ -1,0 +1,104 @@
+/*  phone.css — what the APP adds on top of index.html's own @media (max-width:880px) layer.
+    Injected as the LAST thing in <head>, after the app's own <style>, so equal-specificity
+    rules here win by order. (It first shipped injected BEFORE that block, where it lost every
+    such contest while reading as perfectly applied in the served bytes — build-bitacora.py now
+    places it deliberately, and that placement is load-bearing, not incidental.)
+
+    Scope discipline: this file may only do things a WEB page cannot do for itself, or fix a
+    thing that is wrong ONLY inside a webview. It is not a second design system, and it must
+    never restyle a surface index.html already styles for the phone — the mobile web layer
+    (bottom tabs, FAB, sheet modals, sheet sidebar) is real, shipped, and stays authoritative. */
+
+/* ── 1. Fonts, bundled ──────────────────────────────────────────────────────────────────
+   The PWA fetches these from Google. An app that opens on a plane must not render in Times,
+   so the same two families ship inside the binary. Family names match index.html's stacks
+   EXACTLY ('Instrument Serif' / 'JetBrains Mono') — that is the whole contract; nothing else
+   in the app's CSS changes.
+   JetBrains Mono ships Regular only. index.html asks for 500/600/700 in places, which WebKit
+   now renders as synthetic bold rather than a real cut — a small weight difference from the
+   web build, deliberate, and the alternative (declaring one file across 400-700) would flatten
+   bold emphasis entirely. */
+@font-face {
+  font-family: 'Instrument Serif'; font-style: normal; font-weight: 400; font-display: block;
+  src: url('fonts/InstrumentSerif-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Instrument Serif'; font-style: italic; font-weight: 400; font-display: block;
+  src: url('fonts/InstrumentSerif-Italic.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: block;
+  src: url('fonts/JetBrainsMono-Regular.ttf') format('truetype');
+}
+
+/* ── 2. The tells that give a webview away ──────────────────────────────────────────────
+   Each of these is a thing a native app never does. The grey/blue flash on tap is the single
+   loudest one. */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;              /* no "Copy / Look Up" magnifier on a long-press */
+}
+body {
+  -webkit-user-select: none; user-select: none;
+  touch-action: manipulation;               /* kills the 300ms double-tap-to-zoom wait */
+  overscroll-behavior: none;                /* no rubber-band past the top of the document */
+}
+/* …but a logbook is made of the user's own words: text he TYPED stays selectable and
+   copyable, because "I can't copy my own review" is a worse bug than a stray magnifier. */
+input, textarea, [contenteditable],
+.item-notes, .note-body, .take-body, .cur-msg, .diary-note, .modal-body p {
+  -webkit-user-select: text; user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* ── 3. Safe areas, unconditionally ─────────────────────────────────────────────────────
+   index.html's safe-area rules sit behind @media (display-mode: standalone) — true for a
+   home-screen PWA, and NOT true inside a WKWebView, which reports display-mode: browser.
+   So the app would render its title under the clock and its FAB under the home indicator.
+   Same values, applied without the gate. (Verified in the simulator, not assumed.) */
+/*  MEASURED, not assumed (simulator, iPhone 17 Pro): standalone=false — so index.html's
+    display-mode-gated safe-area rules never fire here — but its `body { padding-top:
+    env(safe-area-inset-top) }` is OUTSIDE that gate and DOES. The body has therefore already
+    cleared the notch by the time the topbar lays out, and adding the inset again here made a
+    126pt topbar with 70pt of dead space under the clock. A flat pad is correct in both worlds:
+    if the display-mode rule ever did match, this still overrides its doubled value. */
+.topbar { padding-top: 14px !important; }
+.content { padding-bottom: calc(112px + env(safe-area-inset-bottom)) !important; }
+
+/* ── 4. Thumb reach ─────────────────────────────────────────────────────────────────────
+   The web tab bar is sized for a cursor. Apple's floor for a touch target is 44pt; these
+   were 8px of padding around a 9px label. Everything else about them stays as designed. */
+.bottom-tabs .tab { min-height: 52px; justify-content: center; padding: 9px 12px; }
+.bottom-tabs .tab .icon { font-size: 20px; }
+.bottom-tabs { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+.fab { width: 60px; height: 60px; font-size: 32px; bottom: calc(84px + env(safe-area-inset-bottom)); }
+
+/* ── 5. Scrolling that behaves like a phone ─────────────────────────────────────────────
+   Momentum inside the panes; the document itself never scrolls (the shell is fixed chrome). */
+.content, .modal-body, .cmdk-results, .sidebar, .cur-thread { -webkit-overflow-scrolling: touch; }
+.modal-body, .cmdk-results { overscroll-behavior: contain; }
+
+/* ── 6. Native-feeling press states ─────────────────────────────────────────────────────
+   With the tap highlight gone, a control must say it was pressed some other way or the app
+   feels dead under the thumb. Haptics come from the native side (phone-boot-post.js). */
+.fab:active, .view-tab:active, .add-btn:active, .submit:active,
+.ghost-btn:active, .roul-launch:active, .item-card:active { transform: scale(0.97); }
+.item-card { transition: transform 0.09s ease-out; }
+
+/* ── 7. Keyboard ────────────────────────────────────────────────────────────────────────
+   iOS zooms a focused field under 16px. Zoom is off, but the field still must not be tiny
+   to type a title into. */
+input, textarea, select { font-size: max(16px, 1em); }
+
+/* ── 8. The shelf, at phone width ───────────────────────────────────────────────────────
+   index.html drops the grid to 2 columns under 1120px — right for a tablet, wrong for a
+   402pt phone, where each column is ~180pt and `word-break: break-word` on a 22px serif
+   title snaps real titles mid-word ("El Madrileñ / o", "Spiritfare / r"). One column gives
+   the card the full width, which is what every reading app on a phone does, and the titles
+   then break only where a word genuinely cannot fit. */
+@media (max-width: 560px) {
+  .items-grid { column-count: 1; }
+  .item-card .title { word-break: normal; overflow-wrap: break-word; hyphens: none; }
+  /* room to scroll the last card clear of the floating + button */
+  .content { padding-bottom: calc(150px + env(safe-area-inset-bottom)) !important; }
+}

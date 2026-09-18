@@ -1,0 +1,7 @@
+# Derived from ../index.html by build-bitacora.py on every build and every re-sign. Committing it
+# would put a second, staler copy of the whole app in the repo — the exact "which copy is this?"
+# trap. `python3 build-bitacora.py --check` is the drift gate that makes trusting it unnecessary.
+Resources/app/
+# Xcode's per-user window/scheme state — noise, and it churns on every open.
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
