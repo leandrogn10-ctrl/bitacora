@@ -52,6 +52,11 @@ targets:
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGN_STYLE: Automatic
+        # The free personal team, declared HERE and not picked in Xcode's Signing tab. XcodeGen
+        # rewrites the pbxproj wholesale on every regenerate, so a team chosen through the UI is
+        # silently discarded the next time setup-xcode.sh runs — and the failure is an unattended
+        # 3am "requires a development team", long after anyone remembers clicking it.
+        DEVELOPMENT_TEAM: 4A7M5GBF3L
         TARGETED_DEVICE_FAMILY: "1"
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: NO
