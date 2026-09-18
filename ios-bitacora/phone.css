@@ -102,3 +102,32 @@ input, textarea, select { font-size: max(16px, 1em); }
   /* room to scroll the last card clear of the floating + button */
   .content { padding-bottom: calc(150px + env(safe-area-inset-bottom)) !important; }
 }
+
+/* ── 9. Sheets: the three things that made them look broken on a real phone ─────────────
+   All three are pre-existing bugs in the mobile web layer that only show on a device. */
+
+@media (max-width: 880px) {
+  /*  (a) THE FILTER SHEET RENDERED UNDER ITS OWN BACKDROP.
+      `.app` is `position: relative; z-index: 1`, which creates a stacking context — so the
+      sidebar's `z-index: 850` is scoped INSIDE `.app` and competes at level 1 against the
+      backdrop's 840, which is a direct child of <body>. No z-index on the sheet could ever
+      win. The FAB is also a body-level child at 850, so it alone stayed bright: what you saw
+      was the whole screen dimming, the sheet dimming with it, and the + button floating over
+      the lot. Dropping `.app` to `z-index: auto` stops it creating the context at all, so the
+      sheet competes at body level where its 850 means what it says. (`position: relative`
+      with `z-index: auto` does not create a stacking context; fixed children are unaffected.) */
+  .app { z-index: auto; }
+
+  /*  (b) THE TAG / SETTINGS SHEETS OPENED AT THE TOP WITH DEAD SPACE BELOW.
+      The mobile block styles `dialog` with `align-items: flex-end` and the modal with
+      `margin-top: auto` — both of which need a flex container, and an open <dialog> defaults
+      to `display: block`. So the modal sat at the top of a full-height block box and the rest
+      was empty. One declaration makes the existing rules mean what they were written to mean.
+      Scoped to [open] so a closed dialog stays hidden. */
+  dialog[open] { display: flex; }
+
+  /*  (c) The + button floated over every open sheet. It is the action you take FROM the
+      library, and while a sheet is up it is both wrong and in the way. */
+  body:has(.sidebar.show-as-sheet) .fab,
+  body:has(dialog[open]) .fab { display: none; }
+}

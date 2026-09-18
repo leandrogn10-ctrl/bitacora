@@ -37,7 +37,10 @@ d = ImageDraw.Draw(img)
 f = ImageFont.truetype(os.path.join(HERE, 'Fonts', 'InstrumentSerif-Italic.ttf'), 660)
 box = d.textbbox((0, 0), 'B', font=f)
 x = (S - (box[2] - box[0])) / 2 - box[0]
-y = (S - (box[3] - box[1])) / 2 - box[1] - S * 0.045
+# Optically centred against the rule below it, not geometrically centred on the canvas:
+# the rule carries visual weight at the foot, so a glyph on the true centre reads as floating
+# too high (it did — first thing noticed on the home screen). +30px sits the B ON the rule.
+y = (S - (box[3] - box[1])) / 2 - box[1] + 30
 
 d.text((x - 9, y + 7), 'B', font=f, fill=SPILL)          # neon spill, not a drop shadow
 d.text((x, y), 'B', font=f, fill=GOLD)
