@@ -66,7 +66,7 @@ settings, **never logged or exported**.
 - Sync = GitHub Gist; **`cleanStateForSync()` / `cleanStateForExport()` strip secrets** (PAT / API key /
   gist id). Never re-introduce secrets into exports.
 - Code-push (Settings) pushes `index.html` + `sw.js` to GitHub Pages.
-- **Bump `sw.js` `CACHE_NAME` on every shipped change** (currently `bitacora-v4`) — or phones serve a
+- **Bump `sw.js` `CACHE_NAME` on every shipped change** (the live value is in `sw.js` — a number copied here goes stale) — or phones serve a
   stale cached app.
 
 ## Verifying changes (this is how the build sessions worked — keep doing it)

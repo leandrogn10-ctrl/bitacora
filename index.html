@@ -4192,7 +4192,9 @@ async function callClaude({ system, userMessage, messages, maxTokens = 350, mode
   // With server tools (web search) the content array interleaves server_tool_use /
   // web_search_tool_result blocks before the answer — the final text block is the answer.
   const texts = (data.content || []).filter(b => b.type === 'text');
-  return texts.length ? texts[texts.length - 1].text : '(empty response)';
+  // No text at all is a failure, never a placeholder that reads as a reply.
+  if (!texts.length || !texts[texts.length - 1].text.trim()) throw new Error(`no text in the reply (stop_reason: ${data.stop_reason || 'unknown'})`);
+  return texts[texts.length - 1].text;
 }
 // Year/creator lookups run on Sonnet (more accurate, fewer confabulations) no matter
 // which model handles the conversational takes — isolates accuracy from the cost choice.
