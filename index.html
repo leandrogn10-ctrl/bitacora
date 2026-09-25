@@ -4148,6 +4148,7 @@ let CLAUDE_VIA = null;
 function noteVia(v) { CLAUDE_VIA = v; try { renderClaudeStatus(); } catch (e) {} }
 function isClaudeEnabled() { return !!(state.settings.claude.enabled && (canUseApi() || canUseSub())); }
 // `userMessage` (single-shot) or `messages` ([{role,content}, …], multi-turn — curator chat) — exactly one of the two.
+const API_THINKING_HEADROOM = 8000;
 async function callClaude({ system, userMessage, messages, maxTokens = 350, model, tools, apiTools, effort, timeout, onDelta, onStatus, onSources }) {
   const msgs = messages || [{ role: 'user', content: userMessage }];
   // Max-plan route. Skipped when `tools` are declared: the helper streams plain text from the CLI
@@ -4171,7 +4172,10 @@ async function callClaude({ system, userMessage, messages, maxTokens = 350, mode
     throw new Error(tools ? 'this call needs the API key (web search is not available on the Max-plan path)'
                           : 'no api key, and the Max-plan helper is unreachable');
   }
-  const body = { model: model || state.settings.claude.model, max_tokens: maxTokens, system, messages: msgs };
+  // max_tokens covers thinking AND answer: sonnet-5 / opus-5 think adaptively by default, and a 280-token cap left the
+  // thinking nothing to spend or the answer nothing to say. A caller's maxTokens stays the ANSWER budget; this leg adds
+  // room for thinking on top (a ceiling, not a measurement — billed only for what's used). The Max path takes no budget.
+  const body = { model: model || state.settings.claude.model, max_tokens: maxTokens + API_THINKING_HEADROOM, system, messages: msgs };
   // `tools` forces this leg (see above); `apiTools` is the same capability expressed the API's way
   // for a caller whose sub path ALREADY had it — the curator must not lose web search just because
   // the helper was down, or the fallback answers from memory and reads like a different feature.
