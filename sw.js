@@ -1,5 +1,9 @@
 // Bitácora service worker — offline-first for the app shell, pass-through for APIs
-const CACHE_NAME = 'bitacora-v24';
+const CACHE_NAME = 'bitacora-v25';
+// Every sibling PWA is served from the SAME origin (leandrogn10-ctrl.github.io) and shares one CacheStorage:
+// activate deletes only THIS app's old caches — prefix = CACHE_NAME minus its version. The old `k !== CACHE_NAME` filter
+// wiped the siblings' caches (La Olla's, La Forja's media) on every deploy.
+const CACHE_PREFIX = CACHE_NAME.replace(/v?\d+$/, '');
 const APP_SHELL = ['./', './index.html'];
 
 self.addEventListener('install', e => {
@@ -12,7 +16,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
