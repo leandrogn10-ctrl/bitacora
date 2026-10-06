@@ -226,10 +226,14 @@ a:hover { color: var(--accent-soft); }
 .tag-picker-popover .group-section:last-child { margin-bottom: 0; }
 .tag-picker-popover .chips { display: flex; flex-wrap: wrap; gap: 4px 5px; }
 
-.items-grid { column-count: 3; column-gap: 14px; }
-.items-grid .item-card { break-inside: avoid; margin-bottom: 14px; }
-@media (max-width: 1120px) { .items-grid { column-count: 2; } }
-@media (min-width: 1500px) { .items-grid { column-count: 4; } }
+/* Masonry dealt ROW-major: renderShelf deals card i into column i % --cols, so a sorted shelf reads
+   left→right, then down. (CSS column-count filled each column top→bottom — a sort read DOWN the first
+   column.) --cols is the only column count; JS reads it, so the breakpoints live here alone. */
+.items-grid { --cols: 3; display: flex; gap: 14px; align-items: flex-start; }
+.items-grid .shelf-col { flex: 1 1 0; min-width: 0; }
+.items-grid .item-card { margin-bottom: 14px; }
+@media (max-width: 1120px) { .items-grid { --cols: 2; } }
+@media (min-width: 1500px) { .items-grid { --cols: 4; } }
 .spotlight { margin-bottom: 26px; }
 /* FEAT-06 Roulette — filter-bar launcher (wears the live pool count) */
 .filter-right { display: flex; align-items: center; gap: 12px; }
@@ -2658,7 +2662,7 @@ function renderShelf() {
   }
   empty.classList.remove('show');
 
-  grid.innerHTML = items.map((it, idx) => {
+  const cards = items.map((it, idx) => {
     const collection = state.collections.find(c => c.id === it.collectionId);
     const collName = collection ? collection.name : '—';
     const stars = renderStars(it.rating || 0);
@@ -2679,8 +2683,20 @@ function renderShelf() {
       <div class="meta"><span class="status-pill status-${it.status}">${STATUS_LABELS[it.status]}</span><span>${escapeHtml(collName)}</span></div>
       ${byline}${notesPreview}${flagsHtml}${tagsHtml}
     </article>`;
-  }).join('');
+  });
+  const n = shelfCols(grid);
+  const cols = Array.from({ length: n }, () => []);
+  cards.forEach((c, i) => cols[i % n].push(c));
+  grid.dataset.cols = n;
+  grid.innerHTML = cols.map(c => `<div class="shelf-col">${c.join('')}</div>`).join('');
 }
+function shelfCols(grid) { return Math.max(1, parseInt(getComputedStyle(grid).getPropertyValue('--cols'), 10) || 3); }
+// Crossing a breakpoint changes --cols; re-deal only then (a resize within a band changes nothing).
+// Observed on the grid itself, not window 'resize' — that event doesn't fire for every width change.
+new ResizeObserver(() => {
+  const grid = document.getElementById('items-grid');
+  if (grid.style.display !== 'none' && grid.dataset.cols && +grid.dataset.cols !== shelfCols(grid)) renderShelf();
+}).observe(document.getElementById('items-grid'));
 
 function renderTagPicker() {
   const trigger = document.getElementById('tag-picker-trigger');
