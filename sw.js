@@ -1,5 +1,5 @@
 // Bitácora service worker — offline-first for the app shell, pass-through for APIs
-const CACHE_NAME = 'bitacora-v25';
+const CACHE_NAME = 'bitacora-v26';
 // Every sibling PWA is served from the SAME origin (leandrogn10-ctrl.github.io) and shares one CacheStorage:
 // activate deletes only THIS app's old caches — prefix = CACHE_NAME minus its version. The old `k !== CACHE_NAME` filter
 // wiped the siblings' caches (La Olla's, La Forja's media) on every deploy.

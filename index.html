@@ -1187,6 +1187,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
             </select>
           </label>
           <label>Season / part <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— this pass</span><input type="text" name="label" placeholder="S2 · Vol. 3 · NG+…" autocomplete="off" maxlength="40"></label>
+          <label class="span-2 pre-toggle"><div class="toggle-row" style="margin-top:0"><input type="checkbox" name="pre"><span>before Bitácora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— seen before the log existed: keeps its rating, stays off the timeline</span></span></div></label>
           <label>Rating
             <div class="star-input" id="rating-input">
               <div class="star-slot" data-slot="1"><span class="bg">★</span><span class="fg">★</span><button type="button" class="zone half" data-r="0.5" aria-label="0.5 stars"></button><button type="button" class="zone full" data-r="1" aria-label="1 star"></button></div>
@@ -1708,6 +1709,11 @@ function displayTitle(item) {
   return (kindFor(item.collectionId) === 'listen' && item.creator) ? `${item.title} — ${item.creator}` : item.title;
 }
 function latestEvent(item) { return item && item.events && item.events.length ? item.events[item.events.length - 1] : null; }
+// A "before Bitácora" pass (ev.pre) has no real date: its ev.date is only when it was LOGGED. It sorts
+// before every dated pass and never reaches anything that reads time (Diary chapters, On this day,
+// busiest month, encounters over time, completedAt).
+function evSortKey(ev) { return ev.pre ? '' : (ev.date || ''); }
+function byEvDate(a, b) { const x = evSortKey(a), y = evSortKey(b); return x < y ? -1 : x > y ? 1 : 0; }
 // Stamp the flat (projected) fields onto the title from its events.
 // rating = AVERAGE across all rated passes (seasons / rewatches) — the card, filters,
 // stats, gist sync and LeandroOS all read this; per-pass ratings live on the events.
@@ -1728,7 +1734,10 @@ function projectItem(item) {
   item.claudeNote = ev.claudeNote || '';
   item.publicReview = ev.publicReview || '';
   item.claudeReplies = Array.isArray(ev.claudeReplies) ? ev.claudeReplies : [];
-  item.completedAt = ev.status === 'done' ? (ev.date || null) : null;
+  item.completedAt = ev.status === 'done' && !ev.pre ? (ev.date || null) : null;
+  // Flat mirror for LeandroOS: true when every started pass predates the log (nothing here is "recent").
+  const started = (item.events || []).filter(e => e.status !== 'queued');
+  item.pre = started.length > 0 && started.every(e => e.pre);
   return item;
 }
 
@@ -2382,7 +2391,7 @@ function getDiaryEvents() {
     if (view.minRating && (ev.rating || 0) < view.minRating) continue;
     evts.push({ ev, item: it });
   }
-  evts.sort((a, b) => (a.ev.date < b.ev.date ? 1 : a.ev.date > b.ev.date ? -1 : 0));
+  evts.sort((a, b) => -byEvDate(a.ev, b.ev));   // newest first; undated "before" passes sink to the end
   return evts;
 }
 function renderDiary() {
@@ -2411,7 +2420,7 @@ function renderDiary() {
   const avgOf = arr => { const r = arr.filter(x => x.ev.rating > 0); return r.length ? (r.reduce((s, x) => s + x.ev.rating, 0) / r.length).toFixed(1) : null; };
   const rowHtml = ({ ev, item }) => {
     const verb = EVENT_VERB[ev.kind] || 'logged';
-    const day = (ev.date || '').slice(8, 10);
+    const day = ev.pre ? '·' : (ev.date || '').slice(8, 10);
     const stars = ev.rating ? renderStars(ev.rating) : '';
     const note = ev.notes ? `<div class="dz-note">${sourceTag(ev.noteSource, false)}${escapeHtml(ev.notes)}</div>` : '';
     const coll = state.collections.find(c => c.id === item.collectionId);
@@ -2426,8 +2435,10 @@ function renderDiary() {
   let html = filtersActive ? '' : renderOnThisDay();
 
   // Per-year totals for the chapter headers, then group sorted events: year chapter → month section.
+  const pre = evts.filter(e => e.ev.pre);
+  const dated = evts.filter(e => !e.ev.pre);
   const yearTotals = {};
-  for (const e of evts) (yearTotals[(e.ev.date || '').slice(0, 4)] ??= []).push(e);
+  for (const e of dated) (yearTotals[(e.ev.date || '').slice(0, 4)] ??= []).push(e);
   let curYear = null, curMonth = null, monthBucket = [];
   const flushMonth = () => {
     if (!monthBucket.length) return;
@@ -2437,7 +2448,7 @@ function renderDiary() {
     html += monthBucket.map(rowHtml).join('');
     monthBucket = [];
   };
-  for (const e of evts) {
+  for (const e of dated) {
     const y = (e.ev.date || '').slice(0, 4), ym = (e.ev.date || '').slice(0, 7);
     if (ym !== curMonth) { flushMonth(); curMonth = ym; }
     if (y !== curYear) {
@@ -2448,6 +2459,11 @@ function renderDiary() {
     monthBucket.push(e);
   }
   flushMonth();
+  if (pre.length) {
+    const pa = avgOf(pre);
+    html += `<div class="dz-year dz-pre"><span class="dz-yearnum">before</span><span class="dz-yearmeta">${pre.length} ${pre.length === 1 ? 'encounter' : 'encounters'} before Bitácora${pa ? ` · ★${pa}` : ''}</span></div>`;
+    html += pre.map(rowHtml).join('');
+  }
   tl.innerHTML = html;
 }
 // Past-year encounters that fall on today's month/day — a calm, ignorable callback (pull, not push).
@@ -2455,7 +2471,7 @@ function renderOnThisDay() {
   const td = today(), mmdd = td.slice(5), curY = td.slice(0, 4);
   const hits = [];
   for (const it of state.items) for (const ev of (it.events || [])) {
-    if (ev.status === 'queued') continue;
+    if (ev.status === 'queued' || ev.pre) continue;
     if ((ev.date || '').slice(5) === mmdd && (ev.date || '').slice(0, 4) !== curY) hits.push({ ev, item: it });
   }
   if (!hits.length) return '';
@@ -2496,7 +2512,7 @@ function renderObservatory() {
   const mean = rated.length ? (rated.reduce((s, r) => s + r.rating, 0) / rated.length).toFixed(2) : '—';
   const dropRate = titles ? Math.round(state.items.filter(i => i.status === 'dropped').length / titles * 100) : 0;
   const monthCount = {};
-  for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued') continue; const ym = (ev.date || '').slice(0, 7); if (ym) monthCount[ym] = (monthCount[ym] || 0) + 1; }
+  for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued' || ev.pre) continue; const ym = (ev.date || '').slice(0, 7); if (ym) monthCount[ym] = (monthCount[ym] || 0) + 1; }
   const busiest = Object.entries(monthCount).sort((a, b) => b[1] - a[1])[0];
   const busiestLabel = busiest ? `${MONTH_NAMES[+busiest[0].slice(5, 7) - 1].slice(0, 3)} '${busiest[0].slice(2, 4)}` : '—';
   const stat = (n, l) => `<div class="ob-stat"><div class="ob-stat-n">${n}</div><div class="ob-stat-l">${l}</div></div>`;
@@ -2521,7 +2537,7 @@ function renderObservatory() {
     const best = Object.entries(groups).sort((a, b) => b[1].length - a[1].length)[0];
     if (!best || best[1].length < 2) return null;
     const [lbl, evs] = best;
-    const rs = evs.filter(e => e.rating > 0).slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const rs = evs.filter(e => e.rating > 0).slice().sort(byEvDate);
     const swing = rs.length > 1 ? +(rs[rs.length - 1].rating - rs[0].rating).toFixed(1) : null;
     return { it, lbl, passes: evs.length, first: rs[0]?.rating ?? null, last: rs[rs.length - 1]?.rating ?? null, swing };
   }).filter(Boolean).sort((a, b) => b.passes - a.passes || Math.abs(b.swing || 0) - Math.abs(a.swing || 0));
@@ -2599,7 +2615,7 @@ function renderObservatory() {
 
   // Encounters over time (by year, always event-based)
   const yc = {};
-  for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued') continue; const y = (ev.date || '').slice(0, 4); if (y) yc[y] = (yc[y] || 0) + 1; }
+  for (const it of state.items) for (const ev of (it.events || [])) { if (ev.status === 'queued' || ev.pre) continue; const y = (ev.date || '').slice(0, 4); if (y) yc[y] = (yc[y] || 0) + 1; }
   const years = Object.entries(yc).sort((a, b) => a[0] - b[0]);
   const yMax = Math.max(1, ...years.map(y => y[1]));
   html += obsPanel('Encounters over time', `<div class="ob-hist">${years.map(([y, n]) => `<div class="ob-hbar" title="${y} · ${n}"><div class="ob-hbar-n">${n}</div><div class="ob-hbar-track"><div class="ob-hbar-fill" style="height:${Math.round(n / yMax * 100)}%;background:linear-gradient(180deg, var(--gold), color-mix(in srgb, var(--gold) 60%, var(--accent2)))"></div></div><div class="ob-hbar-x">'${y.slice(2)}</div></div>`).join('')}</div>`, true);
@@ -2883,6 +2899,7 @@ function openEntryModal(item) {
     entryForm.collectionId.value = item.collectionId;
     entryForm.status.value = ev?.status || item.status;
     entryForm.label.value = ev?.label || '';
+    entryForm.pre.checked = !!ev?.pre;
     entryForm.year.value = item.year || '';
     entryForm.creator.value = item.creator || '';
     entryForm.notes.value = ev?.notes || '';
@@ -2946,7 +2963,7 @@ function renderEventHistory(item) {
     const note = ev.notes ? `<span class="eh-note">${sourceTag(ev.noteSource)}${escapeHtml(ev.notes)}</span>` : '<span class="eh-note"></span>';
     const del = multi ? `<button type="button" class="eh-del" data-ev="${escapeAttr(ev.id)}" title="remove this pass">×</button>` : '';
     const isCurrent = !relogging && ev.id === (editingEventId || latest?.id);
-    return `<div class="eh-row${isCurrent ? ' current' : ''}" data-ev-row="${escapeAttr(ev.id)}" title="click to edit this pass"><span class="eh-date">${escapeHtml(ev.date || '—')}</span><span class="eh-verb">${verb}</span>${label}<span class="eh-rating">${stars}</span>${note}<span class="eh-status">${escapeHtml(ev.status || '')}</span>${del}</div>`;
+    return `<div class="eh-row${isCurrent ? ' current' : ''}" data-ev-row="${escapeAttr(ev.id)}" title="click to edit this pass"><span class="eh-date">${ev.pre ? 'before' : escapeHtml(ev.date || '—')}</span><span class="eh-verb">${verb}</span>${label}<span class="eh-rating">${stars}</span>${note}<span class="eh-status">${escapeHtml(ev.status || '')}</span>${del}</div>`;
   }).join('');
 }
 // Click a Diary row → the form edits THAT pass (season commentary, an old status…).
@@ -2957,6 +2974,7 @@ function loadPassIntoForm(item, ev) {
   setRating(ev.rating || 0);
   entryForm.status.value = ev.status || 'queued';
   entryForm.label.value = ev.label || '';
+  entryForm.pre.checked = !!ev.pre;
   entryForm.notes.value = ev.notes || '';
   setNoteSource(ev.noteSource || '');
   entryForm.claudeNote.value = ev.claudeNote || '';
@@ -2981,6 +2999,7 @@ function armRelog() {
   setRating(0);
   entryForm.status.value = 'done';
   entryForm.label.value = '';
+  entryForm.pre.checked = false;
   entryForm.notes.value = '';
   setNoteSource('');
   entryForm.claudeNote.value = '';
@@ -3119,6 +3138,7 @@ entryForm.addEventListener('submit', e => {
     year: (() => { const y = parseInt(fd.get('year'), 10); return Number.isInteger(y) && y > 0 ? y : null; })(),
     creator: (fd.get('creator') || '').trim().slice(0, 120) || null,
     notes: fd.get('notes').trim(),
+    pre: fd.get('pre') === 'on',
     noteSource: (fd.get('noteSource') || '').trim().slice(0, 80),
     claudeNote: fd.get('claudeNote').trim(),
     publicReview: fd.get('publicReview').trim(),
@@ -3140,7 +3160,7 @@ entryForm.addEventListener('submit', e => {
       live.title = data.title; live.collectionId = data.collectionId; live.tags = data.tags; live.config = data.config; live.year = data.year; live.creator = data.creator; live.updatedAt = now;
       if (isRelog) {
         // Append a brand-new encounter (rewatch / replay / reread) — the title's other passes stay.
-        live.events.push({ id: uid(), date: today(), kind: kindFor(data.collectionId), label: data.label,
+        live.events.push({ id: uid(), date: today(), kind: kindFor(data.collectionId), label: data.label, ...(data.pre ? { pre: true } : {}),
           rating: data.rating, status: data.status, notes: data.notes, noteSource: data.noteSource, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] });
         toast('logged again.');
       } else {
@@ -3149,10 +3169,11 @@ entryForm.addEventListener('submit', e => {
         if (!ev) { ev = { id: uid(), date: today(), kind: kindFor(data.collectionId), claudeReplies: [] }; live.events = [ev]; }
         const wasDone = ev.status === 'done';
         ev.rating = data.rating; ev.status = data.status; ev.label = data.label; ev.notes = data.notes; ev.noteSource = data.noteSource; ev.claudeNote = data.claudeNote; ev.publicReview = data.publicReview; ev.kind = kindFor(data.collectionId);
+        if (data.pre) ev.pre = true; else delete ev.pre;
         if (data.status === 'done' && !wasDone) ev.date = today();   // stamp the finish date when entering "done"
         // The stamped date can make an edited pass the newest (finishing S6 after S5 was
         // logged) — re-sort (stable) so latestEvent/projection/takes track reality.
-        live.events.sort((a, b) => ((a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0));
+        live.events.sort(byEvDate);
       }
       projectItem(live);
       savedItem = live;
@@ -3161,7 +3182,7 @@ entryForm.addEventListener('submit', e => {
     savedItem = {
       id: uid(), title: data.title, collectionId: data.collectionId, tags: data.tags, config: data.config,
       year: data.year, creator: data.creator, createdAt: today(), updatedAt: now,
-      events: [{ id: uid(), date: today(), kind: kindFor(data.collectionId), label: data.label, rating: data.rating, status: data.status,
+      events: [{ id: uid(), date: today(), kind: kindFor(data.collectionId), label: data.label, ...(data.pre ? { pre: true } : {}), rating: data.rating, status: data.status,
                  notes: data.notes, noteSource: data.noteSource, claudeNote: data.claudeNote, publicReview: data.publicReview, claudeReplies: [] }],
     };
     projectItem(savedItem);
@@ -3275,7 +3296,7 @@ document.getElementById('me-merge-btn').addEventListener('click', () => {
       target.tags = [...new Set([...(target.tags || []), ...(it.tags || [])])].slice(0, 30);
     }
   }
-  allEvents.sort((a, b) => ((a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0));
+  allEvents.sort(byEvDate);
   target.title = finalTitle;
   target.events = allEvents;
   target.updatedAt = Date.now();
@@ -4422,7 +4443,7 @@ function buildClaudeMessage(entry, isNew) {
   lines.push(`- Status: ${entry.status}`);
   // Season/rewatch context: the passes before this one, so takes can track the arc.
   const prior = (entry.events || []).slice(0, -1);
-  if (prior.length) lines.push(`- His prior passes: ${prior.map(e => `${e.label || 'pass'}${e.rating ? ` ★${e.rating}` : ' (unrated)'} · ${e.date || '—'}`).join(' — ')}`);
+  if (prior.length) lines.push(`- His prior passes: ${prior.map(e => `${e.label || 'pass'}${e.rating ? ` ★${e.rating}` : ' (unrated)'} · ${e.pre ? 'before he kept this log' : (e.date || '—')}`).join(' — ')}`);
   // React to THIS pass's rating; the projected item.rating is the cross-pass average.
   const evRating = latestEvent(entry)?.rating || 0;
   if (evRating) lines.push(`- Rating: ${evRating}/5${(entry.events || []).length > 1 ? ` (this pass — his average across passes is ★${entry.rating})` : ''}`);
