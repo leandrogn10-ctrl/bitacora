@@ -675,6 +675,9 @@ body.curator-open .claude-panel { right: 512px; }   /* a take firing mid-convers
 .event-history-section h4 { font-family: 'Instrument Serif', serif; font-size: 18px; font-style: italic; color: var(--gold); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: baseline; }
 .event-history-section h4 button { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 9px; border: 1px solid var(--c-gold-bd); border-radius: 2px; transition: background 0.12s; }
 .event-history-section h4 button:hover { background: var(--c-gold-bg); }
+.event-history-section h4 .eh-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.event-history-section h4 #ask-claude-btn { color: var(--c-dusty-fg); border-color: var(--c-dusty-bd); }
+.event-history-section h4 #ask-claude-btn:hover { background: var(--c-dusty-bg); }
 .eh-row { display: flex; align-items: center; gap: 12px; padding: 7px 6px; border-bottom: 1px solid var(--line-soft); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
 .eh-row:last-child { border-bottom: none; }
 .eh-row.current { background: color-mix(in srgb, var(--accent) 9%, transparent); border-radius: 3px; }
@@ -1225,7 +1228,7 @@ kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var
           <label class="span-2">Setup / config<textarea name="config" class="config-field" rows="4" placeholder="for games: platform, sensitivity, keybinds, mods…"></textarea></label>
         </div>
         <div id="event-history-section" class="event-history-section" style="display:none">
-          <h4>Diary <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— click a pass to edit it</span> <button type="button" id="relog-btn" title="log another encounter — rewatch / replay / reread">↺ log again</button></h4>
+          <h4>Diary <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— click a pass to edit it</span> <span class="eh-actions"><button type="button" id="relog-btn" title="log another encounter — rewatch / replay / reread">↺ log again</button><button type="button" id="ask-claude-btn" title="run Claude on the saved entry again: fill missing year / creator / tags, then a fresh take (unsaved edits in this form are discarded)">✦ ask Claude</button></span></h4>
           <div id="event-history-list"></div>
         </div>
         <div id="claude-takes-section" class="claude-takes-section" style="display:none">
@@ -3010,6 +3013,18 @@ function armRelog() {
   setTimeout(() => entryForm.notes.focus(), 60);   // after openEntryModal's title-focus (50ms)
 }
 document.getElementById('relog-btn').addEventListener('click', armRelog);
+// Re-run the on-save Claude work by hand — a take only ever fires from a save that CHANGED something,
+// so a call that failed once (offline, helper down) had no way back short of faking an edit.
+// Runs on the SAVED entry; the modal closes because the panel can't render above a top-layer dialog.
+async function askClaudeAgain() {
+  const item = editing && state.items.find(i => i.id === editing); if (!item) return;
+  if (!isClaudeEnabled()) { toast('claude is off on this device — open ⚙ settings.', true); return; }
+  closeEntryModal();
+  showClaudePanel({ title: item.title, status: 'thinking', text: needsMeta(item) ? 'identifying the work…' : 'thinking…' });
+  if (needsMeta(item)) await autoEnrich(item.id);
+  const live = state.items.find(i => i.id === item.id); if (live) respondOnLog(live, false);
+}
+document.getElementById('ask-claude-btn').addEventListener('click', askClaudeAgain);
 // Open an item's editor already armed for a new pass (the ⌘K ⌘⏎ rewatch shortcut).
 function relogItem(item) { openEntryModal(item); armRelog(); }
 // Remove one past encounter (never the last). Non-destructive-with-confirm; the title stays.
