@@ -428,6 +428,8 @@ dialog { border: none; padding: 0; background: transparent; color: inherit; max-
 dialog::backdrop { background: rgba(8, 5, 3, 0.78); backdrop-filter: blur(4px); }
 .modal { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 3px; width: min(620px, 92vw); max-height: 88vh; display: flex; flex-direction: column; box-shadow: var(--shadow); animation: modalIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .modal.wide { width: min(760px, 94vw); }
+/* A <form> wrapping header/body/footer must pass the flex column through, or the body never scrolls and the form spills past the frame. */
+.modal > form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 @keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .modal header { display: flex; justify-content: space-between; align-items: baseline; padding: 22px 26px 14px; border-bottom: 1px solid var(--line); }
 .modal header h2 { font-size: 26px; font-style: italic; }
