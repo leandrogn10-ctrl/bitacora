@@ -2114,7 +2114,7 @@ function getFilteredItems() {
   }
   switch (view.sort) {
     case 'alpha':   items.sort((a, b) => a.title.localeCompare(b.title)); break;
-    case 'rating':  items.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
+    case 'rating':  items.sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.updatedAt || 0) - (a.updatedAt || 0)); break;
     case 'status': {
       const order = { active: 0, queued: 1, done: 2, dropped: 3 };
       items.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
