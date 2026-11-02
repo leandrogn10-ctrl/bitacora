@@ -4206,9 +4206,9 @@ const API_THINKING_HEADROOM = 8000;
 async function callClaude({ system, userMessage, messages, maxTokens = 350, model, tools, apiTools, effort, timeout, onDelta, onStatus, onSources }) {
   const msgs = messages || [{ role: 'user', content: userMessage }];
   // Max-plan route. Skipped when `tools` are declared: the helper streams plain text from the CLI
-  // and has no way to hand back Anthropic's server-tool result blocks, so a tool-bearing request
-  // (tier-2 enrich web search) must stay on the API. That's a capability limit, not a preference —
-  // so it overrides even 'sub' rather than failing the call.
+  // and has no way to hand back Anthropic's server-tool result blocks, so a request that needs those
+  // blocks must stay on the API. That's a capability limit, not a preference — so it overrides even
+  // 'sub' rather than failing the call. Web search alone doesn't need it: pass `apiTools` (the CLI searches).
   if (!tools && canUseSub()) {
     try {
       const t = await callClaudeSub({ system, messages: msgs, model: model || state.settings.claude.model, effort, timeout, onDelta, onStatus, onSources });
@@ -4323,7 +4323,9 @@ async function fetchMeta(title, collName, hints = {}) {
       + enrichFieldSpec(genreTax)
       + 'Base year/creator on what the search confirms; if the search cannot resolve the work, use null (and [] for mood/genre). Never guess.';
     try {
-      const t2 = parseMeta(await callClaude({ system: t2System, userMessage, maxTokens: 700, model: ENRICH_MODEL, tools: ENRICH_SEARCH_TOOLS }), genreVocab);
+      // apiTools, not tools: the helper's CLI searches on its own (WebSearch), so this rides the Max plan
+      // like the curator (~14s on Wildwood, 2-nov) and only the fallback pays for API search.
+      const t2 = parseMeta(await callClaude({ system: t2System, userMessage, maxTokens: 700, model: ENRICH_MODEL, apiTools: ENRICH_SEARCH_TOOLS, effort: 'medium', timeout: 120 }), genreVocab);
       if (t2) r = r ? { year: t2.year ?? r.year, creator: t2.creator ?? r.creator, cast: t2.cast.length ? t2.cast : r.cast, mood: t2.mood.length ? t2.mood : r.mood, pace: t2.pace ?? r.pace, genre: t2.genre.length ? t2.genre : r.genre } : t2;
     } catch (e) { console.warn('fetchMeta tier2', e); }
   }
