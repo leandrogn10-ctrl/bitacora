@@ -4264,7 +4264,8 @@ const ENRICH_SEARCH_TOOLS = [{ type: 'web_search_20260209', name: 'web_search', 
 function enrichFieldSpec(genreTax = null) {
   const genreList = taxonomyPromptStr(genreTax);
   return 'Return ONLY a JSON object as your final answer, nothing after it: '
-    + '{"year": number|null, "creator": string|null, "cast": string[], "mood": string[], "pace": "slow"|"medium"|"fast"|null, "genre": string[]}. '
+    + '{"work": string|null, "year": number|null, "creator": string|null, "cast": string[], "mood": string[], "pace": "slow"|"medium"|"fast"|null, "genre": string[]}. '
+    + 'work = the exact title of the work your other fields describe, as it was released (null if you did not identify one). '
     + 'year = original release/publication year of the WORK (for a translated edition, the original — not the translation). '
     + 'creator = primary maker as a canonical full name: director (film/TV), author (book), studio/developer (game), artist/band (album). '
     + 'cast = the top-billed MAIN and SECONDARY performers as canonical full names — film/TV: actors; games: principal voice cast. 0-8 entries, no bit parts or extras. [] for books, albums, or anything without performers. '
@@ -4280,6 +4281,7 @@ function parseMeta(txt, genreVocab = []) {
   const m = txt.match(/\{[\s\S]*\}/); if (!m) return null;
   let d; try { d = JSON.parse(m[0]); } catch { return null; }
   return {
+    work: (typeof d.work === 'string' && d.work.trim()) ? d.work.trim().slice(0, 200) : null,
     year: Number.isInteger(d.year) && d.year > 0 ? d.year : null,
     creator: (typeof d.creator === 'string' && d.creator.trim()) ? d.creator.trim().slice(0, 120) : null,
     cast: Array.isArray(d.cast) ? [...new Set(d.cast.map(x => String(x).trim().slice(0, 80)).filter(Boolean))].slice(0, 8) : [],
@@ -4290,6 +4292,16 @@ function parseMeta(txt, genreVocab = []) {
       : [],
   };
 }
+// Did the model describe the title he TYPED? Tier 1 answers from memory, and memory snaps a
+// title newer than its training onto the famous neighbour: "Godzilla Minus Zero" (Nov 2026)
+// came back as Minus One — 2023, its whole cast — fully filled, so no empty field escalated.
+// Strict equality on purpose: containment would pass "Dune" for "Dune: Part Two". A miss only
+// costs a tier-2 search (translated titles land there too, which is what tier 2 is for).
+function normTitle(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim().replace(/^(the|a|an) /, '');
+}
+function sameWork(typed, work) { return !!work && normTitle(typed) === normTitle(work); }
 // Cast only makes sense for performed media (film/TV = watch, games = play).
 function castApplies(collectionId) { return ['watch', 'play'].includes(kindFor(collectionId)); }
 // Research a work and return {year,creator,mood[],pace} or null. Two tiers:
@@ -4312,6 +4324,9 @@ async function fetchMeta(title, collName, hints = {}) {
   let r = null;
   try { r = parseMeta(await callClaude({ system: t1System, userMessage, maxTokens: 280, model: ENRICH_MODEL }), genreVocab); }
   catch (e) { console.warn('fetchMeta tier1', e); }
+  // A complete answer about a DIFFERENT work is worse than none: drop it whole, so none of its
+  // fields leak into tier 2's merge, and let the search identify the title he actually typed.
+  if (r && !sameWork(title, r.work)) { console.warn('fetchMeta tier1 described another work', { typed: title, work: r.work }); r = null; }
 
   // Tier 2 — memory couldn't place it; search the web before giving up. Escalate when the
   // merged view (model answer + typed hints) still lacks year/creator, or when no mood AND
