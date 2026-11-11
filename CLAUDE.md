@@ -56,8 +56,11 @@ chart lib. ("Ask the Observatory" — aggregates→Claude paragraph — is the o
 
 ## Claude integration
 `callClaude({system, userMessage, maxTokens, model})` — `model` overrides `state.settings.claude.model`.
-`respondOnLog` (takes on save), `buildClaudeSystem/Message`. `fetchYearCreator` runs on **Sonnet**
-(`ENRICH_MODEL = 'claude-sonnet-4-6'`) with an "abstain-don't-guess" prompt; `autoEnrich` (on new log) +
+`respondOnLog` (takes on save), `buildClaudeSystem/Message`. `fetchMeta` runs on **Sonnet**
+(`ENRICH_MODEL`, an exact id — read it in the code) in two tiers: training memory, then web search. A FRESH log
+(`autoEnrich`, the form's ✦ fill) skips memory and searches; the backfill asks memory TWICE and believes it only when
+both answers name the typed title and agree on year + creator (`memoryAgrees`) — the model can echo a post-cutoff
+title onto a different film (Ramayana: Rise of a Legend → 1994 Yugo Sako, 11-nov-2026). `r.via` says which tier served; `autoEnrich` (on new log) +
 `enrichLibrary` (backfill: ⌘K "Enrich library" / Settings button). Direct browser API call; key lives in
 settings, **never logged or exported**.
 

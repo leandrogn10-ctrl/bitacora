@@ -3349,7 +3349,7 @@ document.getElementById('enrich-btn').addEventListener('click', async () => {
     const r = await fetchMeta(title, coll?.name, {
       creator: entryForm.creator.value.trim() || null,
       year: parseInt(entryForm.year.value, 10) || null,
-      collectionId: entryForm.collectionId.value,
+      collectionId: entryForm.collectionId.value, fresh: true,
       onSearch: () => { btn.textContent = '✦ searching…'; },
     });
     if (r && (r.year || r.creator || r.mood.length || r.pace || r.genre.length)) {
@@ -4302,10 +4302,16 @@ function normTitle(s) {
     .replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim().replace(/^(the|a|an) /, '');
 }
 function sameWork(typed, work) { return !!work && normTitle(typed) === normTitle(work); }
+// Two memory answers count as ONE identification only when both describe the typed title and tell
+// the same year + creator. A null on either side is a disagreement, never a wildcard.
+function memoryAgrees(typed, a, b) {
+  return !!a && !!b && sameWork(typed, a.work) && sameWork(typed, b.work)
+    && !!a.year && a.year === b.year && !!a.creator && normTitle(a.creator) === normTitle(b.creator);
+}
 // Cast only makes sense for performed media (film/TV = watch, games = play).
 function castApplies(collectionId) { return ['watch', 'play'].includes(kindFor(collectionId)); }
 // Research a work and return {year,creator,mood[],pace} or null. Two tiers:
-//   1. training memory, abstain-don't-guess — instant, covers the famous 90%.
+//   1. training memory, abstain-don't-guess, asked twice (see memoryAgrees) — backfill only; a fresh log skips it.
 //   2. if identification failed (translated title, recent release, obscure work) →
 //      retry once WITH web search so Sonnet can actually look it up.
 // hints: { creator, year, onSearch } — known fields disambiguate; onSearch fires when tier 2 starts.
@@ -4321,12 +4327,27 @@ async function fetchMeta(title, collName, hints = {}) {
   const t1System = 'You identify a known work of media from training memory. ' + enrichFieldSpec(genreTax)
     + 'CRITICAL: only fill a field if you identify this EXACT work with HIGH confidence from training. '
     + 'Obscure / generic / ambiguous / very recent → null (and [] for mood/genre). A confabulated value is far worse than null. Do not guess.';
+  // Memory is asked TWICE and believed only when both answers name the typed title AND agree on
+  // year + creator. `work` is the model's own report and it can simply echo what he typed:
+  // "Ramayana: Rise of a Legend" (Nov 2026, retitled after training) came back 1 run in 5 with the
+  // typed title on a complete, confident, different film — 1994 Yugo Sako on his entry, 2015 Chetan
+  // Desai in the re-run — so the title check alone passed it. A work the model knows answers the
+  // same twice; a confabulation wanders. A FRESH log never asks memory at all: what he logs today
+  // skews to exactly the releases training cannot know, and nothing is waiting on those seconds.
+  const askMemory = async () => {
+    try { return parseMeta(await callClaude({ system: t1System, userMessage, maxTokens: 280, model: ENRICH_MODEL }), genreVocab); }
+    catch (e) { console.warn('fetchMeta tier1', e); return null; }
+  };
   let r = null;
-  try { r = parseMeta(await callClaude({ system: t1System, userMessage, maxTokens: 280, model: ENRICH_MODEL }), genreVocab); }
-  catch (e) { console.warn('fetchMeta tier1', e); }
-  // A complete answer about a DIFFERENT work is worse than none: drop it whole, so none of its
-  // fields leak into tier 2's merge, and let the search identify the title he actually typed.
-  if (r && !sameWork(title, r.work)) { console.warn('fetchMeta tier1 described another work', { typed: title, work: r.work }); r = null; }
+  if (!hints.fresh) {
+    const [a, b] = await Promise.all([askMemory(), askMemory()]);
+    // A complete answer about a DIFFERENT work is worse than none: drop it whole, so none of its
+    // fields leak into tier 2's merge, and let the search identify the title he actually typed.
+    if (memoryAgrees(title, a, b)) r = a;
+    else console.warn('fetchMeta tier1 not believed', { typed: title, a: a && [a.work, a.year, a.creator], b: b && [b.work, b.year, b.creator] });
+  }
+  const fromMemory = !!r;
+  let searched = false;
 
   // Tier 2 — memory couldn't place it; search the web before giving up. Escalate when the
   // merged view (model answer + typed hints) still lacks year/creator, or when no mood AND
@@ -4341,9 +4362,12 @@ async function fetchMeta(title, collName, hints = {}) {
       // apiTools, not tools: the helper's CLI searches on its own (WebSearch), so this rides the Max plan
       // like the curator (~14s on Wildwood, 2-nov) and only the fallback pays for API search.
       const t2 = parseMeta(await callClaude({ system: t2System, userMessage, maxTokens: 700, model: ENRICH_MODEL, apiTools: ENRICH_SEARCH_TOOLS, effort: 'medium', timeout: 120 }), genreVocab);
+      if (t2) searched = true;
       if (t2) r = r ? { year: t2.year ?? r.year, creator: t2.creator ?? r.creator, cast: t2.cast.length ? t2.cast : r.cast, mood: t2.mood.length ? t2.mood : r.mood, pace: t2.pace ?? r.pace, genre: t2.genre.length ? t2.genre : r.genre } : t2;
     } catch (e) { console.warn('fetchMeta tier2', e); }
   }
+  // Which path SERVED the answer (not which was configured) — the one thing nothing recorded on 11-nov.
+  if (r) { r.via = searched ? 'search' : fromMemory ? 'memory' : null; console.info('fetchMeta', { typed: title, via: r.via, year: r.year, creator: r.creator }); }
   return r;
 }
 // A gap: the model landed on a bare umbrella tag (none of its own leaves fit) — logged for
@@ -4404,7 +4428,7 @@ async function autoEnrich(itemId) {
   try {
     const coll = state.collections.find(c => c.id === it.collectionId);
     const r = await fetchMeta(it.title, coll?.name, {
-      creator: it.creator, year: it.year, wantsCast: castApplies(it.collectionId), collectionId: it.collectionId,
+      creator: it.creator, year: it.year, wantsCast: castApplies(it.collectionId), collectionId: it.collectionId, fresh: true,
       onSearch: () => toast('✦ hmm — searching the web for this one…'),
     });
     const live = state.items.find(i => i.id === itemId); if (!live) return;
